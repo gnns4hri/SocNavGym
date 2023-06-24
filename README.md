@@ -15,6 +15,7 @@
 12. [Config File](https://github.com/gnns4hri/SocNavGym/tree/main#config-file)
 13. [Wrappers](https://github.com/gnns4hri/SocNavGym/tree/main#wrappers)
 14. [Training Agents](https://github.com/gnns4hri/SocNavGym/tree/main#training-agents)
+15. [Manually Controlling the Robot](https://github.com/gnns4hri/SocNavGym/tree/main#manually-controlling-the-robot)
 
 
 ## Description
@@ -639,3 +640,23 @@ The script to train the agents is `stable_dqn.py`. This is an implementation of 
     ```
 
 Type in `python3 stable_dqn.py -h` for further information about the different arguments. 
+
+## Manually Controlling the Robot
+You can control the robot using a joystick and also record observations, actions and rewards. To do this, run the `manual_control_js.py`.
+```bash
+usage: python3 manual_control_js.py [-h] -n NUM_EPISODES [-j JOYSTICK_ID] [-c CONFIG] [-r RECORD] [-s START]
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -n NUM_EPISODES, --num_episodes NUM_EPISODES
+                        number of episodes
+  -j JOYSTICK_ID, --joystick_id JOYSTICK_ID
+                        Joystick identifier
+  -c CONFIG, --config CONFIG
+                        Environment config file
+  -r RECORD, --record RECORD
+                        Whether you want to record the observations, and actions or not
+  -s START, --start START
+                        starting episode number
+
+```

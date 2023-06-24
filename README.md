@@ -1,5 +1,21 @@
 # SocNavGym : An environment for Social Navigation
 
+## Table of Contents
+1. [Description](https://github.com/gnns4hri/SocNavGym/tree/main#description)
+2. [Dependenices](https://github.com/gnns4hri/SocNavGym/tree/main#dependencies)
+3. [Usage](https://github.com/gnns4hri/SocNavGym/tree/main#usage)
+4. [Sample Code](https://github.com/gnns4hri/SocNavGym/tree/main#sample-code)
+5. [About the environment](https://github.com/gnns4hri/SocNavGym/tree/main#about-the-environment)
+6. [Conventions](https://github.com/gnns4hri/SocNavGym/tree/main#conventions)
+7. [Observation Space](https://github.com/gnns4hri/SocNavGym/tree/main#observation-space)
+8. [Action Space](https://github.com/gnns4hri/SocNavGym/tree/main#action-space)
+9. [Info Dict](https://github.com/gnns4hri/SocNavGym/tree/main#info-dict)
+10. [Reward Function](https://github.com/gnns4hri/SocNavGym/tree/main#reward-function)
+11. [Writing Custom Reward Functions](https://github.com/gnns4hri/SocNavGym/tree/main#writing-custom-reward-functions)
+12. [Config File](https://github.com/gnns4hri/SocNavGym/tree/main#config-file)
+13. [Wrappers](https://github.com/gnns4hri/SocNavGym/tree/main#wrappers)
+
+
 ## Description
 This repository contains the implementation of our paper "SocNavGym: A Reinforcement Learning Gym for Social Navigation", published in IEEE ROMAN, 2023. 
 
@@ -31,14 +47,14 @@ for i in range(1000):
 ```
 
 ## About the environment
-```SocNavGym-v1``` is a highly customisable environment and the parameters of the environment can be controlled using the config files. You can have a look at the config files in [environment_configs/](https://github.com/gnns4hri/SocNavGym/tree/main/environment_configs). Comments have been written against each parameter in the config file for better understanding. Other than the robot, the environment supports entities like plants, tables, laptops. The environment also models interactions between humans, and human-laptop. It can also contain moving crowds, and static crowds. The environment follows the OpenAI Gym format implementing the `step`, `render` and `reset` functions. The environment uses the latest Gym API (gym 0.26.2).
+```SocNavGym-v1``` is a highly customisable environment and the parameters of the environment can be controlled using the config files. There are a few config files in [environment_configs/](https://github.com/gnns4hri/SocNavGym/tree/main/environment_configs). For a better understanding of each parameter refer to [this](https://github.com/gnns4hri/SocNavGym#config-file) section. Other than the robot, the environment supports entities like plants, tables, laptops. The environment also models interactions between humans, and human-laptop. It can also contain moving crowds, and static crowds, and the ability to form new crowds, as well as disperse existing crowds. The environment follows the OpenAI Gym format implementing the `step`, `render` and `reset` functions. The environment uses the latest Gym API (gym 0.26.2).
 
 ## Conventions
 * X-axis points in the direction of zero-angle.
 * The orientation field of the humans and the robot stores the angle between the X-axis of the human/robot and the X-axis of the ground frame.
 
 ## Observation Space
-The observation returned when ```env.step(action)``` is called, consists of the following (all in the<b> robot frame</b> unless you're using the `WorldFrameObservations` wrapper):
+The observation returned when ```env.step(action)``` is called, consists of the following (all in the<b> robot frame</b> unless you're using the [`WorldFrameObservations`](https://github.com/gnns4hri/SocNavGym#wrappers) wrapper):
 
 The observation is of the type `gym.Spaces.Dict`. The dictionary has the following keys:
 1. ```"robot"``` : This is a vector of shape (9,) of which the first six values represent the one-hot encoding of the robot, i.e ```[1, 0, 0, 0, 0, 0]```. The next two values represent the goal's x and y coordinates in the robot frame and the last value is the robot's radius.
@@ -109,16 +125,16 @@ The observation is of the type `gym.Spaces.Dict`. The dictionary has the followi
 
     * gaze value: for humans, it is 1 if the robot lies in the line of sight of humans, otherwise 0. For entities other than humans, the gaze value is 0. Line of sight of the humans is decided by whether the robot lies from -gaze_angle/2 to +gaze_angle/2 in the human frame. Gaze angle can be changed by changing the `gaze_angle` parameter in the config file.
 
-    The observation vector of the all entities of the same type would be concatenated into a single vector and that would be placed in the corresponding key in the dictionary. For example, let's say there are 4 humans, then the four vectors of shape (14,) would be concatenated to (56,) and the `"humans"` key in the observation dictionary would contain this vector. Individual observations can be accessed by simply reshaping the observation to (-1, 14).
+    The observation vector of the all entities of the same type would be concatenated into a single vector and that would be placed in the corresponding key in the dictionary. For example, let's say there are 4 humans, then the four vectors of shape (14,) would be concatenated to (56,) and the `"humans"` key in the observation dictionary would contain the vector of size (56, ). Individual observations can be accessed by simply reshaping the observation to (-1, 14).
 
-    For walls, each wall is segmented into smaller walls of size `wall_segment_size` from the config. Observations from each segment are returned in `obs["walls"]`
-3. The observation space of the environment can be obtained by calling `env.observation_space`. The 
+    For walls, each wall is segmented into smaller walls of size `wall_segment_size` (can be found the config). Observations from each segment are returned in `obs["walls"]`
+3. The observation space of the environment can be obtained by calling `env.observation_space`.  
 
 ## Action Space
-The action space consists of three components, vx, vy, and va. Here the X axis is the robot's heading direction. For differential drive robots, the component vy would be 0. All the three components take in a value between -1 and 1, which will be later mapped to the corresponding speed using the maximum set in the config file. If you want to use a discrete action space, you could use the `DiscreteActions` wrapper.
+The action space for holonomic robot consists of three components, vx, vy, and va. Here the X axis is the robot's heading direction. For differential drive robots, the component vy would be 0. You can control the type of the robot using the config file's `robot_type` parameter. All the three components take in a value between -1 and 1, which will be later mapped to the corresponding speed by using the maxima set in the config file. If you want to use a discrete action space, you could use the [`DiscreteActions`](https://github.com/gnns4hri/SocNavGym#wrappers) wrapper.
 
 ## Info Dict
-The environment also returns meaningful metrics in the info dict (returned during `env.step()` ). On termination of an episode, the reason of termination can be found out using the info dict. The corresponding key from the following keys is set to `True`.
+The environment also returns meaningful metrics in the info dict (returned during `env.step(action)` ). On termination of an episode, the reason of termination can be found out using the info dict. The corresponding key from the following keys is set to `True`.
 1. `"OUT_OF_MAP"` : Whether the robot went out of the map
 2. `"REACHED_GOAL"` : Whether the robot reached the goal
 3. `"COLLISION_HUMAN"` : Whether the robot collided with a human
@@ -134,7 +150,7 @@ Apart from this, the info dict also provides a few metrics such as `"personal_sp
 * `"distance_reward"` : Value of the distance reward. 
 Note that the above 4 values are returned correctly if the reward function used is `"dsrnn"` or `"sngnn"`. If a custom reward function is written, then the user is required to fill the above values otherwise 0s would be returned for them.
     
-Lastly, information about the interactions is returned as an adjacency list. There are two types of interactions, `"human-human"` and `"human-laptop"`. For every interaction between human `i` and human `j` (`i` and `j` are the based on the order in which the human's observations appear in the observation dictionary. So to extract the ith human's observation, you could just to `obs["humans"].reshape(-1, 14)[i]`), (i, j) would be present in `info["interactions"]["human-human"]`, and similarly for an interaction between the ith human and the jth laptop, (i, j) would be present in `info["interactions"]["human-laptop"]`.
+Lastly, information about the interactions is returned as an adjacency list. There are two types of interactions, `"human-human"` and `"human-laptop"`. For every interaction between human `i` and human `j` (`i` and `j` are the based on the order in which the human's observations appear in the observation dictionary. So to extract the `i`<sup>th</sup> human's observation, you could just do `obs["humans"].reshape(-1, 14)[i]`), the tuple `(i, j)` would be present in `info["interactions"]["human-human"]`, and similarly for an interaction between the `i`<sup>th</sup> human and the `j`<sup>th</sup> laptop, the tuple `(i, j)` would be present in `info["interactions"]["human-laptop"]`. Again, `j` is based on the order in which the laptops appear in the observation.
 
 ## Reward Function
 The environment provides implementation of the [SNGNN](https://arxiv.org/abs/2102.08863) reward function, and the [DSRNN](https://arxiv.org/abs/2011.04820) reward function. If you want to use these reward functions, the config passed to the environment should have the value corresponding to the field `reward_file` as `"sngnn"` or `"dsrnn"` respectively. 
@@ -151,9 +167,9 @@ from socnavgym.envs.rewards import RewardAPI
 class Reward(RewardAPI):
     ...
 ```
-2. Overwrite the function `compute_reward` with the custom reward function. The input of the `compute_reward` function is the action of the current timestep, the previous entity observations and the current entity observations. The previous and current observations are given as a dictionary with key as the id of the entity, and the value is an instance of the `EntityObs` namedtuple defined in [this](https://github.com/robocomp/gsoc22-socnavenv/blob/main/socnavgym/envs/socnavenv_v1.py) file. It contains the fields : id, x, y, theta, sin_theta, cos_theta for each entity in the environment. Note that all these values are in the robot's frame of reference. 
-3. If need be, you can also access the lists of humans, plants, interactions etc, that the environment maintains by referencing the `self.env` variable. An example of this can be found in the [`dsrnn_reward.py`](https://github.com/robocomp/gsoc22-socnavenv/blob/main/socnavgym/envs/rewards/dsrnn_reward.py) file
-4. The `RewardAPI` class provides helper functions such as `check_collision`, `check_timeout`, `check_reached` and `check_out_of_map`. These functions are boolean functions that check if the robot has collided with any enitity, whether the maximum episode length has been reached, whether the robot has reached the goal, or if the robot has moved out of the map respectively. The last case can occur only when the envirnoment is configured to have no walls.
+2. Overwrite the function `compute_reward` with the custom reward function. The input of the `compute_reward` function is the action of the current timestep, the previous entity observations and the current entity observations. The previous and current observations are given as a dictionary with key as the id of the entity, and the value is an instance of the `EntityObs` namedtuple defined in [this](https://github.com/gnns4hri/SocNavGym/blob/main/socnavgym/envs/socnavenv_v1.py#L19) file. It contains the fields : id, x, y, theta, sin_theta, cos_theta for each entity in the environment. Note that all these values are in the robot's frame of reference. 
+3. If need be, you can also access the lists of humans, plants, interactions etc, that the environment maintains by referencing the `self.env` variable. An example of this can be found in the [`dsrnn_reward.py`](https://github.com/gnns4hri/SocNavGym/blob/main/socnavgym/envs/rewards/dsrnn_reward.py#L24) file
+4. The `RewardAPI` class provides four helper functions - `check_collision`, `check_timeout`, `check_reached` and `check_out_of_map`. These functions are boolean functions that check if the robot has collided with any enitity, whether the maximum episode length has been reached, whether the robot has reached the goal, or if the robot has moved out of the map respectively. The last case can occur only when the envirnoment is configured to have no walls.
 5. The `RewardAPI` class also has a helper function defined to compute the SNGNN reward function. Call `compute_sngnn_reward(actions, prev_obs, curr_obs)` to compute the SNGNN reward. Also note that if you are using the SNGNN reward function in your custom reward function, please set the variable `self.use_sngnn` to `True`.
 6. You can also store any additional information that needs to be returned in the info dict of step function by storing all of it in the variable `self.info` of the `Reward` class.
 7. Storing anything in a class variable will persist across the steps in an episode. There will be a new instantiation of the Reward class object every episode.
@@ -466,7 +482,7 @@ The following are the wrappers implemented by SocNavGym:
     import socnavgym
     from socnavgym.wrappers import DiscreteActions
 
-    env = gym.make("SocNavGym-v1", config="paper_configs/exp1_no_sngnn.yaml")  # you can pass any config
+    env = gym.make("SocNavGym-v1", config="environment_configs/exp1_no_sngnn.yaml")  # you can pass any config
     env = DiscreteActions(env)  # creates an env with discrete action space
 
     # simulate an episode with random actions
@@ -485,7 +501,7 @@ The following are the wrappers implemented by SocNavGym:
     import socnavgym
     from socnavgym.wrappers import NoisyObservations
 
-    env = gym.make("SocNavGym-v1", config="paper_configs/exp1_no_sngnn.yaml")  # you can pass any config
+    env = gym.make("SocNavGym-v1", config="environment_configs/exp1_no_sngnn.yaml")  # you can pass any config
     env = NoisyObservations(env, mean=0, std_dev=0.1)
 
     # simulate an episode with random actions
@@ -507,7 +523,7 @@ The following are the wrappers implemented by SocNavGym:
     from socnavgym.wrappers import PartialObservations
     from math import pi
 
-    env = gym.make("SocNavGym-v1", config="paper_configs/exp1_no_sngnn.yaml")  # you can pass any config
+    env = gym.make("SocNavGym-v1", config="environment_configs/exp1_no_sngnn.yaml")  # you can pass any config
     env = PartialObservations(env, fov_angle=2*pi/3, range=1)  # creates a robot with a 120 degreee frame of view, and the sensor range is 1m.
 
     # simulate an episode with random actions
@@ -575,7 +591,7 @@ The following are the wrappers implemented by SocNavGym:
     from socnavgym.wrappers import WorldFrameObservations
     from math import pi
 
-    env = gym.make("SocNavGym-v1", config="paper_configs/exp1_no_sngnn.yaml")  # you can pass any config
+    env = gym.make("SocNavGym-v1", config="environment_configs/exp1_no_sngnn.yaml")  # you can pass any config
     env = WorldFrameObservations(env) 
 
     # simulate an episode with random actions

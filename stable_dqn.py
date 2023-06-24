@@ -194,7 +194,7 @@ class CometMLCallback(CheckpointCallback):
 
     :param verbose: Verbosity level: 0 for no output, 1 for info messages, 2 for debug messages
     """
-    def __init__(self, run_name:str, save_path:str, verbose=0):
+    def __init__(self, run_name:str, save_path:str, project_name:str, api_key:str, verbose=0):
         # super(CometMLCallback, self).__init__(verbose)
         super(CometMLCallback, self).__init__(save_freq=25000, save_path=save_path, verbose=verbose)
         # Those variables will be accessible in the callback
@@ -217,8 +217,8 @@ class CometMLCallback(CheckpointCallback):
         print("Logging using comet_ml")
         self.run_name = run_name
         self.experiment = Experiment(
-            api_key="8U8V63x4zSaEk4vDrtwppe8Vg",
-            project_name="socnav",
+            api_key=api_key,
+            project_name=project_name,
             parse_args=False   
         )
         self.experiment.set_name(self.run_name)
@@ -252,6 +252,8 @@ ap = argparse.ArgumentParser()
 ap.add_argument("-e", "--env_config", help="path to environment config", required=True)
 ap.add_argument("-r", "--run_name", help="name of comet_ml run", required=True)
 ap.add_argument("-s", "--save_path", help="path to save the model", required=True)
+ap.add_argument("-p", "--project_name", help="project name in comet ml", required=True)
+ap.add_argument("-a", "--api_key", help="api key to your comet ml profile", required=True)
 ap.add_argument("-u", "--use_transformer", help="True or False, based on whether you want a transformer based feature extractor", required=True, default=False)
 ap.add_argument("-d", "--use_deep_net", help="True or False, based on whether you want a transformer based feature extractor", required=False, default=False)
 ap.add_argument("-g", "--gpu", help="gpu id to use", required=False, default="0")
@@ -275,6 +277,6 @@ else:
 
 device = 'cuda:'+str(args["gpu"]) if torch.cuda.is_available() else 'cpu'
 model = DQN("MultiInputPolicy", env, verbose=0, policy_kwargs=policy_kwargs, device=device)
-callback = CometMLCallback(args["run_name"], args["save_path"])
+callback = CometMLCallback(args["run_name"], args["save_path"], args["project_name"], args["api_key"])
 model.learn(total_timesteps=50000*200, callback=callback)
 model.save(args["save_path"])

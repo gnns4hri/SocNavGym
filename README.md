@@ -611,32 +611,32 @@ The script to train the agents is `stable_dqn.py`. This is an implementation of 
 
 1. Experiment 1 (Using DSRNN Reward)
     ```bash
-    python3 stable_dqn.py -e="./environment_configs/exp1_no_sngnn.yaml" -r="dsrnn_exp1" -s="dsrnn_exp1" -u=False -d=False -p=<project_name> -a=<api_key>
+    python3 stable_dqn.py -e="./environment_configs/exp1_no_sngnn.yaml" -r="dsrnn_exp1" -s="dsrnn_exp1" -d=False -p=<project_name> -a=<api_key>
     ```
 
 2. Experiment 1 (Using SNGNN Reward)
     ```bash
-    python3 stable_dqn.py -e="./environment_configs/exp1_with_sngnn.yaml" -r="sngnn_exp1" -s="sngnn_exp1" -d=False -u=False -p=<project_name> -a=<api_key>
+    python3 stable_dqn.py -e="./environment_configs/exp1_with_sngnn.yaml" -r="sngnn_exp1" -s="sngnn_exp1" -d=False -p=<project_name> -a=<api_key>
     ```
 
 3. Experiment 2 (Using DSRNN Reward)
     ```bash
-    python3 stable_dqn.py -e="./environment_configs/exp2_no_sngnn.yaml" -r="dsrnn_exp2" -s="dsrnn_exp2" -u=False -d=False -p=<project_name> -a=<api_key>
+    python3 stable_dqn.py -e="./environment_configs/exp2_no_sngnn.yaml" -r="dsrnn_exp2" -s="dsrnn_exp2" -d=False -p=<project_name> -a=<api_key>
     ```
 
 4. Experiment 2 (Using SNGNN Reward)
     ```bash
-    python3 stable_dqn.py -e="./environment_configs/exp2_with_sngnn.yaml" -r="sngnn_exp2" -s="sngnn_exp2" -d=False -u=False -p=<project_name> -a=<api_key>
+    python3 stable_dqn.py -e="./environment_configs/exp2_with_sngnn.yaml" -r="sngnn_exp2" -s="sngnn_exp2" -d=False -p=<project_name> -a=<api_key>
     ```
 
 5. Experiment 3 (Using DSRNN Reward)
     ```bash
-    python3 stable_dqn.py -e="./environment_configs/exp3_no_sngnn.yaml" -r="dsrnn_exp3" -s="dsrnn_exp3" -u=False -d=False -p=<project_name> -a=<api_key>
+    python3 stable_dqn.py -e="./environment_configs/exp3_no_sngnn.yaml" -r="dsrnn_exp3" -s="dsrnn_exp3" -d=False -p=<project_name> -a=<api_key>
     ```
 
 6. Experiment 3 (Using SNGNN Reward)
     ```bash
-    python3 stable_dqn.py -e="./environment_configs/exp3_with_sngnn.yaml" -r="sngnn_exp3" -s="sngnn_exp3" -d=False -u=False -p=<project_name> -a=<api_key>
+    python3 stable_dqn.py -e="./environment_configs/exp3_with_sngnn.yaml" -r="sngnn_exp3" -s="sngnn_exp3" -d=False -p=<project_name> -a=<api_key>
     ```
 
 Type in `python3 stable_dqn.py -h` for further information about the different arguments. 

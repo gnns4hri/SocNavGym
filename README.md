@@ -161,12 +161,12 @@ The environment also allows users to provide custom reward functions. Follow the
 ## Writing Custom Reward Functions
 
 1. Create a new python file in which you **have to** create a class named `Reward`. It **must** inherit from `RewardAPI` class. To do this, do the following
-```python
-from socnavgym.envs.rewards import RewardAPI
+    ```python
+    from socnavgym.envs.rewards import RewardAPI
 
-class Reward(RewardAPI):
-    ...
-```
+    class Reward(RewardAPI):
+        ...
+    ```
 2. Overwrite the function `compute_reward` with the custom reward function. The input of the `compute_reward` function is the action of the current timestep, the previous entity observations and the current entity observations. The previous and current observations are given as a dictionary with key as the id of the entity, and the value is an instance of the `EntityObs` namedtuple defined in [this](https://github.com/gnns4hri/SocNavGym/blob/main/socnavgym/envs/socnavenv_v1.py#L19) file. It contains the fields : id, x, y, theta, sin_theta, cos_theta for each entity in the environment. Note that all these values are in the robot's frame of reference. 
 3. If need be, you can also access the lists of humans, plants, interactions etc, that the environment maintains by referencing the `self.env` variable. An example of this can be found in the [`dsrnn_reward.py`](https://github.com/gnns4hri/SocNavGym/blob/main/socnavgym/envs/rewards/dsrnn_reward.py#L24) file
 4. The `RewardAPI` class provides four helper functions - `check_collision`, `check_timeout`, `check_reached` and `check_out_of_map`. These functions are boolean functions that check if the robot has collided with any enitity, whether the maximum episode length has been reached, whether the robot has reached the goal, or if the robot has moved out of the map respectively. The last case can occur only when the envirnoment is configured to have no walls.

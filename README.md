@@ -15,7 +15,8 @@
 12. [Config File](https://github.com/gnns4hri/SocNavGym/tree/main#config-file)
 13. [Wrappers](https://github.com/gnns4hri/SocNavGym/tree/main#wrappers)
 14. [Training Agents](https://github.com/gnns4hri/SocNavGym/tree/main#training-agents)
-15. [Manually Controlling the Robot](https://github.com/gnns4hri/SocNavGym/tree/main#manually-controlling-the-robot)
+15. [Evaluating Agents](https://github.com/gnns4hri/SocNavGym/tree/main#evaluating-agents)
+16. [Manually Controlling the Robot](https://github.com/gnns4hri/SocNavGym/tree/main#manually-controlling-the-robot)
 
 
 ## Description
@@ -638,8 +639,44 @@ The script to train the agents is `stable_dqn.py`. This is an implementation of 
     ```bash
     python3 stable_dqn.py -e="./environment_configs/exp3_with_sngnn.yaml" -r="sngnn_exp3" -s="sngnn_exp3" -d=False -p=<project_name> -a=<api_key>
     ```
+In general, the `stable_dqn` script can be used as follows:
+```bash
+usage: python3 stable_dqn.py [-h] -e ENV_CONFIG -r RUN_NAME -s SAVE_PATH -p
+                     PROJECT_NAME -a API_KEY [-d USE_DEEP_NET] [-g GPU]
 
-Type in `python3 stable_dqn.py -h` for further information about the different arguments. 
+optional arguments:
+  -h, --help            show this help message and exit
+  -e ENV_CONFIG, --env_config ENV_CONFIG
+                        path to environment config
+  -r RUN_NAME, --run_name RUN_NAME
+                        name of comet_ml run
+  -s SAVE_PATH, --save_path SAVE_PATH
+                        path to save the model
+  -p PROJECT_NAME, --project_name PROJECT_NAME
+                        project name in comet ml
+  -a API_KEY, --api_key API_KEY
+                        api key to your comet ml profile
+  -d USE_DEEP_NET, --use_deep_net USE_DEEP_NET
+                        True or False, based on whether you want a transformer
+                        based feature extractor
+  -g GPU, --gpu GPU     gpu id to use
+
+```
+
+## Evaluating Agents
+The evaluation script for the Dueling DQN agent using StableBaselines3 can be found in `sb3_eval.py`. 
+```bash
+usage: python3 sb3_eval.py [-h] -n NUM_EPISODES -w WEIGHT_PATH -c CONFIG
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -n NUM_EPISODES, --num_episodes NUM_EPISODES
+                        number of episodes
+  -w WEIGHT_PATH, --weight_path WEIGHT_PATH
+                        path to weight file
+  -c CONFIG, --config CONFIG
+                        path to config file
+```
 
 ## Manually Controlling the Robot
 You can control the robot using a joystick and also record observations, actions and rewards. To do this, run the `manual_control_js.py`.

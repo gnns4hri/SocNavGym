@@ -10,7 +10,7 @@ DESCRIPTION = "An environment for Social Navigation"
 REPOSITORY = "https://github.com/gnns4hri/SocNavGym"
 EMAIL = "sushantswamy1212@gmail.com"
 AUTHOR = "Sushant Swamy"
-VERSION = "0.0.3"
+VERSION = "0.1.0"
 
 with open("README.md", "r") as f:
     LONG_DESCRIPTION = f.read()
@@ -20,9 +20,8 @@ REQUIRED = [
     "opencv-python",
     "numpy",
     "matplotlib",
-    "torch >= 1.12.1",
     "shapely",
-    "dgl"
+    "Cython"
 ]
 EXCLUDES=["environment_configs"]
 

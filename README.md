@@ -135,9 +135,9 @@ The observation is of the type `gym.Spaces.Dict`. The dictionary has the followi
 
     * radius: Radius of the object. Rectangular objects will contain the radius of the circle that circumscribes the rectangle
 
-    * relative speed
+    * relative translational velocity
 
-    * relative angular speed is calculated by the difference in the angles across two consecutive time steps and dividing by the time-step
+    * relative angular velocity is calculated by the difference in the angles across two consecutive time steps and dividing by the time-step
 
     * gaze value: for humans, it is 1 if the robot lies in the line of sight of humans, otherwise 0. For entities other than humans, the gaze value is 0. Line of sight of the humans is decided by whether the robot lies from -gaze_angle/2 to +gaze_angle/2 in the human frame. Gaze angle can be changed by changing the `gaze_angle` parameter in the config file.
 

@@ -244,7 +244,7 @@ The behaviour of the environment is controlled using the config file. The config
     </tr>
     <tr>
         <td> human_policy </td>
-        <td> policy of the human. Can be "random", "sfm", or "orca". If "random" is kept, then one of "orca" or "sfm" would be randomly chosen</td>
+        <td> policy of the human. Can be "random", "sfm", or "orca". If "random" is chosen, then one of "orca" or "sfm" would be randomly chosen</td>
     </tr>
     <tr>
         <td> gaze_angle </td>

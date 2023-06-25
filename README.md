@@ -79,10 +79,10 @@ The observation is of the type `gym.Spaces.Dict`. The dictionary has the followi
     <table  style=text-align:center>
         <tr>
             <th colspan="6"  style=text-align:center>Encoding</th>
-            <th colspan="2" style=text-align:center>Relative Coordinates</th>
-            <th colspan="2" style=text-align:center>Relative Angular Details</th>
+            <th colspan="2" style=text-align:center>Relative Position Coordinates</th>
+            <th colspan="2" style=text-align:center>Relative Orientation</th>
             <th style=text-align:center>Radius</th>
-            <th colspan="2" style=text-align:center>Relative Speeds</th>
+            <th colspan="2" style=text-align:center>Relative Velocities</th>
             <th style=text-align:center>Gaze</th>
         </tr>
         <tr>

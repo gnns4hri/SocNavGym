@@ -1,0 +1,2 @@
+include socnavgym/envs/utils/sngnnv2/example_model/*.prms
+include socnavgym/envs/utils/sngnnv2/example_model/*.tch

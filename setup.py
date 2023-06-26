@@ -23,7 +23,7 @@ REQUIRED = [
     "shapely",
     "Cython"
 ]
-EXCLUDES=["environment_configs"]
+EXCLUDES=["environment_configs", "tests"]
 
 setup(
     name=NAME,

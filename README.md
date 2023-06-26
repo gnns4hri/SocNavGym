@@ -166,7 +166,24 @@ Apart from this, the info dict also provides a few metrics such as `"personal_sp
 * `"distance_reward"` : Value of the distance reward. 
 Note that the above 4 values are returned correctly if the reward function used is `"dsrnn"` or `"sngnn"`. If a custom reward function is written, then the user is required to fill the above values otherwise 0s would be returned for them.
     
-Lastly, information about the interactions is returned as an adjacency list. There are two types of interactions, `"human-human"` and `"human-laptop"`. For every interaction between human `i` and human `j` (`i` and `j` are the based on the order in which the human's observations appear in the observation dictionary. So to extract the `i`<sup>th</sup> human's observation, you could just do `obs["humans"].reshape(-1, 14)[i]`), the tuple `(i, j)` would be present in `info["interactions"]["human-human"]`, and similarly for an interaction between the `i`<sup>th</sup> human and the `j`<sup>th</sup> laptop, the tuple `(i, j)` would be present in `info["interactions"]["human-laptop"]`. Again, `j` is based on the order in which the laptops appear in the observation.
+Lastly, information about the interactions is returned as an adjacency list. There are two types of interactions, `"human-human"` and `"human-laptop"`. For every interaction between human `i` and human `j` (`i` and `j` are the based on the order in which the human's observations appear in the observation dictionary. So to extract the `i`<sup>th</sup> human's observation, you could just do `obs["humans"].reshape(-1, 14)[i]`), the tuple `(i, j)` and `(j, i)` would be present in `info["interactions"]["human-human"]`, and similarly for an interaction between the `i`<sup>th</sup> human and the `j`<sup>th</sup> laptop, the tuple `(i, j)` would be present in `info["interactions"]["human-laptop"]`. Again, `j` is based on the order in which the laptops appear in the observation. To make it more clear, let's consider an example. Consider 4 humans, 1 table and two laptops in the environment and no walls. Also, two among the 4 humans are interacting with each other, and one other human is interacting with a laptop. For this scenario, the observation returned would be like this:
+```python
+obs_dict = {
+    "humans": [obs_human0, obs_human1, obs_human2, obs_human3],  # human observations stacked in a 1D array
+    "tables": [obs_table0],  # table observation
+    "laptops": [obs_laptop0, obs_laptop1]  # laptop observations stacked in a 1D array.
+}
+```
+Let's say the humans with observations `obs_human1` and `obs_human2` are the ones who are interacting. Also, the human whose observation is `obs_human3` interacts with the laptop which has an observation `obs_laptop1`. For such a case, the info dict for interactions would look like this:
+```python
+info = {
+    "interactions": {
+        "human-human": [(1, 2), (2, 1)],
+        "human-laptop": [(3, 1)]
+    }
+    ...  # rest of the info dict
+}
+```
 
 ## Reward Function
 The environment provides implementation of the [SNGNN](https://arxiv.org/abs/2102.08863) reward function, and the [DSRNN](https://arxiv.org/abs/2011.04820) reward function. If you want to use these reward functions, the config passed to the environment should have the value corresponding to the field `reward_file` as `"sngnn"` or `"dsrnn"` respectively. 

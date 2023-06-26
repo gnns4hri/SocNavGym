@@ -27,6 +27,9 @@ class RewardAPI:
         self.info["alive_reward"] = 0
         self.info["sngnn_reward"] = 0
 
+    def re_init(self, env:SocNavEnv_v1):
+        self.__init__(env)
+
     def check_collision(self):
         # check for object-robot collisions
         collision = False

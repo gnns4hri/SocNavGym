@@ -394,7 +394,7 @@ class SocNavEnv_v1(gym.Env):
             sys.exit(0)
         
         assert(issubclass(self.reward_class, reward_api_class)), "Please make Reward class a subclass of RewardAPI class"
-
+        self.reward_calculator = self.reward_class(self)
         self.reset()
 
     def process_reward_path(self, path:str):
@@ -3501,7 +3501,7 @@ class SocNavEnv_v1(gym.Env):
 
         obs = self._get_obs()
 
-        self.reward_calculator = self.reward_class(self)  # creating object of the reward class
+        self.reward_calculator.re_init(self)
         if self.reward_calculator.use_sngnn:
             self.reward_calculator.sngnn = SocNavAPI(device=('cuda'+str(self.cuda_device) if torch.cuda.is_available() else 'cpu'), params_dir=(os.path.join(os.path.dirname(os.path.abspath(__file__)), "utils", "sngnnv2", "example_model")))
 

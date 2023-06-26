@@ -205,7 +205,7 @@ The environment also allows users to provide custom reward functions. Follow the
 4. The `RewardAPI` class provides four helper functions - `check_collision`, `check_timeout`, `check_reached` and `check_out_of_map`. These functions are boolean functions that check if the robot has collided with any enitity, whether the maximum episode length has been reached, whether the robot has reached the goal, or if the robot has moved out of the map respectively. The last case can occur only when the envirnoment is configured to have no walls.
 5. The `RewardAPI` class also has a helper function defined to compute the SNGNN reward function. Call `compute_sngnn_reward(actions, prev_obs, curr_obs)` to compute the SNGNN reward. Also note that if you are using the SNGNN reward function in your custom reward function, please set the variable `self.use_sngnn` to `True`.
 6. You can also store any additional information that needs to be returned in the info dict of step function by storing all of it in the variable `self.info` of the `Reward` class.
-7. Storing anything in a class variable will persist across the steps in an episode. There will be a new instantiation of the Reward class object every episode.
+7. Storing anything in a class variable will persist across the steps in an episode. After every episode, the reward class object's `__init__()` method would be invoked.
 8. Provide the path to the file where you defined your custom reward function in the config file's `reward_file`.
 
 

@@ -16,6 +16,7 @@ import yaml
 from gym import spaces
 from shapely.geometry import Point, Polygon
 from collections import namedtuple
+from math import ceil
 EntityObs = namedtuple("EntityObs", ["id", "x", "y", "theta", "sin_theta", "cos_theta"])
 
 from socnavgym.envs.utils.human import Human
@@ -30,6 +31,7 @@ from socnavgym.envs.utils.utils import (get_coordinates_of_rotated_rectangle,
                                         get_nearest_point_from_rectangle,
                                         get_square_around_circle,
                                         convert_angle_to_minus_pi_to_pi,
+                                        compute_time_to_collision,
                                         point_to_segment_dist, w2px, w2py)
 from socnavgym.envs.utils.wall import Wall
 sys.path.append(os.path.dirname(os.path.abspath(__file__))+"/utils/sngnnv2")
@@ -1691,7 +1693,7 @@ class SocNavEnv_v1(gym.Env):
         # update robot
         self.robot.update(self.TIMESTEP)
 
-        # update robot with orca policy
+        # update dummy robot with orca policy
         if (not self.has_orca_robot_collided) and (not self.has_orca_robot_reached_goal):
             vel = self.compute_orca_velocity_robot(self.robot_orca)
             if self.robot_orca.type == "holonomic":
@@ -2302,6 +2304,9 @@ class SocNavEnv_v1(gym.Env):
             if distance_to_goal_orca_robot < self.GOAL_THRESHOLD:
                 self.has_orca_robot_reached_goal = True
                 self.orca_robot_reach_time = self.ticks
+            
+            orca_robot_speed = np.linalg.norm(np.array([self.robot_orca.vel_x, self.robot_orca.vel_y], dtype=np.float32))
+            self.orca_robot_path_length += orca_robot_speed * self.TIMESTEP
 
         # check for object-robot and human-robot collisions
         collision_human = False
@@ -2322,10 +2327,14 @@ class SocNavEnv_v1(gym.Env):
                 break
 
         collision_object = False
-
+        collision_wall = False
         for object in self.plants + self.walls + self.tables + self.laptops:
             if(self.robot.collides(object)): 
                 collision_object = True
+                break
+        for object in self.walls:
+            if self.robot.collides(object):
+                collision_wall = True
                 break
         
         for i in self.h_l_interactions:
@@ -2401,15 +2410,23 @@ class SocNavEnv_v1(gym.Env):
 
         info = {
             "OUT_OF_MAP": False,
-            "REACHED_GOAL": False,
             "COLLISION_HUMAN": False,
             "COLLISION_OBJECT": False,
             "COLLISION": False,
-            "MAX_STEPS": False,
             "DISCOMFORT_SNGNN": 0.0,
             "DISCOMFORT_DSRNN": 0.0,
             'sngnn_reward': 0.0,
-            'distance_reward': 0.0
+            'distance_reward': 0.0,
+
+            # metrics with different nomenclature
+            "SUCCESS": False,
+            "COLLISION_WALL": False,
+            "TIMEOUT": False,
+            "FAILURE_TO_PROGRESS": self.failure_to_progress,
+            "STALLED_TIME": self.stalled_time,
+            "TIME_TO_REACH_GOAL": None,  # will be None if the robot didn't reach the goal.
+            "STL": None,
+            "SPL": None
         }
 
         # calculate the reward and record necessary information
@@ -2419,7 +2436,8 @@ class SocNavEnv_v1(gym.Env):
 
         elif distance_to_goal < self.GOAL_THRESHOLD:
             self._is_terminated = True
-            info["REACHED_GOAL"] = True
+            info["SUCCESS"] = True
+            info["TIME_TO_REACH_GOAL"] = self.ticks * self.TIMESTEP
 
         elif collision is True:
             self._is_terminated = True
@@ -2433,61 +2451,201 @@ class SocNavEnv_v1(gym.Env):
 
         elif self.ticks > self.EPISODE_LENGTH:
             self._is_truncated = True
-            info["MAX_STEPS"] = True
+            info["TIMEOUT"] = True
+
+        if collision_wall:
+            info["COLLISION_WALL"] = True
+
+        if distance_to_goal > self.prev_goal_distance:
+            self.failure_to_progress += 1
+            info["FAILURE_TO_PROGRESS"] = self.failure_to_progress
+        self.prev_goal_distance = distance_to_goal
+
+        robot_speed = np.linalg.norm(np.array([action[0], action[1]], dtype=np.float32))
+        if robot_speed == 0:
+            self.stalled_time += self.TIMESTEP
+            info["STALLED_TIME"] = self.stalled_time
+        
+        self.robot_path_length += self.TIMESTEP * robot_speed
+        info["PATH_LENGTH"] = self.robot_path_length
 
         self.reward_calculator.update_env(self)
         reward = self.reward_calculator.compute_reward(action, self._prev_observations, self._current_observations)
         for k, v in self.reward_calculator.info.items():
             info[k] = v
         
-        # calculating the closest distance to humans
+        # velocity based info
+        self.v_min = min(self.v_min, robot_speed)
+        self.v_max = max(self.v_max, robot_speed)
+        self.v_avg *= (self.ticks-1)
+        self.v_avg += robot_speed
+        self.v_avg /= self.ticks
+
+        info["V_MIN"] = self.v_min
+        info["V_AVG"] = self.v_avg
+        info["V_MAX"] = self.v_max
+        
+        # acceleration based info
+        vel = np.array([action[0], action[1]], dtype=np.float32)
+        a = (vel - self.prev_vel) / self.TIMESTEP
+        self.prev_vel = vel
+        a_magnitude = np.linalg.norm(a)
+        
+        self.a_min = min(self.a_min, a_magnitude)
+        self.a_max = max(self.a_max, a_magnitude)
+        self.a_avg *= (self.ticks - 1)
+        self.a_avg += a_magnitude
+        self.a_avg /= self.ticks
+
+        info["A_MIN"] = self.a_min
+        info["A_AVG"] = self.a_avg
+        info["A_MAX"] = self.a_max
+
+        jerk = (a - self.prev_a) / self.TIMESTEP
+        self.prev_a = a
+        jerk_magnitude = np.linalg.norm(jerk)
+        self.jerk_min = min(self.jerk_min, jerk_magnitude)
+        self.jerk_max = max(self.jerk_max, jerk_magnitude)
+        self.jerk_avg *= (self.ticks - 1)
+        self.jerk_avg += jerk_magnitude
+        self.jerk_avg /= self.ticks
+
+        info["JERK_MIN"] = self.jerk_min
+        info["JERK_AVG"] = self.jerk_avg
+        info["JERK_MAX"] = self.jerk_max
+
+        # calculating the closest distance to humans and time to collision
         closest_human_dist = float('inf')
+        time_to_collision = None
+        robot_vx = action[0]*np.cos(self.robot.orientation) + action[1]*np.cos(self.robot.orientation + np.pi/2)
+        robot_vy = action[0]*np.sin(self.robot.orientation) + action[1]*np.sin(self.robot.orientation + np.pi/2)
 
         for h in self.static_humans + self.dynamic_humans:
             closest_human_dist = min(closest_human_dist, np.sqrt((self.robot.x-h.x)**2 + (self.robot.y-h.y)**2))
+            t = compute_time_to_collision(
+                self.robot.x, 
+                self.robot.y, 
+                robot_vx,
+                robot_vy,
+                h.x,
+                h.y,
+                h.speed * np.cos(h.orientation),
+                h.speed * np.sin(h.orientation),
+                self.ROBOT_RADIUS,
+                self.HUMAN_DIAMETER/2
+            )
+
+            if t != -1:
+                if time_to_collision is None:
+                    time_to_collision = ceil(t / self.TIMESTEP)
+                else:
+                    time_to_collision = min(time_to_collision, ceil(t / self.TIMESTEP))
 
         for i in self.moving_interactions + self.static_interactions:
             for h in i.humans:
                 closest_human_dist = min(closest_human_dist, np.sqrt((self.robot.x-h.x)**2 + (self.robot.y-h.y)**2))
+                t = compute_time_to_collision(
+                    self.robot.x, 
+                    self.robot.y, 
+                    robot_vx,
+                    robot_vy,
+                    h.x,
+                    h.y,
+                    h.speed * np.cos(h.orientation),
+                    h.speed * np.sin(h.orientation),
+                    self.ROBOT_RADIUS,
+                    self.HUMAN_DIAMETER/2
+                )
+
+                if t != -1:
+                    if time_to_collision is None:
+                        time_to_collision = ceil(t / self.TIMESTEP)
+                    else:
+                        time_to_collision = min(time_to_collision, ceil(t / self.TIMESTEP))
         
         for i in self.h_l_interactions:
             closest_human_dist = min(closest_human_dist, np.sqrt((self.robot.x-i.human.x)**2 + (self.robot.y-i.human.y)**2))
+            t = compute_time_to_collision(
+                self.robot.x, 
+                self.robot.y, 
+                robot_vx,
+                robot_vy,
+                h.x,
+                h.y,
+                h.speed * np.cos(h.orientation),
+                h.speed * np.sin(h.orientation),
+                self.ROBOT_RADIUS,
+                self.HUMAN_DIAMETER/2
+            )
 
-        info["closest_human_dist"] = closest_human_dist
+            if t != -1:
+                if time_to_collision is None:
+                    time_to_collision = ceil(t / self.TIMESTEP)
+                else:
+                    time_to_collision = min(time_to_collision, ceil(t / self.TIMESTEP))
+        
+        if time_to_collision is None:
+            info["TIME_TO_COLLISION"] = -1
+        else:
+            info["TIME_TO_COLLISION"] = time_to_collision
+
+        info["MINIMUM_DISTANCE_TO_HUMAN"] = closest_human_dist
 
         if (closest_human_dist - self.ROBOT_RADIUS) >= 0.45:  # same value used in SEAN 2.0
             self.compliant_count += 1
         
-        info["personal_space_compliance"] = self.compliant_count / self.ticks
+        info["PERSONAL_SPACE_COMPLIANCE"] = self.compliant_count / self.ticks
 
         # Success weighted by time length
-        info["success_weighted_by_time_length"] = 0
-        if info["REACHED_GOAL"]:
+        info["STL"] = 0
+        info["SPL"] = 0
+        if info["SUCCESS"]:
             if self.has_orca_robot_collided or not self.has_orca_robot_reached_goal:
-                info["success_weighted_by_time_length"] = 1
+                info["STL"] = 1
+                info["SPL"] = 1
             else:
-                metric_value = float(self.orca_robot_reach_time / self.ticks)
-                if metric_value > 1: metric_value = 1
-                info["success_weighted_by_time_length"] = metric_value
+                stl_value = float(self.orca_robot_reach_time / self.ticks)
+                if stl_value > 1: stl_value = 1
+                info["STL"] = stl_value
+
+                spl_value = float(self.orca_robot_path_length / info["PATH_LENGTH"])
+                if spl_value > 1: spl_value = 1
+                info["SPL"] = spl_value
 
         closest_obstacle_dist = float('inf')
+        obstacle_dist_sum = 0
+        obstacle_count = 0
         for p in self.plants:
-            closest_obstacle_dist = min(closest_obstacle_dist, np.sqrt((self.robot.x-p.x)**2 + (self.robot.y-p.y)**2)-self.PLANT_RADIUS)
+            d = np.sqrt((self.robot.x-p.x)**2 + (self.robot.y-p.y)**2)-self.PLANT_RADIUS
+            closest_obstacle_dist = min(closest_obstacle_dist, d)
+            obstacle_dist_sum += d
+            obstacle_count += 1
+
 
         for table in self.tables:
             p_x, p_y = get_nearest_point_from_rectangle(table.x, table.y, table.length, table.width, table.orientation, self.robot.x, self.robot.y)
+            d = np.sqrt((self.robot.x - p_x)**2 + (self.robot.y - p_y)**2)
             closest_obstacle_dist = min(
                 closest_obstacle_dist,
-                np.sqrt((self.robot.x - p_x)**2 + (self.robot.y - p_y)**2)
+                d
             )
+            obstacle_dist_sum += d
+            obstacle_count += 1
         
         for wall in self.walls:
             p_x, p_y = get_nearest_point_from_rectangle(wall.x, wall.y, wall.length, wall.thickness, wall.orientation, self.robot.x, self.robot.y)
+            d = np.sqrt((self.robot.x - p_x)**2 + (self.robot.y - p_y)**2)
             closest_obstacle_dist = min(
                 closest_obstacle_dist,
-                np.sqrt((self.robot.x - p_x)**2 + (self.robot.y - p_y)**2)
+                d
             )
-        info["closest_obstacle_dist"] = closest_obstacle_dist
+            obstacle_dist_sum += d
+            obstacle_count += 1
+
+        info["MINIMUM_OBSTACLE_DISTANCE"] = closest_obstacle_dist
+        info["AVERAGE_OBSTACLE_DISTANCE"] = None
+        if obstacle_count > 0:
+            info["AVERAGE_OBSTACLE_DISTANCE"] = obstacle_dist_sum / obstacle_count
 
         # information of the interacting entities within the environment
         info["interactions"] = {}
@@ -2869,6 +3027,7 @@ class SocNavEnv_v1(gym.Env):
         self.has_orca_robot_reached_goal = False
         self.has_orca_robot_collided = False
         self.orca_robot_reach_time = None
+        self.orca_robot_path_length = 0
 
         # humans
         for i in range(self.NUMBER_OF_DYNAMIC_HUMANS): # spawn specified number of humans
@@ -3490,6 +3649,21 @@ class SocNavEnv_v1(gym.Env):
         self._is_truncated = False
         self.ticks = 0
         self.compliant_count = 0  # keeps track of how many times the agent is outside the personal space of humans
+        self.prev_goal_distance = np.sqrt((self.robot.x - self.robot.goal_x)**2 + (self.robot.y - self.robot.goal_y)**2)
+        self.robot_path_length = 0
+        self.stalled_time = 0
+        self.failure_to_progress = 0
+        self.v_min = float("inf")
+        self.v_max = 0.0
+        self.v_avg = 0.0
+        self.prev_vel = np.array([0.0, 0.0], dtype=np.float32)
+        self.a_min = float("inf")
+        self.a_max = 0.0
+        self.a_avg = 0.0
+        self.prev_a = np.array([0.0, 0.0], dtype=np.float32)
+        self.jerk_min = float("inf")
+        self.jerk_max = 0.0
+        self.jerk_avg = 0.0
 
         # all entities in the environment
         self.count = 0

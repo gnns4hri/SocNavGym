@@ -167,3 +167,34 @@ def convert_angle_to_minus_pi_to_pi(angle):
     elif angle < -np.pi: angle += 2*np.pi
 
     return angle
+
+
+def compute_time_to_collision(robot_x, robot_y, robot_vx, robot_vy, human_x, human_y, human_vx, human_vy, robot_radius, human_radius):
+    robot_vel = np.array([robot_vx, robot_vy], dtype=np.float32)
+    human_vel = np.array([human_vx, human_vy], dtype=np.float32)
+    robot_pos = np.array([robot_x, robot_y], dtype=np.float32)
+    human_pos = np.array([human_x, human_y], dtype=np.float32)
+
+    relative_vel = human_vel - robot_vel
+    relative_pos = robot_pos - human_pos
+
+    if np.linalg.norm(relative_pos) <= (robot_radius + human_radius):
+        return 0
+    
+    relative_pos_unit_vector = relative_pos / np.linalg.norm(relative_pos)
+    vel_value_along = np.dot(relative_vel, relative_pos_unit_vector.T)
+
+    if vel_value_along <= 0.0:
+        return -1
+
+    time_taken = np.linalg.norm(relative_pos) / vel_value_along
+    
+    human_new_pos = human_pos + human_vel * time_taken
+    robot_new_pos = robot_pos + robot_vel * time_taken
+
+    if np.linalg.norm(human_new_pos - robot_new_pos) <= (robot_radius + human_radius):
+        return time_taken
+
+    else:
+        return -1
+    

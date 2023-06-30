@@ -12,7 +12,7 @@ def test_shape():
     env.set_padded_observations(True)
     obs, _ = env.reset()
 
-    config_file = os.path.dirname(os.path.abspath(__file__)) + "/../configs/test_env.yaml"
+    config_file = os.path.dirname(os.path.abspath(__file__)) + "/../environment_configs/test_env.yaml"
     with open(config_file, "r") as ymlfile:
         config = yaml.safe_load(ymlfile)
     

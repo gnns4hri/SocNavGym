@@ -13,7 +13,7 @@ import sys
 def eval(model, num_episodes, env):
     # intialising metrics
     discomfort_sngnn = 0
-    discomfort_crowdnav = 0
+    discomfort_dsrnn = 0
     timeout = 0
     success_rate = 0
     time_taken = 0
@@ -58,7 +58,7 @@ def eval(model, num_episodes, env):
         steps = 0
         count = 0
         episode_discomfort_sngnn = 0
-        episode_discomfort_crowdnav = 0
+        episode_discomfort_dsrnn = 0
         psc = 0
         stl = 0
         spl = 0
@@ -95,7 +95,7 @@ def eval(model, num_episodes, env):
 
             # storing discomforts
             episode_discomfort_sngnn += info["sngnn_reward"]
-            episode_discomfort_crowdnav += info["DISCOMFORT_DSRNN"]
+            episode_discomfort_dsrnn += info["DISCOMFORT_DSRNN"]
 
             # storing whether the agent reached the goal
             if info["SUCCESS"]:
@@ -143,7 +143,7 @@ def eval(model, num_episodes, env):
                 jerk_max = info["JERK_MAX"]
 
         discomfort_sngnn += episode_discomfort_sngnn
-        discomfort_crowdnav += episode_discomfort_crowdnav
+        discomfort_dsrnn += episode_discomfort_dsrnn
         timeout += has_timed_out
         success_rate += has_reached_goal
         time_taken += steps
@@ -173,7 +173,7 @@ def eval(model, num_episodes, env):
         total_time_to_reach_goal += time_to_reach_goal
 
     print(f"Average discomfort_sngnn: {discomfort_sngnn/num_episodes}") 
-    print(f"Average discomfort_crowdnav: {discomfort_crowdnav/num_episodes}") 
+    print(f"Average discomfort_dsrnn: {discomfort_dsrnn/num_episodes}") 
     
     print(f"Average success_rate: {success_rate/num_episodes}") 
     print(f"Average collision_rate: {collision_rate/num_episodes}")

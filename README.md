@@ -150,21 +150,149 @@ The observation is of the type `gym.Spaces.Dict`. The dictionary has the followi
 The action space for holonomic robot consists of three components, vx, vy, and va. Here the X axis is the robot's heading direction. For differential drive robots, the component vy would be 0. You can control the type of the robot using the config file's `robot_type` parameter. All the three components take in a value between -1 and 1, which will be later mapped to the corresponding speed by using the maxima set in the config file. If you want to use a discrete action space, you could use the [`DiscreteActions`](https://github.com/gnns4hri/SocNavGym#wrappers) wrapper.
 
 ## Info Dict
-The environment also returns meaningful metrics in the info dict (returned during `env.step(action)` ). On termination of an episode, the reason of termination can be found out using the info dict. The corresponding key from the following keys is set to `True`.
-1. `"OUT_OF_MAP"` : Whether the robot went out of the map
-2. `"REACHED_GOAL"` : Whether the robot reached the goal
-3. `"COLLISION_HUMAN"` : Whether the robot collided with a human
-4. `"COLLISION_OBJECT"` : Whether the robot collided with an object (plant, wall, table)
-5. `"COLLISION"` : Whether the robot collided with any entity
-6. `"MAX_STEPS"` : Has the episode terminated because the maximum length of episode was reached.
+The environment also returns meaningful metrics at every step in an episode. The following table describes each metric that is returned in the info dict.
+
+<table  style=text-align:left>
+    <tr>
+        <th style=text-align:left>Metric</th>
+        <th style=text-align:left>Description</th>
+    </tr>
+    <tr>
+        <td style=text-align:left> "OUT_OF_MAP" </td>
+        <td style=text-align:left> Boolean value that indicates whether the robot went out of the map</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "COLLISION_HUMAN" </td>
+        <td style=text-align:left> Boolean value that indicates whether the robot collided with a human</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "COLLISION_OBJECT" </td>
+        <td style=text-align:left> Boolean value that indicates whether the robot collided with an object</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "COLLISION_WALL" </td>
+        <td style=text-align:left> Boolean value that indicates whether the robot collided with a wall</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "COLLISION" </td>
+        <td style=text-align:left> Boolean value that indicates whether the robot collided with any entity</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "SUCCESS" </td>
+        <td style=text-align:left> Boolean value that indicates whether the robot reached the goal</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "TIMEOUT" </td>
+        <td style=text-align:left> Boolean value that indicates whether the episode has terminated due maximum steps</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "FAILURE_TO_PROGRESS" </td>
+        <td style=text-align:left> The number of timesteps that the robot failed to reduce the distance to goal</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "STALLED_TIME" </td>
+        <td style=text-align:left> The number of timesteps that the robot's velocity is 0</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "TIME_TO_REACH_GOAL" </td>
+        <td style=text-align:left> Number of time steps taken by the robot to reach its goal</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "STL" </td>
+        <td style=text-align:left> Success weighted by time length</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "SPL" </td>
+        <td style=text-align:left> Success weighted by path length</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "PATH_LENGTH" </td>
+        <td style=text-align:left> Total path length covered by the robot</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "V_MIN" </td>
+        <td style=text-align:left> Minimum velocity that the robot has achieved</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "V_AVG" </td>
+        <td style=text-align:left> Average velocity of the robot</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "V_MAX" </td>
+        <td style=text-align:left> Maximum velocity that robot has achieved</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "A_MIN" </td>
+        <td style=text-align:left> Minimum acceleration that the robot has achieved</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "A_AVG" </td>
+        <td style=text-align:left> Average acceleration of the robot</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "A_MAX" </td>
+        <td style=text-align:left> Maximum acceleration that robot has achieved</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "JERK_MIN" </td>
+        <td style=text-align:left> Minimum jerk that the robot has achieved</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "JERK_AVG" </td>
+        <td style=text-align:left> Average jerk of the robot</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "JERK_MAX" </td>
+        <td style=text-align:left> Maximum jerk that robot has achieved</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "TIME_TO_COLLISION" </td>
+        <td style=text-align:left>  Minimum time to collision with a human agent at any point in time in the trajectory, should all robots and humans move in a linear trajectory</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "MINIMUM_DISTANCE_TO_HUMAN" </td>
+        <td style=text-align:left>  Minimum distance to any human</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "PERSONAL_SPACE_COMPLIANCE" </td>
+        <td style=text-align:left>  Percentage of steps that the robot is not within the personal space (0.45m) of any human</td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "MINIMUM_OBSTACLE_DISTANCE" </td>
+        <td style=text-align:left>  Minimum distance to any object </td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "AVERAGE_OBSTACLE_DISTANCE" </td>
+        <td style=text-align:left>  Average distance to any object </td>
+    </tr>
+</table>
 
 
-Apart from this, the info dict also provides a few metrics such as `"personal_space_compliance"` (percentage of time that the robot is not within the personal space of humans), `"success_weighted_by_time_length"` (success * (time_taken_by_orca_agent_to_reach_goal / time_taken_by_robot_to_reach_goal)), `"closest_human_dist"` (distance to the closest human), and `"closest_obstacle_dist"` (distance to the closest obstacle). Some additional metrics that are also provided are :
-* `"DISCOMFORT_SNGNN"` : SNGNN_value (More about SNGNN in the section below)
-* `"DISCOMFORT_DSRNN"` : DSRNN reward value  (More about DSRNN reward function in the section below)
-* `"sngnn_reward"` : SNGNN_value - 1
-* `"distance_reward"` : Value of the distance reward. 
-Note that the above 4 values are returned correctly if the reward function used is `"dsrnn"` or `"sngnn"`. If a custom reward function is written, then the user is required to fill the above values otherwise 0s would be returned for them.
+Some additional metrics that are also provided are :
+<table style=text-align:left>
+    <tr>
+        <th style=text-align:left>Metric</th>
+        <th style=text-align:left>Description</th>
+    </tr>
+    <tr>
+        <td style=text-align:left> "DISCOMFORT_SNGNN" </td>
+        <td style=text-align:left>  SNGNN_value (More about SNGNN in the section below) </td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "DISCOMFORT_DSRNN" </td>
+        <td style=text-align:left>  DSRNN reward value (More about DSRNN reward function in the section below) </td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "sngnn_reward" </td>
+        <td style=text-align:left>  SNGNN_value - 1 </td>
+    </tr>
+    <tr>
+        <td style=text-align:left> "distance_reward" </td>
+        <td style=text-align:left>  Value of the distance reward </td>
+    </tr>
+</table>
+
+Note that the above 4 values are returned correctly if the reward function parameter in the config file is `"dsrnn"` or `"sngnn"`. If a custom reward function is written, then the user is required to fill the above values otherwise 0s would be returned for them. For more information refer to [Writing Custom Reward Functions](https://github.com/gnns4hri/SocNavGym/tree/main#writing-custom-reward-functions).
     
 Lastly, information about the interactions is returned as an adjacency list. There are two types of interactions, `"human-human"` and `"human-laptop"`. For every interaction between human `i` and human `j` (`i` and `j` are the based on the order in which the human's observations appear in the observation dictionary. So to extract the `i`<sup>th</sup> human's observation, you could just do `obs["humans"].reshape(-1, 14)[i]`), the tuple `(i, j)` and `(j, i)` would be present in `info["interactions"]["human-human"]`, and similarly for an interaction between the `i`<sup>th</sup> human and the `j`<sup>th</sup> laptop, the tuple `(i, j)` would be present in `info["interactions"]["human-laptop"]`. Again, `j` is based on the order in which the laptops appear in the observation. To make it more clear, let's consider an example. Consider 4 humans, 1 table and two laptops in the environment and no walls. Also, two among the 4 humans are interacting with each other, and one other human is interacting with a laptop. For this scenario, the observation returned would be like this:
 ```python

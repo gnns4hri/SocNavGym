@@ -95,7 +95,7 @@ def eval(model, num_episodes, env):
 
             # storing discomforts
             episode_discomfort_sngnn += info["sngnn_reward"]
-            episode_discomfort_crowdnav += info["DISCOMFORT_CROWDNAV"]
+            episode_discomfort_crowdnav += info["DISCOMFORT_DSRNN"]
 
             # storing whether the agent reached the goal
             if info["SUCCESS"]:

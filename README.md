@@ -17,6 +17,7 @@
 14. [Training Agents](https://github.com/gnns4hri/SocNavGym/tree/main#training-agents)
 15. [Evaluating Agents](https://github.com/gnns4hri/SocNavGym/tree/main#evaluating-agents)
 16. [Manually Controlling the Robot](https://github.com/gnns4hri/SocNavGym/tree/main#manually-controlling-the-robot)
+17. [Tutorials](https://github.com/gnns4hri/SocNavGym/tree/main#tutorials)
 
 
 ## Description
@@ -856,3 +857,5 @@ optional arguments:
                         starting episode number
 
 ```
+## Tutorials
+1. [Installation tutorial](https://colab.research.google.com/drive/1vX1mxQJ82MQpHLg43Y2BArPYeDRsimse?usp=sharing)

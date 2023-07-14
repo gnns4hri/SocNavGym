@@ -67,7 +67,8 @@ for i in range(1000):
 
 ## Conventions
 * X-axis points in the direction of zero-angle.
-* The orientation field of the humans and the robot stores the angle between the X-axis of the human/robot and the X-axis of the ground frame.
+* The orientation of the entities the angle between the X-axis of the entity and the X-axis of the ground frame.
+* Origin is at the center of the room
 
 ## Observation Space
 The observation returned when ```env.step(action)``` is called, consists of the following (all in the<b> robot frame</b> unless you're using the [`WorldFrameObservations`](https://github.com/gnns4hri/SocNavGym#wrappers) wrapper):
@@ -82,7 +83,7 @@ The observation is of the type `gym.Spaces.Dict`. The dictionary has the followi
             <th colspan="2" style=text-align:center>Relative Position Coordinates</th>
             <th colspan="2" style=text-align:center>Relative Orientation</th>
             <th style=text-align:center>Radius</th>
-            <th colspan="2" style=text-align:center>Relative Velocities</th>
+            <th colspan="2" style=text-align:center>Relative Speeds</th>
             <th style=text-align:center>Gaze</th>
         </tr>
         <tr>
@@ -97,8 +98,8 @@ The observation is of the type `gym.Spaces.Dict`. The dictionary has the followi
             <td style=text-align:center>sin(theta)</th>
             <td style=text-align:center>cos(theta)</th>
             <td style=text-align:center>radius</td>
-            <td style=text-align:center>linear_vel</td>
-            <td style=text-align:center>angular_vel</td>
+            <td style=text-align:center>relative speed</td>
+            <td style=text-align:center>relative angular speed</td>
             <td style=text-align:center>gaze</td>
         </tr>
          <tr>
@@ -135,9 +136,9 @@ The observation is of the type `gym.Spaces.Dict`. The dictionary has the followi
 
     * radius: Radius of the object. Rectangular objects will contain the radius of the circle that circumscribes the rectangle
 
-    * relative translational velocity
+    * relative translational speed is the magnitude of relative velocity of the entity with respect to the robot
 
-    * relative angular velocity is calculated by the difference in the angles across two consecutive time steps and dividing by the time-step
+    * relative angular speed is calculated by the difference in the angles across two consecutive time steps and dividing by the time-step
 
     * gaze value: for humans, it is 1 if the robot lies in the line of sight of humans, otherwise 0. For entities other than humans, the gaze value is 0. Line of sight of the humans is decided by whether the robot lies from -gaze_angle/2 to +gaze_angle/2 in the human frame. Gaze angle can be changed by changing the `gaze_angle` parameter in the config file.
 

@@ -859,3 +859,4 @@ optional arguments:
 ```
 ## Tutorials
 1. [Installation tutorial](https://colab.research.google.com/drive/1vX1mxQJ82MQpHLg43Y2BArPYeDRsimse?usp=sharing)
+2. [Training a Deep RL agent on SocNavGym](https://colab.research.google.com/drive/1NNt4k8Ouzs9vNj20AXsWfzwWXW8MG5QM?usp=sharing)

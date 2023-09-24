@@ -40,6 +40,8 @@ from socnavgym.envs.utils.sngnnv2.socnav_V2_API import Human as otherHuman
 from socnavgym.envs.utils.sngnnv2.socnav_V2_API import Object as otherObject
 from socnavgym.envs.utils.sngnnv2.socnav_V2_API import SNScenario, SocNavAPI
 
+import pygame
+
 DEBUG = 0
 if 'debug' in sys.argv or "debug=2" in sys.argv:
     DEBUG = 2
@@ -2689,6 +2691,7 @@ class SocNavEnv_v1(gym.Env):
         """
         Resets the environment
         """
+
         super().reset(seed=seed)
         start_time = time.time()
         if not self.has_configured:
@@ -3681,14 +3684,18 @@ class SocNavEnv_v1(gym.Env):
 
         return obs, {}
 
-    def render(self, mode="human", draw_human_gaze=False):
+    def render(self, mode="human", draw_human_gaze=False, return_image=False):
         """
         Visualizing the environment
         """
 
         if not self.window_initialised:
-            cv2.namedWindow("world", cv2.WINDOW_NORMAL) 
-            cv2.resizeWindow("world", int(self.RESOLUTION_VIEW), int(self.RESOLUTION_VIEW))
+            # cv2.namedWindow("world", cv2.WINDOW_NORMAL) 
+            # cv2.resizeWindow("world", int(self.RESOLUTION_VIEW), int(self.RESOLUTION_VIEW))
+            pygame.init()
+            self.screen = pygame.display.set_mode((int(self.RESOLUTION_X),int(self.RESOLUTION_Y)))
+            pygame.display.set_caption("world")
+
             self.window_initialised = True
         
         self.world_image = (np.ones((int(self.RESOLUTION_Y),int(self.RESOLUTION_X),3))*255).astype(np.uint8)
@@ -3730,10 +3737,16 @@ class SocNavEnv_v1(gym.Env):
         # cv2.imwrite("img"+str(self.count)+".jpg", self.world_image)
         # self.count+=1
 
-        cv2.imshow("world", self.world_image)
-        k = cv2.waitKey(self.MILLISECONDS)
-        if k%255 == 27:
-            sys.exit(0)
+        # cv2.imshow("world", self.world_image)
+        # k = cv2.waitKey(self.MILLISECONDS)
+        # if k%255 == 27:
+        #     sys.exit(0)
+        surface = pygame.surfarray.make_surface(cv2.cvtColor(self.world_image, cv2.COLOR_BGR2RGB))
+        surface_resized = pygame.transform.smoothscale(surface, (self.RESOLUTION_X, self.RESOLUTION_Y))
+        self.screen.blit(surface_resized, (0,0))
+        pygame.display.flip()
+
+        return self.world_image
 
     def record(self, path:str):
         """To record the episode 

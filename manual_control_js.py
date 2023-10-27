@@ -124,8 +124,8 @@ for episode in range(episodes):
         # values[1] = max(-values[1], 0.)
         # forward_speed = (values[1]-0.5)*2/max_values[1]
         vel_x = -values[1]/max_values[1]
-        vel_y = -values[2]/max_values[2]
-        vel_a = -values[3]/max_values[3]
+        vel_y = -values[3]/max_values[3]
+        vel_a = -values[2]/max_values[2]
         if env.robot.type == "diff-drive": vel_y = 0
 
 

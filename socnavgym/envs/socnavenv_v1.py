@@ -48,6 +48,17 @@ if 'debug' in sys.argv or "debug=2" in sys.argv:
 elif "debug=1" in sys.argv:
     DEBUG = 1
 
+
+class ArrayStacker(object):
+    def __init__(self):
+        self.data = None        
+    def add(self, k):
+        if self.data is not None:
+            self.data = np.vstack((self.data, k))
+        else:
+            self.data = k
+            
+
 class SocNavEnv_v1(gym.Env):
     """
     Class for the environment
@@ -763,6 +774,8 @@ class SocNavEnv_v1(gym.Env):
                 centers = []
                 lengths = []
 
+                returned_obs = ArrayStacker()
+
                 left_x = wall.x - wall.length/2 * np.cos(wall.orientation)
                 left_y = wall.y - wall.length/2 * np.sin(wall.orientation)
 
@@ -778,18 +791,17 @@ class SocNavEnv_v1(gym.Env):
                     segment_x += np.cos(wall.orientation)*size
                     segment_y += np.sin(wall.orientation)*size
 
-                if(wall.length % size != 0):
+                if wall.length % size != 0:
                     length = wall.length % size
                     centers.append((right_x - np.cos(wall.orientation)*length/2, right_y - np.sin(wall.orientation)*length/2))
                     lengths.append(length)
-                
-                obs = np.array([], dtype=np.float32)
-                
+
                 for center, length in zip(centers, lengths):
+                    obs = np.array([], dtype=np.float32)
                     # wall encoding
                     obs = np.concatenate((obs, wall.one_hot_encoding))
                     # coorinates of the wall
-                    obs = np.concatenate((obs, self.get_robot_frame_coordinates(np.array([[center[0], center[1]]])).flatten()))
+                    obs = np.concatenate((obs, self.get_robot_frame_coordinates(np.array([[center[0], center[1]]])).squeeze()))
                     # sin and cos of relative angles
                     obs = np.concatenate((obs, np.array([(np.sin(wall.orientation - self.robot.orientation)), np.cos(wall.orientation - self.robot.orientation)])))
                     # radius of the wall = length/2
@@ -799,19 +811,19 @@ class SocNavEnv_v1(gym.Env):
                     obs = np.concatenate((obs, relative_speeds))
                     # gaze for walls is 0
                     obs = np.concatenate((obs, np.array([0.0])))
-                    obs = obs.flatten().astype(np.float32)
+                    returned_obs.add(obs.astype(np.float32))
                 
-                wall_coordinates = self.get_robot_frame_coordinates(np.array([[wall.x, wall.y]])).flatten()
+                wall_coordinates = self.get_robot_frame_coordinates(np.array([[wall.x, wall.y]]))
                 self._current_observations[wall.id] = EntityObs(
                     wall.id,
-                    wall_coordinates[0],
-                    wall_coordinates[1],
+                    wall_coordinates[0,0],
+                    wall_coordinates[0,1],
                     wall.orientation - self.robot.orientation,
                     np.sin(wall.orientation - self.robot.orientation),
                     np.cos(wall.orientation - self.robot.orientation)
                 )
 
-                return obs
+                return returned_obs.data
 
             # if it is a wall, then return the observation
             if object.name == "wall":
@@ -833,7 +845,7 @@ class SocNavEnv_v1(gym.Env):
             output = np.concatenate(
                         (
                             output,
-                            self.get_robot_frame_coordinates(np.array([[object.x, object.y]])).flatten() 
+                            self.get_robot_frame_coordinates(np.array([[object.x, object.y]])).squeeze()
                         ),
                         dtype=np.float32
                     )
@@ -890,9 +902,9 @@ class SocNavEnv_v1(gym.Env):
             gaze = 0.0
 
             if object.name == "human":
-                robot_in_human_frame = self.get_human_frame_coordinates(object, np.array([[self.robot.x, self.robot.y]])).flatten()
-                robot_x = robot_in_human_frame[0]
-                robot_y = robot_in_human_frame[1]
+                robot_in_human_frame = self.get_human_frame_coordinates(object, np.array([[self.robot.x, self.robot.y]]))
+                robot_x = robot_in_human_frame[0,0]
+                robot_y = robot_in_human_frame[0,1]
 
                 if np.arctan2(robot_y, robot_x) >= -self.HUMAN_GAZE_ANGLE/2 and np.arctan2(robot_y, robot_x)<= self.HUMAN_GAZE_ANGLE/2:
                     gaze = 1.0
@@ -904,8 +916,7 @@ class SocNavEnv_v1(gym.Env):
                         ),
                         dtype=np.float32
                     )
-                    
-            output = output.flatten()
+
             self._current_observations[object.id] = EntityObs(
                 object.id,
                 output[6],
@@ -914,8 +925,8 @@ class SocNavEnv_v1(gym.Env):
                 output[8],
                 output[9]
             )
-            assert(self.entity_obs_dim == output.flatten().shape[-1]), "The value of self.entity_obs_dim needs to be changed"
-            return output.flatten()
+            assert(self.entity_obs_dim == output.shape[-1]), "The value of self.entity_obs_dim needs to be changed"
+            return output
 
     def _get_obs(self):
         """
@@ -931,97 +942,50 @@ class SocNavEnv_v1(gym.Env):
         # goal coordinates in the robot frame
         goal_in_robot_frame = self.get_robot_frame_coordinates(np.array([[self.robot.goal_x, self.robot.goal_y]], dtype=np.float32))
         # converting into the required shape
-        robot_obs = goal_in_robot_frame.flatten()
+        robot_obs = goal_in_robot_frame
 
         # concatenating with the robot's one-hot-encoding
-        robot_obs = np.concatenate((self.robot.one_hot_encoding, robot_obs), dtype=np.float32)
+        robot_obs = np.concatenate((self.robot.one_hot_encoding, robot_obs.squeeze()), dtype=np.float32)
         
         # adding the radius of the robot to the robot's observation
-        robot_obs = np.concatenate((robot_obs, np.array([self.ROBOT_RADIUS], dtype=np.float32))).flatten()
+        robot_obs = np.concatenate((robot_obs, np.array([self.ROBOT_RADIUS], dtype=np.float32)))
 
         # placing it in a dictionary
         d["robot"] = robot_obs
         
         # getting the observations of humans
-        human_obs = np.array([], dtype=np.float32)
+        human_obs = ArrayStacker()
         for human in self.static_humans + self.dynamic_humans:
-            obs = self._get_entity_obs(human)
-            human_obs = np.concatenate((human_obs, obs), dtype=np.float32)
-        
-        for i in (self.moving_interactions + self.static_interactions + self.h_l_interactions):
-            if i.name == "human-human-interaction":
-                for human in i.humans:
-                    obs = self._get_entity_obs(human)
-                    human_obs = np.concatenate((human_obs, obs), dtype=np.float32)
-            elif i.name == "human-laptop-interaction":
-                obs = self._get_entity_obs(i.human)
-                human_obs = np.concatenate((human_obs, obs), dtype=np.float32)
-       
-        if self.get_padded_observations:
-            # padding with zeros
-            human_obs = np.concatenate((human_obs, np.zeros(self.observation_space["humans"].shape[0] - human_obs.shape[0])), dtype=np.float32)
-        
-        # inserting in the dictionary
-        if self.is_entity_present["humans"]:
-            d["humans"] = human_obs
-
+            human_obs.add(self._get_entity_obs(human))
+            print('adding human', human_obs.data.shape)
+        d["humans"] = human_obs.data
+        print(human_obs.data.shape)
     
         # getting the observations of laptops
-        laptop_obs = np.array([], dtype=np.float32)
+        laptop_obs = ArrayStacker()
         for laptop in self.laptops:
-            obs = self._get_entity_obs(laptop)
-            laptop_obs = np.concatenate((laptop_obs, obs), dtype=np.float32)
-        
-        for i in self.h_l_interactions:
-            obs = self._get_entity_obs(i.laptop)
-            laptop_obs = np.concatenate((laptop_obs, obs), dtype=np.float32)
-       
-        if self.get_padded_observations:
-            # padding with zeros
-            laptop_obs = np.concatenate((laptop_obs, np.zeros(self.observation_space["laptops"].shape[0] -laptop_obs.shape[0])), dtype=np.float32)
-        
-        # inserting in the dictionary
-        if self.is_entity_present["laptops"]:
-            d["laptops"] = laptop_obs
+            laptop_obs.add(self._get_entity_obs(laptop))
+        d["laptops"] = laptop_obs.data
     
 
         # getting the observations of tables
-        table_obs = np.array([], dtype=np.float32)
+        table_obs = ArrayStacker()
         for table in self.tables:
-            obs = self._get_entity_obs(table)
-            table_obs = np.concatenate((table_obs, obs), dtype=np.float32)
-
-        if self.get_padded_observations:
-            # padding with zeros
-            table_obs = np.concatenate((table_obs, np.zeros(self.observation_space["tables"].shape[0] -table_obs.shape[0])), dtype=np.float32)
-        
-        # inserting in the dictionary
-        if self.is_entity_present["tables"]:
-            d["tables"] = table_obs
+            table_obs.add(self._get_entity_obs(table))
+        d["tables"] = table_obs.data
 
 
         # getting the observations of plants
-        plant_obs = np.array([], dtype=np.float32)
+        plant_obs = ArrayStacker()
         for plant in self.plants:
-            obs = self._get_entity_obs(plant)
-            plant_obs = np.concatenate((plant_obs, obs), dtype=np.float32)
-
-        if self.get_padded_observations:
-            # padding with zeros
-            plant_obs = np.concatenate((plant_obs, np.zeros(self.observation_space["plants"].shape[0] -plant_obs.shape[0])), dtype=np.float32)
-        
-        # inserting in the dictionary
-        if self.is_entity_present["plants"]:
-            d["plants"] = plant_obs
+            plant_obs.add(self._get_entity_obs(plant))
+        d["plants"] = plant_obs.data
 
         # inserting wall observations to the dictionary
-        if not self.get_padded_observations:
-            wall_obs = np.array([], dtype=np.float32)
-            for wall in self.walls:
-                obs = self._get_entity_obs(wall)
-                wall_obs = np.concatenate((wall_obs, obs), dtype=np.float32)
-            if self.is_entity_present["walls"]:
-                d["walls"] = wall_obs
+        wall_obs = ArrayStacker()
+        for wall in self.walls:
+            wall_obs.add(self._get_entity_obs(wall))
+        d["walls"] = wall_obs.data
 
         return d
     
@@ -2214,14 +2178,14 @@ class SocNavEnv_v1(gym.Env):
         
         # adding humans, tables, laptops, plants, walls
         for entity in self.static_humans + self.dynamic_humans + self.tables + self.laptops + self.plants + self.walls:
-            coordinates = self.get_robot_frame_coordinates(np.array([[entity.x, entity.y]], dtype=np.float32)).flatten()
+            coordinates = self.get_robot_frame_coordinates(np.array([[entity.x, entity.y]], dtype=np.float32))
             sin_theta = np.sin(entity.orientation - self.robot.orientation)
             cos_theta = np.cos(entity.orientation - self.robot.orientation)
             theta = np.arctan2(sin_theta, cos_theta)
             self._prev_observations[entity.id] = EntityObs(
                 entity.id,
-                coordinates[0],
-                coordinates[1],
+                coordinates[0,0],
+                coordinates[0,1],
                 theta,
                 sin_theta,
                 cos_theta
@@ -2230,14 +2194,14 @@ class SocNavEnv_v1(gym.Env):
         # adding human-human interactions
         for i in self.moving_interactions + self.static_interactions:
             for entity in i.humans:
-                coordinates = self.get_robot_frame_coordinates(np.array([[entity.x, entity.y]], dtype=np.float32)).flatten()
+                coordinates = self.get_robot_frame_coordinates(np.array([[entity.x, entity.y]], dtype=np.float32))
                 sin_theta = np.sin(entity.orientation - self.robot.orientation)
                 cos_theta = np.cos(entity.orientation - self.robot.orientation)
                 theta = np.arctan2(sin_theta, cos_theta)
                 self._prev_observations[entity.id] = EntityObs(
                     entity.id,
-                    coordinates[0],
-                    coordinates[1],
+                    coordinates[0,0],
+                    coordinates[0,1],
                     theta,
                     sin_theta,
                     cos_theta
@@ -2246,28 +2210,28 @@ class SocNavEnv_v1(gym.Env):
         # adding human-laptop interactions
         for i in self.h_l_interactions:
             entity = i.human
-            coordinates = self.get_robot_frame_coordinates(np.array([[entity.x, entity.y]], dtype=np.float32)).flatten()
+            coordinates = self.get_robot_frame_coordinates(np.array([[entity.x, entity.y]], dtype=np.float32))
             sin_theta = np.sin(entity.orientation - self.robot.orientation)
             cos_theta = np.cos(entity.orientation - self.robot.orientation)
             theta = np.arctan2(sin_theta, cos_theta)
             self._prev_observations[entity.id] = EntityObs(
                 entity.id,
-                coordinates[0],
-                coordinates[1],
+                coordinates[0,0],
+                coordinates[0,1],
                 theta,
                 sin_theta,
                 cos_theta
             )
 
             entity = i.laptop
-            coordinates = self.get_robot_frame_coordinates(np.array([[entity.x, entity.y]], dtype=np.float32)).flatten()
+            coordinates = self.get_robot_frame_coordinates(np.array([[entity.x, entity.y]], dtype=np.float32))
             sin_theta = np.sin(entity.orientation - self.robot.orientation)
             cos_theta = np.cos(entity.orientation - self.robot.orientation)
             theta = np.arctan2(sin_theta, cos_theta)
             self._prev_observations[entity.id] = EntityObs(
                 entity.id,
-                coordinates[0],
-                coordinates[1],
+                coordinates[0,0],
+                coordinates[0,1],
                 theta,
                 sin_theta,
                 cos_theta
@@ -3062,7 +3026,7 @@ class SocNavEnv_v1(gym.Env):
 
                 collides = False
                 for obj in self.objects: # check if spawned object collides with any of the exisiting objects
-                    if(human.collides(obj)):
+                    if human.collides(obj):
                         collides = True
                         break
 
@@ -3203,7 +3167,7 @@ class SocNavEnv_v1(gym.Env):
             self.reset()
 
         # laptops
-        if(len(self.tables) == 0):
+        if len(self.tables) == 0:
             "print: No tables found, placing laptops on the floor!"
             for i in range(self.NUMBER_OF_LAPTOPS): # spawn specified number of laptops
                 while True: # comes out of loop only when spawned object collides with none of current objects

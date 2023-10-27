@@ -188,7 +188,7 @@ for scenario in scenario_list:
                                 objectt["vx"],
                                 objectt["vy"],
                                 objectt["va"],
-                                objectt["size_x],
+                                objectt["size_x"],
                                 objectt["size_y"],
                             )
                         )

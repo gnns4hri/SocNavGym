@@ -957,16 +957,13 @@ class SocNavEnv_v1(gym.Env):
         human_obs = ArrayStacker()
         for human in self.static_humans + self.dynamic_humans:
             human_obs.add(self._get_entity_obs(human))
-            print('adding human', human_obs.data.shape)
 
         for i in (self.moving_interactions + self.static_interactions + self.h_l_interactions):
             if i.name == "human-human-interaction":
                 for human in i.humans:
                     human_obs.add(self._get_entity_obs(human))
-                    print('adding human', human_obs.data.shape)
             elif i.name == "human-laptop-interaction":
                 human_obs.add(self._get_entity_obs(i.human))
-                print('adding human', human_obs.data.shape)  
 
         d["humans"] = human_obs.data
         print(human_obs.data.shape)

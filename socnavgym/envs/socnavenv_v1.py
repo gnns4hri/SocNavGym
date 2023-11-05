@@ -966,7 +966,6 @@ class SocNavEnv_v1(gym.Env):
                 human_obs.add(self._get_entity_obs(i.human))
 
         d["humans"] = human_obs.data
-        print(human_obs.data.shape)
 
         # getting the observations of laptops
         laptop_obs = ArrayStacker()

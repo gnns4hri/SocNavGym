@@ -17,6 +17,7 @@ from gym import spaces
 from shapely.geometry import Point, Polygon
 from collections import namedtuple
 from math import ceil
+from enum import Enum
 EntityObs = namedtuple("EntityObs", ["id", "x", "y", "theta", "sin_theta", "cos_theta"])
 
 from socnavgym.envs.utils.human import Human
@@ -45,6 +46,36 @@ if 'debug' in sys.argv or "debug=2" in sys.argv:
     DEBUG = 2
 elif "debug=1" in sys.argv:
     DEBUG = 1
+
+class SocNavGymObject(Enum):
+    ROBOT = "ROBOT"
+    DYNAMIC_HUMAN = "DYNAMIC_HUMAN"
+    STATIC_HUMAN = "STATIC_HUMAN"
+    PLANT = "PLANT"
+    TABLE = "TABLE"
+    LAPTOP = "LAPTOP"
+    WALL = "WALL"
+    HUMAN_HUMAN_INTERACTION_DYNAMIC = "HUMAN_HUMAN_INTERACTION_DYNAMIC"
+    HUMAN_HUMAN_INTERACTION_DYNAMIC_NON_DISPERSING = "HUMAN_HUMAN_INTERACTION_DYNAMIC_NON_DISPERSING"
+    HUMAN_HUMAN_INTERACTION_STATIC = "HUMAN_HUMAN_INTERACTION_STATIC"
+    HUMAN_HUMAN_INTERACTION_STATIC_NON_DISPERSING = "HUMAN_HUMAN_INTERACTION_STATIC_NON_DISPERSING"
+    HUMAN_LAPTOP_INTERACTION = "HUMAN_LAPTOP_INTERACTION"
+    HUMAN_LAPTOP_INTERACTION_NON_DISPERSING = "HUMAN_LAPTOP_INTERACTION_NON_DISPERSING"
+
+    def get_class(self):
+        if self == SocNavGymObject.ROBOT: return Robot
+        if self == SocNavGymObject.DYNAMIC_HUMAN: return Human
+        if self == SocNavGymObject.STATIC_HUMAN: return Human
+        if self == SocNavGymObject.PLANT: return Plant
+        if self == SocNavGymObject.TABLE: return Table
+        if self == SocNavGymObject.LAPTOP: return Laptop
+        if self == SocNavGymObject.WALL: return Wall
+        if self == SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC: return Human_Human_Interaction
+        if self == SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC_NON_DISPERSING: return Human_Human_Interaction
+        if self == SocNavGymObject.HUMAN_HUMAN_INTERACTION_STATIC: return Human_Human_Interaction
+        if self == SocNavGymObject.HUMAN_HUMAN_INTERACTION_STATIC_NON_DISPERSING: return Human_Human_Interaction
+        if self == SocNavGymObject.HUMAN_LAPTOP_INTERACTION: return Human_Laptop_Interaction
+        if self == SocNavGymObject.HUMAN_LAPTOP_INTERACTION_NON_DISPERSING: return Human_Laptop_Interaction
 
 class SocNavEnv_v1(gym.Env):
     """
@@ -747,173 +778,173 @@ class SocNavEnv_v1(gym.Env):
         return other_obj.intersects(sector)
 
     def _get_entity_obs(self, object): 
-            """
-            Returning the observation for one individual object. Also to get the sin and cos of the relative angle rather than the angle itself.
-            Input:
-                object (one of socnavenv.envs.utils.object.Object's subclasses) : the object of interest
-            Returns:
-                numpy.ndarray : the observations of the given object.
-            """
-            # checking the coordinates and orientation of the object are not None
-            assert((object.x is not None) and (object.y is not None) and (object.orientation is not None)), f"{object.name}'s coordinates or orientation are None type"
+        """
+        Returning the observation for one individual object. Also to get the sin and cos of the relative angle rather than the angle itself.
+        Input:
+            object (one of socnavenv.envs.utils.object.Object's subclasses) : the object of interest
+        Returns:
+            numpy.ndarray : the observations of the given object.
+        """
+        # checking the coordinates and orientation of the object are not None
+        assert((object.x is not None) and (object.y is not None) and (object.orientation is not None)), f"{object.name}'s coordinates or orientation are None type"
 
-            def _get_wall_obs(wall:Wall, size:float):
-                centers = []
-                lengths = []
+        def _get_wall_obs(wall:Wall, size:float):
+            centers = []
+            lengths = []
 
-                left_x = wall.x - wall.length/2 * np.cos(wall.orientation)
-                left_y = wall.y - wall.length/2 * np.sin(wall.orientation)
+            left_x = wall.x - wall.length/2 * np.cos(wall.orientation)
+            left_y = wall.y - wall.length/2 * np.sin(wall.orientation)
 
-                right_x = wall.x + wall.length/2 * np.cos(wall.orientation)
-                right_y = wall.y + wall.length/2 * np.sin(wall.orientation)
+            right_x = wall.x + wall.length/2 * np.cos(wall.orientation)
+            right_y = wall.y + wall.length/2 * np.sin(wall.orientation)
 
-                segment_x = left_x + np.cos(wall.orientation)*(size/2)
-                segment_y = left_y + np.sin(wall.orientation)*(size/2)
+            segment_x = left_x + np.cos(wall.orientation)*(size/2)
+            segment_y = left_y + np.sin(wall.orientation)*(size/2)
 
-                for i in range(int(wall.length//size)):
-                    centers.append((segment_x, segment_y))
-                    lengths.append(size)
-                    segment_x += np.cos(wall.orientation)*size
-                    segment_y += np.sin(wall.orientation)*size
+            for i in range(int(wall.length//size)):
+                centers.append((segment_x, segment_y))
+                lengths.append(size)
+                segment_x += np.cos(wall.orientation)*size
+                segment_y += np.sin(wall.orientation)*size
 
-                if(wall.length % size != 0):
-                    length = wall.length % size
-                    centers.append((right_x - np.cos(wall.orientation)*length/2, right_y - np.sin(wall.orientation)*length/2))
-                    lengths.append(length)
-                
-                obs = np.array([], dtype=np.float32)
-                
-                for center, length in zip(centers, lengths):
-                    # wall encoding
-                    obs = np.concatenate((obs, wall.one_hot_encoding))
-                    # coorinates of the wall
-                    obs = np.concatenate((obs, self.get_robot_frame_coordinates(np.array([[center[0], center[1]]])).flatten()))
-                    # sin and cos of relative angles
-                    obs = np.concatenate((obs, np.array([(np.sin(wall.orientation - self.robot.orientation)), np.cos(wall.orientation - self.robot.orientation)])))
-                    # radius of the wall = length/2
-                    obs = np.concatenate((obs, np.array([length/2])))
-                    # relative speeds based on robot type
-                    relative_speeds = np.array([-np.sqrt(self.robot.vel_x**2 + self.robot.vel_y**2), -self.robot.vel_a], dtype=np.float32)
-                    obs = np.concatenate((obs, relative_speeds))
-                    # gaze for walls is 0
-                    obs = np.concatenate((obs, np.array([0.0])))
-                    obs = obs.flatten().astype(np.float32)
-                
-                wall_coordinates = self.get_robot_frame_coordinates(np.array([[wall.x, wall.y]])).flatten()
-                self._current_observations[wall.id] = EntityObs(
-                    wall.id,
-                    wall_coordinates[0],
-                    wall_coordinates[1],
-                    wall.orientation - self.robot.orientation,
-                    np.sin(wall.orientation - self.robot.orientation),
-                    np.cos(wall.orientation - self.robot.orientation)
+            if(wall.length % size != 0):
+                length = wall.length % size
+                centers.append((right_x - np.cos(wall.orientation)*length/2, right_y - np.sin(wall.orientation)*length/2))
+                lengths.append(length)
+            
+            obs = np.array([], dtype=np.float32)
+            
+            for center, length in zip(centers, lengths):
+                # wall encoding
+                obs = np.concatenate((obs, wall.one_hot_encoding))
+                # coorinates of the wall
+                obs = np.concatenate((obs, self.get_robot_frame_coordinates(np.array([[center[0], center[1]]])).flatten()))
+                # sin and cos of relative angles
+                obs = np.concatenate((obs, np.array([(np.sin(wall.orientation - self.robot.orientation)), np.cos(wall.orientation - self.robot.orientation)])))
+                # radius of the wall = length/2
+                obs = np.concatenate((obs, np.array([length/2])))
+                # relative speeds based on robot type
+                relative_speeds = np.array([-np.sqrt(self.robot.vel_x**2 + self.robot.vel_y**2), -self.robot.vel_a], dtype=np.float32)
+                obs = np.concatenate((obs, relative_speeds))
+                # gaze for walls is 0
+                obs = np.concatenate((obs, np.array([0.0])))
+                obs = obs.flatten().astype(np.float32)
+            
+            wall_coordinates = self.get_robot_frame_coordinates(np.array([[wall.x, wall.y]])).flatten()
+            self._current_observations[wall.id] = EntityObs(
+                wall.id,
+                wall_coordinates[0],
+                wall_coordinates[1],
+                wall.orientation - self.robot.orientation,
+                np.sin(wall.orientation - self.robot.orientation),
+                np.cos(wall.orientation - self.robot.orientation)
+            )
+
+            return obs
+
+        # if it is a wall, then return the observation
+        if object.name == "wall":
+            return _get_wall_obs(object, self.WALL_SEGMENT_SIZE)
+
+        # initializing output array
+        output = np.array([], dtype=np.float32)
+        
+        # object's one-hot encoding
+        output = np.concatenate(
+            (
+                output,
+                object.one_hot_encoding
+            ),
+            dtype=np.float32
+        )
+
+        # object's coordinates in the robot frame
+        output = np.concatenate(
+                    (
+                        output,
+                        self.get_robot_frame_coordinates(np.array([[object.x, object.y]])).flatten() 
+                    ),
+                    dtype=np.float32
                 )
 
-                return obs
+        # sin and cos of the relative angle of the object
+        output = np.concatenate(
+                    (
+                        output,
+                        np.array([(np.sin(object.orientation - self.robot.orientation)), np.cos(object.orientation - self.robot.orientation)]) 
+                    ),
+                    dtype=np.float32
+                )
 
-            # if it is a wall, then return the observation
-            if object.name == "wall":
-                return _get_wall_obs(object, self.WALL_SEGMENT_SIZE)
+        # object's radius
+        radius = 0
+        if object.name == "plant":
+            radius = object.radius
+        elif object.name == "human":
+            radius = object.width/2
+        elif object.name == "table" or object.name == "laptop":
+            radius = np.sqrt((object.length/2)**2 + (object.width/2)**2)
+        else: raise NotImplementedError
 
-            # initializing output array
-            output = np.array([], dtype=np.float32)
-            
-            # object's one-hot encoding
-            output = np.concatenate(
-                (
-                    output,
-                    object.one_hot_encoding
-                ),
-                dtype=np.float32
-            )
+        output = np.concatenate(
+            (
+                output,
+                np.array([radius], dtype=np.float32)
+            ),
+            dtype=np.float32
+        )
 
-            # object's coordinates in the robot frame
-            output = np.concatenate(
-                        (
-                            output,
-                            self.get_robot_frame_coordinates(np.array([[object.x, object.y]])).flatten() 
-                        ),
-                        dtype=np.float32
-                    )
+        robot_vel_x = self.robot.vel_x * np.cos(self.robot.orientation) + self.robot.vel_y * np.cos(self.robot.orientation + np.pi/2)
+        robot_vel_y = self.robot.vel_x * np.sin(self.robot.orientation) + self.robot.vel_y * np.sin(self.robot.orientation + np.pi/2)
 
-            # sin and cos of the relative angle of the object
-            output = np.concatenate(
-                        (
-                            output,
-                            np.array([(np.sin(object.orientation - self.robot.orientation)), np.cos(object.orientation - self.robot.orientation)]) 
-                        ),
-                        dtype=np.float32
-                    )
+        # relative speeds for static objects
+        relative_speeds = np.array([-np.sqrt(self.robot.vel_x**2 + self.robot.vel_y**2), -self.robot.vel_a], dtype=np.float32)
+        
+        if object.name == "human": # the only dynamic object
+            if object.type == "static":
+                assert object.speed <= 0.001, "static human has speed" 
+            # relative linear speed
+            relative_speeds[0] = np.sqrt((object.speed*np.cos(object.orientation) - robot_vel_x)**2 + (object.speed*np.sin(object.orientation) - robot_vel_y)**2) 
+            relative_speeds[1] = (np.arctan2(np.sin(object.orientation - self.robot.orientation), np.cos(object.orientation - self.robot.orientation)) - self._prev_observations[object.id].theta) / self.TIMESTEP
+        
+        output = np.concatenate(
+                    (
+                        output,
+                        relative_speeds
+                    ),
+                    dtype=np.float32
+                )
 
-            # object's radius
-            radius = 0
-            if object.name == "plant":
-                radius = object.radius
-            elif object.name == "human":
-                radius = object.width/2
-            elif object.name == "table" or object.name == "laptop":
-                radius = np.sqrt((object.length/2)**2 + (object.width/2)**2)
-            else: raise NotImplementedError
+        # adding gaze
+        gaze = 0.0
 
-            output = np.concatenate(
-                (
-                    output,
-                    np.array([radius], dtype=np.float32)
-                ),
-                dtype=np.float32
-            )
+        if object.name == "human":
+            robot_in_human_frame = self.get_human_frame_coordinates(object, np.array([[self.robot.x, self.robot.y]])).flatten()
+            robot_x = robot_in_human_frame[0]
+            robot_y = robot_in_human_frame[1]
 
-            robot_vel_x = self.robot.vel_x * np.cos(self.robot.orientation) + self.robot.vel_y * np.cos(self.robot.orientation + np.pi/2)
-            robot_vel_y = self.robot.vel_x * np.sin(self.robot.orientation) + self.robot.vel_y * np.sin(self.robot.orientation + np.pi/2)
+            if np.arctan2(robot_y, robot_x) >= -self.HUMAN_GAZE_ANGLE/2 and np.arctan2(robot_y, robot_x)<= self.HUMAN_GAZE_ANGLE/2:
+                gaze = 1.0
 
-            # relative speeds for static objects
-            relative_speeds = np.array([-np.sqrt(self.robot.vel_x**2 + self.robot.vel_y**2), -self.robot.vel_a], dtype=np.float32)
-            
-            if object.name == "human": # the only dynamic object
-                if object.type == "static":
-                    assert object.speed <= 0.001, "static human has speed" 
-                # relative linear speed
-                relative_speeds[0] = np.sqrt((object.speed*np.cos(object.orientation) - robot_vel_x)**2 + (object.speed*np.sin(object.orientation) - robot_vel_y)**2) 
-                relative_speeds[1] = (np.arctan2(np.sin(object.orientation - self.robot.orientation), np.cos(object.orientation - self.robot.orientation)) - self._prev_observations[object.id].theta) / self.TIMESTEP
-            
-            output = np.concatenate(
-                        (
-                            output,
-                            relative_speeds
-                        ),
-                        dtype=np.float32
-                    )
-
-            # adding gaze
-            gaze = 0.0
-
-            if object.name == "human":
-                robot_in_human_frame = self.get_human_frame_coordinates(object, np.array([[self.robot.x, self.robot.y]])).flatten()
-                robot_x = robot_in_human_frame[0]
-                robot_y = robot_in_human_frame[1]
-
-                if np.arctan2(robot_y, robot_x) >= -self.HUMAN_GAZE_ANGLE/2 and np.arctan2(robot_y, robot_x)<= self.HUMAN_GAZE_ANGLE/2:
-                    gaze = 1.0
-
-            output = np.concatenate(
-                        (
-                            output,
-                            np.array([gaze])
-                        ),
-                        dtype=np.float32
-                    )
-                    
-            output = output.flatten()
-            self._current_observations[object.id] = EntityObs(
-                object.id,
-                output[6],
-                output[7],
-                np.arctan2(output[8], output[9]),
-                output[8],
-                output[9]
-            )
-            assert(self.entity_obs_dim == output.flatten().shape[-1]), "The value of self.entity_obs_dim needs to be changed"
-            return output.flatten()
+        output = np.concatenate(
+                    (
+                        output,
+                        np.array([gaze])
+                    ),
+                    dtype=np.float32
+                )
+                
+        output = output.flatten()
+        self._current_observations[object.id] = EntityObs(
+            object.id,
+            output[6],
+            output[7],
+            np.arctan2(output[8], output[9]),
+            output[8],
+            output[9]
+        )
+        assert(self.entity_obs_dim == output.flatten().shape[-1]), "The value of self.entity_obs_dim needs to be changed"
+        return output.flatten()
 
     def _get_obs(self):
         """
@@ -2684,6 +2715,408 @@ class SocNavEnv_v1(gym.Env):
             return True
         else:
             return False
+    
+    def _get_walls_for_L_shaped_room(self, location: int) -> List[Wall]:
+        """Returns a list of walls according to the value of location
+
+        Args:
+            location (int): an integer between 0-3 (both inclusive)
+
+        Returns:
+            List[Wall]: A list of walls that together make the boundary of the L-shaped room
+        """
+        if location == 0:
+            w_l8 = Wall(id=None, x=self.MAP_X/2 -self.L_X/2, y=self.MAP_Y/2 -self.L_Y, theta=np.pi, length=self.L_X, thickness=self.WALL_THICKNESS)
+            w_l7 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=-self.L_Y/2, theta=np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
+            w_l6 = Wall(id=None, x=self.MAP_X/6, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), theta=0, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l5 = Wall(id=None, x=-self.MAP_X/3, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), theta=0, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l4 = Wall(id=None, x=-self.MAP_X/2 + (self.WALL_THICKNESS/2), y=-self.MAP_Y/6, theta=-np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l3 = Wall(id=None, x=-self.MAP_X/2 + (self.WALL_THICKNESS/2), y=self.MAP_Y/3, theta=-np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l2 = Wall(id=None, x=-self.L_X/2, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
+            w_l1 = Wall(id=None, x=self.MAP_X/2 -self.L_X, y=self.MAP_Y/2 -self.L_Y/2, theta=np.pi/2, length=self.L_Y, thickness=self.WALL_THICKNESS)
+        elif location == 1:
+            w_l8 = Wall(id=None, x=-self.MAP_X/2 + self.L_X, y=self.MAP_Y/2 -self.L_Y/2, theta=np.pi/2, length=self.L_Y, thickness=self.WALL_THICKNESS)
+            w_l7 = Wall(id=None, x=self.L_X/2, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
+            w_l6 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=self.MAP_Y/6, theta=np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l5 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=-self.MAP_Y/3, theta=np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l4 = Wall(id=None, x=self.MAP_X/6, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), theta=0, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l3 = Wall(id=None, x=-self.MAP_X/3, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), theta=0, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l2 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=-self.L_Y/2, theta=-np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
+            w_l1 = Wall(id=None, x=-self.MAP_X/2 +self.L_X/2, y=self.MAP_Y/2 -self.L_Y, theta=np.pi, length=self.L_X, thickness=self.WALL_THICKNESS)
+        elif location == 2:
+            w_l8 = Wall(id=None, x=self.MAP_X/2 - self.L_X, y=-self.MAP_Y/2 + self.L_Y/2, theta=np.pi/2,length=self.L_Y, thickness=self.WALL_THICKNESS)
+            w_l7 = Wall(id=None, x=-self.L_X/2, y=-self.MAP_Y/2+(self.WALL_THICKNESS/2), theta=0, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
+            w_l6 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=-self.MAP_Y/6, theta=-np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l5 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=self.MAP_Y/3, theta=-np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l4 = Wall(id=None, x=-self.MAP_X/6, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l3 = Wall(id=None, x=self.MAP_X/3, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l2 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=self.L_Y/2, theta=np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
+            w_l1 = Wall(id=None, x=self.MAP_X/2 - self.L_X/2, y=-self.MAP_Y/2 +self.L_Y, theta=0, length=self.L_X, thickness=self.WALL_THICKNESS)
+        elif location == 3:
+            w_l8 = Wall(id=None, x=-self.MAP_X/2 + self.L_X/2, y=-self.MAP_Y/2 + self.L_Y, theta=0, length=self.L_X, thickness=self.WALL_THICKNESS)
+            w_l7 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=self.L_Y/2, theta=-np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
+            w_l6 = Wall(id=None, x=-self.MAP_X/6, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l5 = Wall(id=None, x=self.MAP_X/3, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l4 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=self.MAP_Y/6, theta=np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l3 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=-self.MAP_Y/3, theta=np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l2 = Wall(id=None, x=self.L_X/2, y=-self.MAP_Y/2+(self.WALL_THICKNESS/2), theta=0, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
+            w_l1 = Wall(id=None, x= -self.MAP_X/2 +self.L_X, y= -self.MAP_Y/2 + self.L_Y/2, theta=-np.pi/2, length=self.L_Y, thickness=self.WALL_THICKNESS)
+        else:
+            raise AssertionError("location can take values between 0 and 3 only")
+
+        return [w_l1, w_l2, w_l3, w_l4, w_l5, w_l6, w_l7, w_l8]
+    
+    def _add_corridors_to_L_shaped_room(self, location: int) -> None:
+        """Adds corridors to an L-shaped room
+
+        Args:
+            location (int): an integer between 0-3 (both inclusive)
+        """
+        if location == 0:
+            min_gap = max(self.ROBOT_RADIUS*2, self.HUMAN_DIAMETER) + 0.5
+            gap1 = random.random() * min_gap + min_gap  # gap1 is sampled between min_gap and 2*min_gap
+            gap2 = random.random() * min_gap + min_gap  # gap2 is sampled between min_gap and 2*min_gap
+            gap1_center = random.random() * (self.MAP_X - gap1 - self.L_X) + (-self.MAP_X/2 + gap1/2)  # center of gap1 is sampled between (-X/2 + gap1/2, X/2 - LX - gap1/2)
+            w1 = Wall(None, ((-self.MAP_X/2 + gap1_center-gap1/2)/2), self.MAP_Y/2 - self.L_Y, 0, (gap1_center-gap1/2 + self.MAP_X/2), self.WALL_THICKNESS)
+            w2 = Wall(None, (gap1_center + gap1/2 + self.MAP_X/2 - self.L_X)/2, self.MAP_Y/2 - self.L_Y, 0, (self.MAP_X/2 - self.L_X - (gap1_center + gap1/2)), self.WALL_THICKNESS)
+            self.walls.append(w1)
+            self.objects.append(w1)
+            self.walls.append(w2)
+            self.objects.append(w2)
+            self.objects.append(Wall(-1, gap1_center, -self.MAP_Y/2 - self.L_Y, 0, gap1, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
+            gap2_center = random.random() * (self.MAP_Y - gap2 - self.L_Y) + (-self.MAP_Y/2 + gap2/2)  # center of gap2 is sampled between (-Y/2 + gap2/2, Y/2 - LY - gap2/2)
+            w3 = Wall(None, self.MAP_X/2 - self.L_X, (-self.MAP_Y/2 + gap2_center-gap2/2)/2, np.pi/2, (gap2_center-gap2/2 + self.MAP_Y/2), self.WALL_THICKNESS)
+            w4 = Wall(None, self.MAP_X/2 - self.L_X, (gap2_center + gap2/2 + self.MAP_Y/2 - self.L_Y)/2, np.pi/2, (self.MAP_Y/2 - self.L_Y - (gap2_center + gap2/2)), self.WALL_THICKNESS)
+            self.walls.append(w3)
+            self.objects.append(w3)
+            self.walls.append(w4)
+            self.objects.append(w4)
+            self.objects.append(Wall(-1, self.MAP_X/2 - self.L_X, gap2_center, np.pi/2, gap2, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
+        
+        elif location == 1:
+            min_gap = max(self.ROBOT_RADIUS*2, self.HUMAN_DIAMETER) + 0.5
+            gap1 = random.random() * min_gap + min_gap  # gap1 is sampled between min_gap and 2*min_gap
+            gap2 = random.random() * min_gap + min_gap  # gap2 is sampled between min_gap and 2*min_gap
+            gap1_center = random.random() * (self.MAP_X - gap1 - self.L_X) + (-self.MAP_X/2 + self.L_X + gap1/2)  # center of gap1 is sampled between (-X/2 + LX + gap1/2, X/2 - gap1/2)
+            w1 = Wall(None, ((-self.MAP_X/2 + self.L_X + gap1_center-gap1/2)/2), self.MAP_Y/2 - self.L_Y, 0, (gap1_center-gap1/2 + self.MAP_X/2 - self.L_X), self.WALL_THICKNESS)
+            w2 = Wall(None, (gap1_center + gap1/2 + self.MAP_X/2)/2, self.MAP_Y/2 - self.L_Y, 0, (self.MAP_X/2 - (gap1_center + gap1/2)), self.WALL_THICKNESS)
+            self.walls.append(w1)
+            self.objects.append(w1)
+            self.walls.append(w2)
+            self.objects.append(w2)
+            self.objects.append(Wall(-1, gap1_center, -self.MAP_Y/2 - self.L_Y, 0, gap1, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
+            gap2_center = random.random() * (self.MAP_Y - gap2 - self.L_Y) + (-self.MAP_Y/2 + gap2/2)  # center of gap2 is sampled between (-Y/2 + gap2/2, Y/2 - LY - gap2/2)
+            w3 = Wall(None, -self.MAP_X/2 + self.L_X, (-self.MAP_Y/2 + gap2_center-gap2/2)/2, np.pi/2, (gap2_center-gap2/2 + self.MAP_Y/2), self.WALL_THICKNESS)
+            w4 = Wall(None, -self.MAP_X/2 + self.L_X, (gap2_center + gap2/2 + self.MAP_Y/2 - self.L_Y)/2, np.pi/2, (self.MAP_Y/2 - self.L_Y - (gap2_center + gap2/2)), self.WALL_THICKNESS)
+            self.walls.append(w3)
+            self.objects.append(w3)
+            self.walls.append(w4)
+            self.objects.append(w4)
+            self.objects.append(Wall(-1, -self.MAP_X/2 + self.L_X, gap2_center, np.pi/2, gap2, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
+        
+        elif location == 2:
+            min_gap = max(self.ROBOT_RADIUS*2, self.HUMAN_DIAMETER) + 0.5
+            gap1 = random.random() * min_gap + min_gap  # gap1 is sampled between min_gap and 2*min_gap
+            gap2 = random.random() * min_gap + min_gap  # gap2 is sampled between min_gap and 2*min_gap
+            gap1_center = random.random() * (self.MAP_X - gap1 - self.L_X) + (-self.MAP_X/2 + gap1/2)  # center of gap1 is sampled between (-X/2 + gap1/2, X/2 - LX - gap1/2)
+            w1 = Wall(None, ((-self.MAP_X/2 + gap1_center-gap1/2)/2), -self.MAP_Y/2 + self.L_Y, 0, (gap1_center-gap1/2 + self.MAP_X/2), self.WALL_THICKNESS)
+            w2 = Wall(None, (gap1_center + gap1/2 + self.MAP_X/2 - self.L_X)/2, -self.MAP_Y/2 + self.L_Y, 0, (self.MAP_X/2 - self.L_X - (gap1_center + gap1/2)), self.WALL_THICKNESS)
+            self.walls.append(w1)
+            self.objects.append(w1)
+            self.walls.append(w2)
+            self.objects.append(w2)
+            self.objects.append(Wall(-1, gap1_center, -self.MAP_Y/2 + self.L_Y, 0, gap1, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
+            gap2_center = random.random() * (self.MAP_Y - gap2 - self.L_Y) + (-self.MAP_Y/2 + gap2/2 + self.L_Y)  # center of gap2 is sampled between (-Y/2 + gap2/2 + LY, Y/2 - gap2/2)
+            w3 = Wall(None, self.MAP_X/2 - self.L_X, (-self.MAP_Y/2 + self.L_Y + gap2_center-gap2/2)/2, np.pi/2, (gap2_center-gap2/2 + self.MAP_Y/2 - self.L_Y), self.WALL_THICKNESS)
+            w4 = Wall(None, self.MAP_X/2 - self.L_X, (gap2_center + gap2/2 + self.MAP_Y/2)/2, np.pi/2, (self.MAP_Y/2 - (gap2_center + gap2/2)), self.WALL_THICKNESS)
+            self.walls.append(w3)
+            self.objects.append(w3)
+            self.walls.append(w4)
+            self.objects.append(w4)
+            self.objects.append(Wall(-1, self.MAP_X/2 - self.L_X, gap2_center, np.pi/2, gap2, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
+
+        elif location == 3:
+            min_gap = max(self.ROBOT_RADIUS*2, self.HUMAN_DIAMETER) + 0.5
+            gap1 = random.random() * min_gap + min_gap  # gap1 is sampled between min_gap and 2*min_gap
+            gap2 = random.random() * min_gap + min_gap  # gap2 is sampled between min_gap and 2*min_gap
+            gap1_center = random.random() * (self.MAP_X - gap1 - self.L_X) + (-self.MAP_X/2 + self.L_X + gap1/2)  # center of gap1 is sampled between (-X/2 + LX + gap1/2, X/2 - gap1/2)
+            w1 = Wall(None, ((-self.MAP_X/2 + self.L_X + gap1_center-gap1/2)/2), -self.MAP_Y/2 + self.L_Y, 0, (gap1_center-gap1/2 + self.MAP_X/2 - self.L_X), self.WALL_THICKNESS)
+            w2 = Wall(None, (gap1_center + gap1/2 + self.MAP_X/2)/2, -self.MAP_Y/2 + self.L_Y, 0, (self.MAP_X/2 - (gap1_center + gap1/2)), self.WALL_THICKNESS)
+            self.walls.append(w1)
+            self.objects.append(w1)
+            self.walls.append(w2)
+            self.objects.append(w2)
+            self.objects.append(Wall(-1, gap1_center, -self.MAP_Y/2 + self.L_Y, 0, gap1, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
+            gap2_center = random.random() * (self.MAP_Y - gap2 - self.L_Y) + (-self.MAP_Y/2 + gap2/2 + self.L_Y)  # center of gap2 is sampled between (-Y/2 + gap2/2 + LY, Y/2 - gap2/2)
+            w3 = Wall(None, -self.MAP_X/2 + self.L_X, (-self.MAP_Y/2 + self.L_Y + gap2_center-gap2/2)/2, np.pi/2, (gap2_center-gap2/2 + self.MAP_Y/2 - self.L_Y), self.WALL_THICKNESS)
+            w4 = Wall(None, -self.MAP_X/2 + self.L_X, (gap2_center + gap2/2 + self.MAP_Y/2)/2, np.pi/2, (self.MAP_Y/2 - (gap2_center + gap2/2)), self.WALL_THICKNESS)
+            self.walls.append(w3)
+            self.objects.append(w3)
+            self.walls.append(w4)
+            self.objects.append(w4)
+            self.objects.append(Wall(-1, -self.MAP_X/2 + self.L_X, gap2_center, np.pi/2, gap2, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
+
+    def _add_corridors_to_rectangular_shaped_room(self):
+        """Adds corridors to an rectangular/square shaped room
+        """
+        min_gap = max(self.ROBOT_RADIUS*2, self.HUMAN_DIAMETER) + 0.5
+        gap1 = random.random() * min_gap + min_gap  # gap1 is sampled between min_gap and 2*min_gap
+        gap2 = random.random() * min_gap + min_gap  # gap2 is sampled between min_gap and 2*min_gap
+        gap1_center = random.random() * (self.MAP_X/2 - gap1/2)  # center of gap1 is sampled between (-X/2 + gap1/2, X/2 - gap1/2)
+        w1 = Wall(None, ((-self.MAP_X/2 + gap1_center-gap1/2)/2), -self.MAP_Y/2 + self.MAP_Y/3, 0, (gap1_center-gap1/2 + self.MAP_X/2), self.WALL_THICKNESS)
+        w2 = Wall(None, (gap1_center + gap1/2 + self.MAP_X/2)/2, -self.MAP_Y/2 + self.MAP_Y/3, 0, (self.MAP_X/2 - (gap1_center + gap1/2)), self.WALL_THICKNESS)
+        self.walls.append(w1)
+        self.objects.append(w1)
+        self.walls.append(w2)
+        self.objects.append(w2)
+        self.objects.append(Wall(-1, gap1_center, -self.MAP_Y/2 + self.MAP_Y/3, 0, gap1, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
+        gap2_center = random.random() * (self.MAP_X/2 - gap2/2)  # center of gap2 is sampled between (-X/2 + gap2/2, X/2 - gap2/2)
+        w3 = Wall(None, ((-self.MAP_X/2 + gap2_center-gap2/2)/2), -self.MAP_Y/2 + 2*self.MAP_Y/3, 0, (gap2_center-gap2/2 + self.MAP_X/2), self.WALL_THICKNESS)
+        w4 = Wall(None, (gap2_center + gap2/2 + self.MAP_X/2)/2, -self.MAP_Y/2 + 2*self.MAP_Y/3, 0, (self.MAP_X/2 - (gap2_center + gap2/2)), self.WALL_THICKNESS)
+        self.walls.append(w3)
+        self.objects.append(w3)
+        self.walls.append(w4)
+        self.objects.append(w4)
+        self.objects.append(Wall(-1, gap2_center, -self.MAP_Y/2 + 2*self.MAP_Y/3, 0, gap2, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
+
+
+    def _add_walls(self):
+        if self.shape == "L":
+            # keep the direction of this as well
+            self.location = np.random.randint(0,4)
+            self.L_X = (2 if (self.location == 0 or self.location == 3) else 1) * self.MAP_X/3
+            self.L_Y = (1 if (self.location == 0 or self.location == 3) else 2) * self.MAP_Y/3
+
+            # placing a rectangular object (laptop) to avoid sampling new objects in the (rectangular) portion left outside the L-shaped room
+            l = Laptop(
+                id=None,
+                x=(-1 if (self.location == 1 or self.location == 3) else 1)*self.MAP_X/2.0 + (-1 if (self.location == 0 or self.location == 2) else 1)*self.L_X/2.0,
+                y=(-1 if (self.location == 2 or self.location == 3) else 1)*self.MAP_Y/2.0 + (-1 if (self.location == 0 or self.location == 1) else 1)*self.L_Y/2.0,
+                width=self.L_Y,
+                length=self.L_X,
+                theta=0
+            )
+
+            walls = self._get_walls_for_L_shaped_room(self.location)
+            if self.add_corridors:
+                self._add_corridors_to_L_shaped_room(self.location)
+            
+            self.objects.append(l)
+            for w in walls:
+                self.walls.append(w)
+                self.objects.append(w)
+
+        # walls (hardcoded to be at the boundaries of the environment)
+        elif self.shape != "no-walls":
+            w1 = Wall(None, self.MAP_X/2-self.WALL_THICKNESS/2, 0, -np.pi/2, self.MAP_Y, self.WALL_THICKNESS)
+            w2 = Wall(None, 0, -self.MAP_Y/2+self.WALL_THICKNESS/2, -np.pi, self.MAP_X, self.WALL_THICKNESS)
+            w3 = Wall(None, -self.MAP_X/2+self.WALL_THICKNESS/2, 0, np.pi/2, self.MAP_Y, self.WALL_THICKNESS)
+            w4 = Wall(None, 0, self.MAP_Y/2-self.WALL_THICKNESS/2, 0, self.MAP_X, self.WALL_THICKNESS)
+            self.walls.append(w1)
+            self.walls.append(w2)
+            self.walls.append(w3)
+            self.walls.append(w4)
+            self.objects.append(w1)
+            self.objects.append(w2)
+            self.objects.append(w3)
+            self.objects.append(w4)
+
+        if self.add_corridors:  # corridors are hard coded to be at Y/3 and 2Y/3 where Y is the room's length along Y direction
+
+            if self.shape == "L":
+                pass
+            
+            else:
+                self._add_corridors_to_rectangular_shaped_room()
+
+    def _get_kwargs(self, object_type: SocNavGymObject, extra_info: dict = None):
+        HALF_SIZE_X = self.MAP_X/2. - self.MARGIN
+        HALF_SIZE_Y = self.MAP_Y/2. - self.MARGIN
+        arg_dict = {}
+        if object_type == SocNavGymObject.ROBOT:
+            arg_dict = {
+                "id": 0,  # robot is assigned id 0
+                "x": random.uniform(-HALF_SIZE_X, HALF_SIZE_X),
+                "y": random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y),
+                "theta": random.uniform(-np.pi, np.pi),
+                "radius": self.ROBOT_RADIUS,
+                "goal_x": None,
+                "goal_y": None,
+                "type": self.ROBOT_TYPE
+            }
+        elif object_type == SocNavGymObject.STATIC_HUMAN or object_type == SocNavGymObject.DYNAMIC_HUMAN:
+            policy = self.HUMAN_POLICY
+            if policy == "random": policy = random.choice(["sfm", "orca"])
+            human_speed = 0
+            human_type = "static"
+            if object_type == SocNavGymObject.DYNAMIC_HUMAN:
+                human_speed = random.uniform(0.0, self.MAX_ADVANCE_HUMAN)
+                human_type = "dynamic"
+            arg_dict = {
+                "id": self.id,
+                "x": random.uniform(-HALF_SIZE_X, HALF_SIZE_X),
+                "y": random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y),
+                "theta": random.uniform(-np.pi, np.pi),
+                "width": self.HUMAN_DIAMETER,
+                "speed": human_speed,
+                "goal_radius": self.HUMAN_GOAL_RADIUS,
+                "goal_x": None,
+                "goal_y": None,
+                "policy": policy,
+                "fov": self.HUMAN_FOV,
+                "prob_to_avoid_robot": self.PROB_TO_AVOID_ROBOT,
+                "type": human_type
+            }
+        elif object_type == SocNavGymObject.PLANT:
+            arg_dict = {
+                "id": self.id,
+                "x": random.uniform(-HALF_SIZE_X, HALF_SIZE_X),
+                "y": random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y),
+                "radius": self.PLANT_RADIUS
+            }
+        elif object_type == SocNavGymObject.TABLE:
+            arg_dict = {
+                "id": self.id,
+                "x": random.uniform(-HALF_SIZE_X, HALF_SIZE_X),
+                "y": random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y),
+                "theta": random.uniform(-np.pi, np.pi),
+                "width": self.TABLE_WIDTH,
+                "length": self.TABLE_LENGTH
+            }
+        elif object_type == SocNavGymObject.LAPTOP:
+            # pick a random table
+            i = random.randint(0, len(self.tables)-1)
+            table = self.tables[i]
+            
+            # pick a random edge
+            edge = np.random.randint(0, 4)
+            if edge == 0:
+                center = (
+                    table.x + np.cos(table.orientation + np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2, 
+                    table.y + np.sin(table.orientation + np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2
+                )
+                theta = table.orientation + np.pi
+            
+            elif edge == 1:
+                center = (
+                    table.x + np.cos(table.orientation + np.pi) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2, 
+                    table.y + np.sin(table.orientation + np.pi) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2
+                )
+                theta = table.orientation - np.pi/2
+            
+            elif edge == 2:
+                center = (
+                    table.x + np.cos(table.orientation - np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2, 
+                    table.y + np.sin(table.orientation - np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2
+                )
+                theta = table.orientation
+            
+            elif edge == 3:
+                center = (
+                    table.x + np.cos(table.orientation) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2, 
+                    table.y + np.sin(table.orientation) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2
+                )
+                theta = table.orientation + np.pi/2
+            
+            arg_dict = {
+                "id": self.id,
+                "x": center[0],
+                "y": center[1],
+                "theta": theta,
+                "width": self.LAPTOP_WIDTH,
+                "length": self.LAPTOP_LENGTH
+            }
+        elif object_type == SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC \
+            or object_type == SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC_NON_DISPERSING \
+            or object_type == SocNavGymObject.HUMAN_HUMAN_INTERACTION_STATIC \
+            or object_type == SocNavGymObject.HUMAN_HUMAN_INTERACTION_STATIC_NON_DISPERSING:
+            assert extra_info != None
+            if object_type == SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC:
+                human_list = self.humans_in_h_h_dynamic_interactions
+                interaction_type = "moving"
+                can_disperse = True
+            elif object_type == SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC_NON_DISPERSING:
+                human_list = self.humans_in_h_h_dynamic_interactions_non_dispersing
+                interaction_type = "moving"
+                can_disperse = False
+            elif object_type == SocNavGymObject.HUMAN_HUMAN_INTERACTION_STATIC:
+                human_list = self.humans_in_h_h_static_interactions
+                interaction_type = "stationary"
+                can_disperse = True
+            else:
+                human_list = self.humans_in_h_h_static_interactions_non_dispersing
+                interaction_type = "stationary"
+                can_disperse = False
+            index = extra_info["index"]
+            arg_dict = {
+                "x": random.uniform(-HALF_SIZE_X, HALF_SIZE_X), 
+                "y": random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y), 
+                "type": interaction_type, 
+                "numOfHumans": human_list[index], 
+                "radius": self.INTERACTION_RADIUS, 
+                "human_width": self.HUMAN_DIAMETER, 
+                "MAX_HUMAN_SPEED": self.MAX_ADVANCE_HUMAN, 
+                "goal_radius": self.INTERACTION_GOAL_RADIUS, 
+                "noise": self.INTERACTION_NOISE_VARIANCE, 
+                "can_disperse": can_disperse
+            }
+        elif object_type == SocNavGymObject.HUMAN_LAPTOP_INTERACTION \
+            or object_type == SocNavGymObject.HUMAN_LAPTOP_INTERACTION_NON_DISPERSING:
+            assert extra_info != None
+            arg_dict = {
+                "laptop": extra_info["laptop"],
+                "distance": self.LAPTOP_WIDTH+self.HUMAN_LAPTOP_DISTANCE,
+                "width": self.HUMAN_DIAMETER,
+                "can_disperse": object_type == SocNavGymObject.HUMAN_LAPTOP_INTERACTION
+            }
+
+        return arg_dict
+
+    def _sample_object(self, start_time: float, object_type: SocNavGymObject, extra_info=None):
+        object_class = object_type.get_class()
+        while True:
+            if self.check_timeout(start_time):
+                print(f"timed out spawning object of type {object_type.name}, starting again")
+                return None
+            
+            kwargs = self._get_kwargs(object_type, extra_info)
+            new_obj = object_class(**kwargs) 
+
+            collides = False
+            # check collision with other laptops in case of laptop. Otherwise, check collision with all other objects.
+            objects_to_check_collision = None
+            if object_type == SocNavGymObject.LAPTOP:
+                objects_to_check_collision = self.laptops
+                for i in self.h_l_interactions:
+                    objects_to_check_collision.append(i.laptop)
+            else: objects_to_check_collision = self.objects
+            for obj in objects_to_check_collision: # check if spawned object collides with any of the exisiting objects
+                if(new_obj.collides(obj)):
+                    collides = True
+                    break
+            
+            if collides:
+                del new_obj
+            else:
+                break
+        return new_obj
+    
+    def _sample_human_laptop_interaction(self, start_time: float, object_type: SocNavGymObject):
+        while True:
+            if self.check_timeout(start_time):
+                print(f"timed out spawning object of type {object_type.name}, starting again")
+                return None, None
+            laptop = self._sample_object(start_time, SocNavGymObject.LAPTOP)
+            if laptop == None:
+                return None
+            i = Human_Laptop_Interaction(laptop, self.LAPTOP_WIDTH+self.HUMAN_LAPTOP_DISTANCE, self.HUMAN_DIAMETER, object_type==SocNavGymObject.HUMAN_LAPTOP_INTERACTION)
+            c = False
+            for o in self.objects:
+                if i.collides(o, human_only=True):
+                    c = True
+                    break
+            if not c:
+                return laptop, i
 
     def reset(self, seed=None, options=None) :
         """
@@ -2734,292 +3167,17 @@ class SocNavEnv_v1(gym.Env):
         # variable that shows whether a human-laptop-interaction is being formed or not
         self.h_l_forming = False
 
-        if self.shape == "L":
-            # keep the direction of this as well
-            self.location = np.random.randint(0,4)
-            
-            if self.location == 0:
-                self.L_X = 2*self.MAP_X/3
-                self.L_Y = self.MAP_Y/3
-                # top right
-                l = Laptop(
-                    id=None,
-                    x=self.MAP_X/2.0- self.L_X/2.0,
-                    y=self.MAP_Y/2.0 - self.L_Y/2.0,
-                    width=self.L_Y,
-                    length=self.L_X,
-                    theta=0
-                )
-                # adding walls
-                w_l8 = Wall(id=None, x=self.MAP_X/2 -self.L_X/2, y=self.MAP_Y/2 -self.L_Y, theta=np.pi, length=self.L_X, thickness=self.WALL_THICKNESS)
-                w_l7 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=-self.L_Y/2, theta=np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
-                w_l6 = Wall(id=None, x=self.MAP_X/6, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), theta=0, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
-                w_l5 = Wall(id=None, x=-self.MAP_X/3, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), theta=0, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
-                w_l4 = Wall(id=None, x=-self.MAP_X/2 + (self.WALL_THICKNESS/2), y=-self.MAP_Y/6, theta=-np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-                w_l3 = Wall(id=None, x=-self.MAP_X/2 + (self.WALL_THICKNESS/2), y=self.MAP_Y/3, theta=-np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-                w_l2 = Wall(id=None, x=-self.L_X/2, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
-                w_l1 = Wall(id=None, x=self.MAP_X/2 -self.L_X, y=self.MAP_Y/2 -self.L_Y/2, theta=np.pi/2, length=self.L_Y, thickness=self.WALL_THICKNESS)
-
-                if self.add_corridors:
-                    min_gap = max(self.ROBOT_RADIUS*2, self.HUMAN_DIAMETER) + 0.5
-
-                    gap1 = random.random() * min_gap + min_gap  # gap1 is sampled between min_gap and 2*min_gap
-                    gap2 = random.random() * min_gap + min_gap  # gap2 is sampled between min_gap and 2*min_gap
-                    
-                    gap1_center = random.random() * (self.MAP_X - gap1 - self.L_X) + (-self.MAP_X/2 + gap1/2)  # center of gap1 is sampled between (-X/2 + gap1/2, X/2 - LX - gap1/2)
-                    w1 = Wall(None, ((-self.MAP_X/2 + gap1_center-gap1/2)/2), self.MAP_Y/2 - self.L_Y, 0, (gap1_center-gap1/2 + self.MAP_X/2), self.WALL_THICKNESS)
-                    w2 = Wall(None, (gap1_center + gap1/2 + self.MAP_X/2 - self.L_X)/2, self.MAP_Y/2 - self.L_Y, 0, (self.MAP_X/2 - self.L_X - (gap1_center + gap1/2)), self.WALL_THICKNESS)
-                    self.walls.append(w1)
-                    self.objects.append(w1)
-                    self.walls.append(w2)
-                    self.objects.append(w2)
-                    self.objects.append(Wall(-1, gap1_center, -self.MAP_Y/2 - self.L_Y, 0, gap1, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
-
-                    gap2_center = random.random() * (self.MAP_Y - gap2 - self.L_Y) + (-self.MAP_Y/2 + gap2/2)  # center of gap2 is sampled between (-Y/2 + gap2/2, Y/2 - LY - gap2/2)
-                    w3 = Wall(None, self.MAP_X/2 - self.L_X, (-self.MAP_Y/2 + gap2_center-gap2/2)/2, np.pi/2, (gap2_center-gap2/2 + self.MAP_Y/2), self.WALL_THICKNESS)
-                    w4 = Wall(None, self.MAP_X/2 - self.L_X, (gap2_center + gap2/2 + self.MAP_Y/2 - self.L_Y)/2, np.pi/2, (self.MAP_Y/2 - self.L_Y - (gap2_center + gap2/2)), self.WALL_THICKNESS)
-                    self.walls.append(w3)
-                    self.objects.append(w3)
-                    self.walls.append(w4)
-                    self.objects.append(w4)
-                    self.objects.append(Wall(-1, self.MAP_X/2 - self.L_X, gap2_center, np.pi/2, gap2, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
-
-
-            elif self.location == 1:
-                self.L_X = self.MAP_X/3
-                self.L_Y = 2*self.MAP_Y/3
-                # top left
-                l = Laptop(
-                    id=None,
-                    x=-self.MAP_X/2.0 + self.L_X/2.0,
-                    y=self.MAP_Y/2.0 - self.L_Y/2.0,
-                    width=self.L_Y,
-                    length=self.L_X,
-                    theta=0
-                )
-                # adding walls
-                w_l8 = Wall(id=None, x=-self.MAP_X/2 + self.L_X, y=self.MAP_Y/2 -self.L_Y/2, theta=np.pi/2, length=self.L_Y, thickness=self.WALL_THICKNESS)
-                w_l7 = Wall(id=None, x=self.L_X/2, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
-                w_l6 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=self.MAP_Y/6, theta=np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-                w_l5 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=-self.MAP_Y/3, theta=np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-                w_l4 = Wall(id=None, x=self.MAP_X/6, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), theta=0, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
-                w_l3 = Wall(id=None, x=-self.MAP_X/3, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), theta=0, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
-                w_l2 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=-self.L_Y/2, theta=-np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
-                w_l1 = Wall(id=None, x=-self.MAP_X/2 +self.L_X/2, y=self.MAP_Y/2 -self.L_Y, theta=np.pi, length=self.L_X, thickness=self.WALL_THICKNESS)
-
-                if self.add_corridors:
-                    min_gap = max(self.ROBOT_RADIUS*2, self.HUMAN_DIAMETER) + 0.5
-
-                    gap1 = random.random() * min_gap + min_gap  # gap1 is sampled between min_gap and 2*min_gap
-                    gap2 = random.random() * min_gap + min_gap  # gap2 is sampled between min_gap and 2*min_gap
-                    
-                    gap1_center = random.random() * (self.MAP_X - gap1 - self.L_X) + (-self.MAP_X/2 + self.L_X + gap1/2)  # center of gap1 is sampled between (-X/2 + LX + gap1/2, X/2 - gap1/2)
-                    w1 = Wall(None, ((-self.MAP_X/2 + self.L_X + gap1_center-gap1/2)/2), self.MAP_Y/2 - self.L_Y, 0, (gap1_center-gap1/2 + self.MAP_X/2 - self.L_X), self.WALL_THICKNESS)
-                    w2 = Wall(None, (gap1_center + gap1/2 + self.MAP_X/2)/2, self.MAP_Y/2 - self.L_Y, 0, (self.MAP_X/2 - (gap1_center + gap1/2)), self.WALL_THICKNESS)
-                    self.walls.append(w1)
-                    self.objects.append(w1)
-                    self.walls.append(w2)
-                    self.objects.append(w2)
-                    self.objects.append(Wall(-1, gap1_center, -self.MAP_Y/2 - self.L_Y, 0, gap1, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
-
-                    gap2_center = random.random() * (self.MAP_Y - gap2 - self.L_Y) + (-self.MAP_Y/2 + gap2/2)  # center of gap2 is sampled between (-Y/2 + gap2/2, Y/2 - LY - gap2/2)
-                    w3 = Wall(None, -self.MAP_X/2 + self.L_X, (-self.MAP_Y/2 + gap2_center-gap2/2)/2, np.pi/2, (gap2_center-gap2/2 + self.MAP_Y/2), self.WALL_THICKNESS)
-                    w4 = Wall(None, -self.MAP_X/2 + self.L_X, (gap2_center + gap2/2 + self.MAP_Y/2 - self.L_Y)/2, np.pi/2, (self.MAP_Y/2 - self.L_Y - (gap2_center + gap2/2)), self.WALL_THICKNESS)
-                    self.walls.append(w3)
-                    self.objects.append(w3)
-                    self.walls.append(w4)
-                    self.objects.append(w4)
-                    self.objects.append(Wall(-1, -self.MAP_X/2 + self.L_X, gap2_center, np.pi/2, gap2, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
-
-            
-            elif self.location == 2:
-                self.L_X = self.MAP_X/3
-                self.L_Y = 2*self.MAP_Y/3
-                # bottom right
-                l = Laptop(
-                    id=None,
-                    x=self.MAP_X/2.0 - self.L_X/2.0,
-                    y=-self.MAP_Y/2.0 + self.L_Y/2.0,
-                    width=self.L_Y,
-                    length=self.L_X,
-                    theta=0
-                )
-                # adding walls
-                w_l8 = Wall(id=None, x=self.MAP_X/2 - self.L_X, y=-self.MAP_Y/2 + self.L_Y/2, theta=np.pi/2,length=self.L_Y, thickness=self.WALL_THICKNESS)
-                w_l7 = Wall(id=None, x=-self.L_X/2, y=-self.MAP_Y/2+(self.WALL_THICKNESS/2), theta=0, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
-                w_l6 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=-self.MAP_Y/6, theta=-np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-                w_l5 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=self.MAP_Y/3, theta=-np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-                w_l4 = Wall(id=None, x=-self.MAP_X/6, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
-                w_l3 = Wall(id=None, x=self.MAP_X/3, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
-                w_l2 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=self.L_Y/2, theta=np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
-                w_l1 = Wall(id=None, x=self.MAP_X/2 - self.L_X/2, y=-self.MAP_Y/2 +self.L_Y, theta=0, length=self.L_X, thickness=self.WALL_THICKNESS)
-
-                if self.add_corridors:
-                    min_gap = max(self.ROBOT_RADIUS*2, self.HUMAN_DIAMETER) + 0.5
-
-                    gap1 = random.random() * min_gap + min_gap  # gap1 is sampled between min_gap and 2*min_gap
-                    gap2 = random.random() * min_gap + min_gap  # gap2 is sampled between min_gap and 2*min_gap
-                    
-                    gap1_center = random.random() * (self.MAP_X - gap1 - self.L_X) + (-self.MAP_X/2 + gap1/2)  # center of gap1 is sampled between (-X/2 + gap1/2, X/2 - LX - gap1/2)
-                    w1 = Wall(None, ((-self.MAP_X/2 + gap1_center-gap1/2)/2), -self.MAP_Y/2 + self.L_Y, 0, (gap1_center-gap1/2 + self.MAP_X/2), self.WALL_THICKNESS)
-                    w2 = Wall(None, (gap1_center + gap1/2 + self.MAP_X/2 - self.L_X)/2, -self.MAP_Y/2 + self.L_Y, 0, (self.MAP_X/2 - self.L_X - (gap1_center + gap1/2)), self.WALL_THICKNESS)
-                    self.walls.append(w1)
-                    self.objects.append(w1)
-                    self.walls.append(w2)
-                    self.objects.append(w2)
-                    self.objects.append(Wall(-1, gap1_center, -self.MAP_Y/2 + self.L_Y, 0, gap1, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
-
-                    gap2_center = random.random() * (self.MAP_Y - gap2 - self.L_Y) + (-self.MAP_Y/2 + gap2/2 + self.L_Y)  # center of gap2 is sampled between (-Y/2 + gap2/2 + LY, Y/2 - gap2/2)
-                    w3 = Wall(None, self.MAP_X/2 - self.L_X, (-self.MAP_Y/2 + self.L_Y + gap2_center-gap2/2)/2, np.pi/2, (gap2_center-gap2/2 + self.MAP_Y/2 - self.L_Y), self.WALL_THICKNESS)
-                    w4 = Wall(None, self.MAP_X/2 - self.L_X, (gap2_center + gap2/2 + self.MAP_Y/2)/2, np.pi/2, (self.MAP_Y/2 - (gap2_center + gap2/2)), self.WALL_THICKNESS)
-                    self.walls.append(w3)
-                    self.objects.append(w3)
-                    self.walls.append(w4)
-                    self.objects.append(w4)
-                    self.objects.append(Wall(-1, self.MAP_X/2 - self.L_X, gap2_center, np.pi/2, gap2, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
-
-
-            elif self.location == 3:
-                self.L_X = 2*self.MAP_X/3
-                self.L_Y = self.MAP_Y/3
-                # bottom left
-                l = Laptop(
-                    id=None,
-                    x=-self.MAP_X/2.0 + self.L_X/2.0,
-                    y=-self.MAP_Y/2.0 + self.L_Y/2.0,
-                    width=self.L_Y,
-                    length=self.L_X,
-                    theta=0
-                )
-                # adding walls
-                w_l8 = Wall(id=None, x=-self.MAP_X/2 + self.L_X/2, y=-self.MAP_Y/2 + self.L_Y, theta=0, length=self.L_X, thickness=self.WALL_THICKNESS)
-                w_l7 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=self.L_Y/2, theta=-np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
-                w_l6 = Wall(id=None, x=-self.MAP_X/6, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
-                w_l5 = Wall(id=None, x=self.MAP_X/3, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
-                w_l4 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=self.MAP_Y/6, theta=np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-                w_l3 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=-self.MAP_Y/3, theta=np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-                w_l2 = Wall(id=None, x=self.L_X/2, y=-self.MAP_Y/2+(self.WALL_THICKNESS/2), theta=0, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
-                w_l1 = Wall(id=None, x= -self.MAP_X/2 +self.L_X, y= -self.MAP_Y/2 + self.L_Y/2, theta=-np.pi/2, length=self.L_Y, thickness=self.WALL_THICKNESS)
-
-                if self.add_corridors:
-                    min_gap = max(self.ROBOT_RADIUS*2, self.HUMAN_DIAMETER) + 0.5
-
-                    gap1 = random.random() * min_gap + min_gap  # gap1 is sampled between min_gap and 2*min_gap
-                    gap2 = random.random() * min_gap + min_gap  # gap2 is sampled between min_gap and 2*min_gap
-                    
-                    gap1_center = random.random() * (self.MAP_X - gap1 - self.L_X) + (-self.MAP_X/2 + self.L_X + gap1/2)  # center of gap1 is sampled between (-X/2 + LX + gap1/2, X/2 - gap1/2)
-                    w1 = Wall(None, ((-self.MAP_X/2 + self.L_X + gap1_center-gap1/2)/2), -self.MAP_Y/2 + self.L_Y, 0, (gap1_center-gap1/2 + self.MAP_X/2 - self.L_X), self.WALL_THICKNESS)
-                    w2 = Wall(None, (gap1_center + gap1/2 + self.MAP_X/2)/2, -self.MAP_Y/2 + self.L_Y, 0, (self.MAP_X/2 - (gap1_center + gap1/2)), self.WALL_THICKNESS)
-                    self.walls.append(w1)
-                    self.objects.append(w1)
-                    self.walls.append(w2)
-                    self.objects.append(w2)
-                    self.objects.append(Wall(-1, gap1_center, -self.MAP_Y/2 + self.L_Y, 0, gap1, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
-
-                    gap2_center = random.random() * (self.MAP_Y - gap2 - self.L_Y) + (-self.MAP_Y/2 + gap2/2 + self.L_Y)  # center of gap2 is sampled between (-Y/2 + gap2/2 + LY, Y/2 - gap2/2)
-                    w3 = Wall(None, -self.MAP_X/2 + self.L_X, (-self.MAP_Y/2 + self.L_Y + gap2_center-gap2/2)/2, np.pi/2, (gap2_center-gap2/2 + self.MAP_Y/2 - self.L_Y), self.WALL_THICKNESS)
-                    w4 = Wall(None, -self.MAP_X/2 + self.L_X, (gap2_center + gap2/2 + self.MAP_Y/2)/2, np.pi/2, (self.MAP_Y/2 - (gap2_center + gap2/2)), self.WALL_THICKNESS)
-                    self.walls.append(w3)
-                    self.objects.append(w3)
-                    self.walls.append(w4)
-                    self.objects.append(w4)
-                    self.objects.append(Wall(-1, -self.MAP_X/2 + self.L_X, gap2_center, np.pi/2, gap2, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
-
-            self.objects.append(l)
-            self.walls.append(w_l1)
-            self.walls.append(w_l2)
-            self.walls.append(w_l3)
-            self.walls.append(w_l4)
-            self.walls.append(w_l5)
-            self.walls.append(w_l6)
-            self.walls.append(w_l7)
-            self.walls.append(w_l8)
-            self.objects.append(w_l1)
-            self.objects.append(w_l2)
-            self.objects.append(w_l3)
-            self.objects.append(w_l4)
-            self.objects.append(w_l5)
-            self.objects.append(w_l6)
-            self.objects.append(w_l7)
-            self.objects.append(w_l8)
-
-        # walls (hardcoded to be at the boundaries of the environment)
-        elif self.shape != "no-walls":
-            w1 = Wall(None, self.MAP_X/2-self.WALL_THICKNESS/2, 0, -np.pi/2, self.MAP_Y, self.WALL_THICKNESS)
-            w2 = Wall(None, 0, -self.MAP_Y/2+self.WALL_THICKNESS/2, -np.pi, self.MAP_X, self.WALL_THICKNESS)
-            w3 = Wall(None, -self.MAP_X/2+self.WALL_THICKNESS/2, 0, np.pi/2, self.MAP_Y, self.WALL_THICKNESS)
-            w4 = Wall(None, 0, self.MAP_Y/2-self.WALL_THICKNESS/2, 0, self.MAP_X, self.WALL_THICKNESS)
-            self.walls.append(w1)
-            self.walls.append(w2)
-            self.walls.append(w3)
-            self.walls.append(w4)
-            self.objects.append(w1)
-            self.objects.append(w2)
-            self.objects.append(w3)
-            self.objects.append(w4)
-
-        if self.add_corridors:  # corridors are hard coded to be at Y/3 and 2Y/3 where Y is the room's length along Y direction
-
-            if self.shape == "L":
-                pass
-            
-            else:
-                min_gap = max(self.ROBOT_RADIUS*2, self.HUMAN_DIAMETER) + 0.5
-
-                gap1 = random.random() * min_gap + min_gap  # gap1 is sampled between min_gap and 2*min_gap
-                gap2 = random.random() * min_gap + min_gap  # gap2 is sampled between min_gap and 2*min_gap
-
-                gap1_center = random.random() * (self.MAP_X/2 - gap1/2)  # center of gap1 is sampled between (-X/2 + gap1/2, X/2 - gap1/2)
-                w1 = Wall(None, ((-self.MAP_X/2 + gap1_center-gap1/2)/2), -self.MAP_Y/2 + self.MAP_Y/3, 0, (gap1_center-gap1/2 + self.MAP_X/2), self.WALL_THICKNESS)
-                w2 = Wall(None, (gap1_center + gap1/2 + self.MAP_X/2)/2, -self.MAP_Y/2 + self.MAP_Y/3, 0, (self.MAP_X/2 - (gap1_center + gap1/2)), self.WALL_THICKNESS)
-                self.walls.append(w1)
-                self.objects.append(w1)
-                self.walls.append(w2)
-                self.objects.append(w2)
-                self.objects.append(Wall(-1, gap1_center, -self.MAP_Y/2 + self.MAP_Y/3, 0, gap1, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
-
-
-                gap2_center = random.random() * (self.MAP_X/2 - gap2/2)  # center of gap2 is sampled between (-X/2 + gap2/2, X/2 - gap2/2)
-                w3 = Wall(None, ((-self.MAP_X/2 + gap2_center-gap2/2)/2), -self.MAP_Y/2 + 2*self.MAP_Y/3, 0, (gap2_center-gap2/2 + self.MAP_X/2), self.WALL_THICKNESS)
-                w4 = Wall(None, (gap2_center + gap2/2 + self.MAP_X/2)/2, -self.MAP_Y/2 + 2*self.MAP_Y/3, 0, (self.MAP_X/2 - (gap2_center + gap2/2)), self.WALL_THICKNESS)
-                self.walls.append(w3)
-                self.objects.append(w3)
-                self.walls.append(w4)
-                self.objects.append(w4)
-                self.objects.append(Wall(-1, gap2_center, -self.MAP_Y/2 + 2*self.MAP_Y/3, 0, gap2, self.WALL_THICKNESS))  # adding this bit so that no obstacles are sampled in the gap
-
+        # adding walls to the environment
+        self._add_walls()
+        
         success = 1
         # robot
-        while True:
-            if self.check_timeout(start_time):
-                print("timed out, starting again")
-                success = 0
-                break
-            
-            robot = Robot(
-                id = 0,  # robot is assigned id 0
-                x = random.uniform(-HALF_SIZE_X, HALF_SIZE_X),
-                y = random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y),
-                theta = random.uniform(-np.pi, np.pi),
-                radius = self.ROBOT_RADIUS,
-                goal_x = None,
-                goal_y = None,
-                type=self.ROBOT_TYPE
-            )
-            collides = False
-            for obj in self.objects: # check if spawned object collides with any of the exisiting objects
-                if(robot.collides(obj)):
-                    collides = True
-                    break
-
-            if collides:
-                del robot
-            else:
-                self.robot = robot
-                self.objects.append(self.robot)
-                break
-        if not success:
-            self.reset()
+        robot = self._sample_object(start_time, SocNavGymObject.ROBOT)
+        if robot == None:
+            obs, info = self.reset()
+            return obs, info
+        self.robot = robot
+        self.objects.append(self.robot)
 
         # making a copy of the robot for calculating time taken by a robot that has orca policy
         self.robot_orca = copy.deepcopy(self.robot)
@@ -3029,579 +3187,132 @@ class SocNavEnv_v1(gym.Env):
         self.orca_robot_reach_time = None
         self.orca_robot_path_length = 0
 
-        # humans
-        for i in range(self.NUMBER_OF_DYNAMIC_HUMANS): # spawn specified number of humans
-            while True: # comes out of loop only when spawned object collides with none of current objects
-                if self.check_timeout(start_time):
-                    print("timed out, starting again")
-                    success = 0
-                    break
-                x = random.uniform(-HALF_SIZE_X, HALF_SIZE_X)
-                y = random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y)
+        # dynamic humans
+        for _ in range(self.NUMBER_OF_DYNAMIC_HUMANS): # spawn specified number of humans
+            human = self._sample_object(start_time, SocNavGymObject.DYNAMIC_HUMAN)
+            if human == None:
+                obs, info = self.reset()
+                return obs, info
+            self.dynamic_humans.append(human)
+            self.objects.append(human)
+            self.id += 1
 
-                policy = self.HUMAN_POLICY
-                if policy == "random": policy = random.choice(["sfm", "orca"])
-
-                human = Human(
-                    id=self.id,
-                    x=x,
-                    y=y,
-                    theta=random.uniform(-np.pi, np.pi) ,
-                    width=self.HUMAN_DIAMETER,
-                    speed=random.uniform(0.0, self.MAX_ADVANCE_HUMAN),
-                    goal_radius=self.HUMAN_GOAL_RADIUS,
-                    goal_x=None,
-                    goal_y=None,
-                    policy=policy,
-                    fov=self.HUMAN_FOV,
-                    prob_to_avoid_robot=self.PROB_TO_AVOID_ROBOT
-                )
-
-                collides = False
-                for obj in self.objects: # check if spawned object collides with any of the exisiting objects
-                    if(human.collides(obj)):
-                        collides = True
-                        break
-
-                if collides:
-                    del human
-                else:
-                    self.dynamic_humans.append(human)
-                    self.objects.append(human)
-                    self.id += 1
-                    break
-            if not success:
-                break
-        
-        if not success:
-            self.reset()
-
-        for i in range(self.NUMBER_OF_STATIC_HUMANS): # spawn specified number of humans
-            while True: # comes out of loop only when spawned object collides with none of current objects
-                if self.check_timeout(start_time):
-                    print("timed out, starting again")
-                    success = 0
-                    break
-                x = random.uniform(-HALF_SIZE_X, HALF_SIZE_X)
-                y = random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y)
-
-                policy = self.HUMAN_POLICY
-                if policy == "random": policy = random.choice(["sfm", "orca"])
-
-                human = Human(
-                    id=self.id,
-                    x=x,
-                    y=y,
-                    theta=random.uniform(-np.pi, np.pi) ,
-                    width=self.HUMAN_DIAMETER,
-                    speed=0,
-                    goal_radius=self.HUMAN_GOAL_RADIUS,
-                    goal_x=None,
-                    goal_y=None,
-                    policy=policy,
-                    fov=self.HUMAN_FOV,
-                    prob_to_avoid_robot=self.PROB_TO_AVOID_ROBOT,
-                    type="static"
-                )
-
-                collides = False
-                for obj in self.objects: # check if spawned object collides with any of the exisiting objects
-                    if(human.collides(obj)):
-                        collides = True
-                        break
-
-                if collides:
-                    del human
-                else:
-                    self.static_humans.append(human)
-                    self.objects.append(human)
-                    self.id += 1
-                    break
-            if not success:
-                break
-        
-        if not success:
-            self.reset()
+        # static humans
+        for _ in range(self.NUMBER_OF_STATIC_HUMANS): # spawn specified number of humans
+            human = self._sample_object(start_time, SocNavGymObject.STATIC_HUMAN)
+            if human == None:
+                obs, info = self.reset()
+                return obs, info
+            self.static_humans.append(human)
+            self.objects.append(human)
+            self.id += 1
         
         # plants
-        for i in range(self.NUMBER_OF_PLANTS): # spawn specified number of plants
-            
-            while True: # comes out of loop only when spawned object collides with none of current objects
-                if self.check_timeout(start_time):
-                    print("timed out, starting again")
-                    success = 0
-                    break
-
-                x = random.uniform(-HALF_SIZE_X, HALF_SIZE_X)
-                y = random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y)
-                        
-                plant = Plant(
-                    id=self.id,
-                    x=x,
-                    y=y,
-                    radius=self.PLANT_RADIUS
-                )
-
-                collides = False
-                for obj in self.objects:
-                    if(plant.collides(obj)):
-                        collides = True
-                        break
-
-                if collides:
-                    del plant
-                else:
-                    self.plants.append(plant)
-                    self.objects.append(plant)
-                    self.id+=1
-                    break
-            
-            if not success:
-                break
-        if not success:
-            self.reset()
+        for _ in range(self.NUMBER_OF_PLANTS): # spawn specified number of plants
+            plant = self._sample_object(start_time, SocNavGymObject.PLANT)
+            if plant == None:
+                obs, info = self.reset()
+                return obs, info
+            self.plants.append(plant)
+            self.objects.append(plant)
+            self.id += 1
 
         # tables
-        for i in range(self.NUMBER_OF_TABLES): # spawn specified number of tables
-            while True: # comes out of loop only when spawned object collides with none of current objects
-                if self.check_timeout(start_time):
-                    print("timed out, starting again")
-                    success = 0
-                    break
-                x = random.uniform(-HALF_SIZE_X, HALF_SIZE_X)
-                y = random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y)
-                        
-                table = Table(
-                    id=self.id,
-                    x=x,
-                    y=y,
-                    theta=random.uniform(-np.pi, np.pi),
-                    width=self.TABLE_WIDTH,
-                    length=self.TABLE_LENGTH
-                )
-
-                collides = False
-                for obj in self.objects:
-                    if(table.collides(obj)):
-                        collides = True
-                        break
-
-                if collides:
-                    del table
-                else:
-                    self.tables.append(table)
-                    self.objects.append(table)
-                    self.id += 1
-                    break
-            if not success:
-                break
+        for _ in range(self.NUMBER_OF_TABLES): # spawn specified number of tables
+            table = self._sample_object(start_time, SocNavGymObject.TABLE)  
+            if table == None:
+                obs, info = self.reset()
+                return obs, info
+            self.tables.append(table)
+            self.objects.append(table)
+            self.id += 1
             
-        if not success:
-            self.reset()
 
         # laptops
         if(len(self.tables) == 0):
-            "print: No tables found, placing laptops on the floor!"
-            for i in range(self.NUMBER_OF_LAPTOPS): # spawn specified number of laptops
-                while True: # comes out of loop only when spawned object collides with none of current objects
-                    if self.check_timeout(start_time):
-                        print("timed out, starting again")
-                        success = 0
-                        break
-
-                    x = random.uniform(-HALF_SIZE_X, HALF_SIZE_X)
-                    y = random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y)
-                            
-                    laptop = Laptop(
-                        id=self.id,
-                        x=x,
-                        y=y,
-                        theta=random.uniform(-np.pi, np.pi),
-                        width=self.LAPTOP_WIDTH,
-                        length=self.LAPTOP_LENGTH
-                    )
-
-                    collides = False
-                    for obj in self.objects:
-                        if(laptop.collides(obj)):
-                            collides = True
-                            break
-
-                    if collides:
-                        del laptop
-                    else:
-                        self.laptops.append(laptop)
-                        self.objects.append(laptop)
-                        self.id += 1
-                        break
-                if not success:
-                    break
-            if not success:
-                self.reset()
-        
+            pass
+        elif self.NUMBER_OF_LAPTOPS + self.NUMBER_OF_H_L_INTERACTIONS + self.NUMBER_OF_H_L_INTERACTIONS_NON_DISPERSING > 4 * self.NUMBER_OF_TABLES:
+            raise AssertionError("Number of laptops exceeds the number of edges available on tables")
         else:
             for _ in range(self.NUMBER_OF_LAPTOPS): # placing laptops on tables
-                while True: # comes out of loop only when spawned object collides with none of current objects
-                    if self.check_timeout(start_time):
-                        print("timed out, starting again")
-                        success = 0
-                        break
-                    i = random.randint(0, len(self.tables)-1)
-                    table = self.tables[i]
-                    
-                    edge = np.random.randint(0, 4)
-                    if edge == 0:
-                        center = (
-                            table.x + np.cos(table.orientation + np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2, 
-                            table.y + np.sin(table.orientation + np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2
-                        )
-                        theta = table.orientation + np.pi
-                    
-                    elif edge == 1:
-                        center = (
-                            table.x + np.cos(table.orientation + np.pi) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2, 
-                            table.y + np.sin(table.orientation + np.pi) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2
-                        )
-                        theta = table.orientation - np.pi/2
-                    
-                    elif edge == 2:
-                        center = (
-                            table.x + np.cos(table.orientation - np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2, 
-                            table.y + np.sin(table.orientation - np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2
-                        )
-                        theta = table.orientation
-                    
-                    elif edge == 3:
-                        center = (
-                            table.x + np.cos(table.orientation) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2, 
-                            table.y + np.sin(table.orientation) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2
-                        )
-                        theta = table.orientation + np.pi/2
-                    
-                    laptop = Laptop(
-                        id=self.id,
-                        x=center[0],
-                        y=center[1],
-                        theta=theta,
-                        width=self.LAPTOP_WIDTH,
-                        length=self.LAPTOP_LENGTH
-                    )
+                laptop = self._sample_object(start_time, SocNavGymObject.LAPTOP)
+                if laptop == None:
+                    obs, info = self.reset()
+                    return obs, info
+                self.laptops.append(laptop)
+                self.objects.append(laptop)
+                self.id += 1
 
-                    collides = False
-                    for obj in self.laptops: # it should not collide with any laptop on the table
-                        if(laptop.collides(obj)):
-                            collides = True
-                            break
-
-                    if collides:
-                        del laptop
-                    else:
-                        self.laptops.append(laptop)
-                        self.objects.append(laptop)
-                        self.id += 1
-                        break
-                if not success:
-                    break
-            if not success:
-                self.reset()
 
         # interactions        
         for ind in range(self.NUMBER_OF_H_H_DYNAMIC_INTERACTIONS):
-            while True: # comes out of loop only when spawned object collides with none of current objects
-                if self.check_timeout(start_time):
-                    print("timed out, starting again")
-                    success = 0
-                    break
-                x = random.uniform(-HALF_SIZE_X, HALF_SIZE_X)
-                y = random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y)
-                i = Human_Human_Interaction(
-                    x, y, "moving", self.humans_in_h_h_dynamic_interactions[ind], self.INTERACTION_RADIUS, self.HUMAN_DIAMETER, self.MAX_ADVANCE_HUMAN, self.INTERACTION_GOAL_RADIUS, self.INTERACTION_NOISE_VARIANCE
-                )
-
-                collides = False
-                for obj in self.objects:
-                    if(i.collides(obj)):
-                        collides = True
-                        break
-
-                if collides:
-                    del i
-                else:
-                    self.moving_interactions.append(i)
-                    self.objects.append(i)
-                    for human in i.humans:
-                        human.id = self.id
-                        self.id += 1
-                    break
-            if not success:
-                break
-        if not success:
-            self.reset()
+            i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC, extra_info={"index": ind})
+            if i == None:
+                obs, info = self.reset()
+                return obs, info
+            self.moving_interactions.append(i)
+            self.objects.append(i)
+            for human in i.humans:
+                human.id = self.id
+                self.id += 1
 
         for ind in range(self.NUMBER_OF_H_H_DYNAMIC_INTERACTIONS_NON_DISPERSING):
-            while True: # comes out of loop only when spawned object collides with none of current objects
-                if self.check_timeout(start_time):
-                    print("timed out, starting again")
-                    success = 0
-                    break
-                x = random.uniform(-HALF_SIZE_X, HALF_SIZE_X)
-                y = random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y)
-                i = Human_Human_Interaction(
-                    x, y, "moving", self.humans_in_h_h_dynamic_interactions_non_dispersing[ind], self.INTERACTION_RADIUS, self.HUMAN_DIAMETER, self.MAX_ADVANCE_HUMAN, self.INTERACTION_GOAL_RADIUS, self.INTERACTION_NOISE_VARIANCE, False
-                )
-
-                collides = False
-                for obj in self.objects:
-                    if(i.collides(obj)):
-                        collides = True
-                        break
-
-                if collides:
-                    del i
-                else:
-                    self.moving_interactions.append(i)
-                    self.objects.append(i)
-                    for human in i.humans:
-                        human.id = self.id
-                        self.id += 1
-                    break
-            if not success:
-                break
-        if not success:
-            self.reset()
+            i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC, extra_info={"index": ind})
+            if i == None:
+                obs, info = self.reset()
+                return obs, info
+            self.moving_interactions.append(i)
+            self.objects.append(i)
+            for human in i.humans:
+                human.id = self.id
+                self.id += 1
 
 
         for ind in range(self.NUMBER_OF_H_H_STATIC_INTERACTIONS):
-            while True: # comes out of loop only when spawned object collides with none of current objects
-                if self.check_timeout(start_time):
-                    print("timed out, starting again")
-                    success = 0
-                    break
-                x = random.uniform(-HALF_SIZE_X, HALF_SIZE_X)
-                y = random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y)
-                i = Human_Human_Interaction(
-                    x, y, "stationary", self.humans_in_h_h_static_interactions[ind], self.INTERACTION_RADIUS, self.HUMAN_DIAMETER, self.MAX_ADVANCE_HUMAN, self.INTERACTION_GOAL_RADIUS, self.INTERACTION_NOISE_VARIANCE
-                )
-
-                collides = False
-                for obj in self.objects:
-                    if(i.collides(obj)):
-                        collides = True
-                        break
-
-                if collides:
-                    del i
-                else:
-                    self.static_interactions.append(i)
-                    self.objects.append(i)
-                    for human in i.humans:
-                        human.id = self.id
-                        self.id += 1
-                    break
-            if not success:
-                break
-        if not success:
-            self.reset()
+            i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_STATIC, extra_info={"index": ind})
+            if i == None:
+                obs, info = self.reset()
+                return obs, info
+            self.static_interactions.append(i)
+            self.objects.append(i)
+            for human in i.humans:
+                human.id = self.id
+                self.id += 1
 
         for ind in range(self.NUMBER_OF_H_H_STATIC_INTERACTIONS_NON_DISPERSING):
-            while True: # comes out of loop only when spawned object collides with none of current objects
-                if self.check_timeout(start_time):
-                    print("timed out, starting again")
-                    success = 0
-                    break
-                x = random.uniform(-HALF_SIZE_X, HALF_SIZE_X)
-                y = random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y)
-                i = Human_Human_Interaction(
-                    x, y, "stationary", self.humans_in_h_h_static_interactions_non_dispersing[ind], self.INTERACTION_RADIUS, self.HUMAN_DIAMETER, self.MAX_ADVANCE_HUMAN, self.INTERACTION_GOAL_RADIUS, self.INTERACTION_NOISE_VARIANCE, False
-                )
-
-                collides = False
-                for obj in self.objects:
-                    if(i.collides(obj)):
-                        collides = True
-                        break
-
-                if collides:
-                    del i
-                else:
-                    self.static_interactions.append(i)
-                    self.objects.append(i)
-                    for human in i.humans:
-                        human.id = self.id
-                        self.id += 1
-                    break
-            if not success:
-                break
-        if not success:
-            self.reset()
+            i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_STATIC_NON_DISPERSING, extra_info={"index": ind})
+            if i == None:
+                obs, info = self.reset()
+                return obs, info
+            self.static_interactions.append(i)
+            self.objects.append(i)
+            for human in i.humans:
+                human.id = self.id
+                self.id += 1
         
         for _ in range(self.NUMBER_OF_H_L_INTERACTIONS):
             # sampling a laptop
-            while True:
-                if self.check_timeout(start_time):
-                    print("timed out, starting again")
-                    success = 0
-                    break
-                i = random.randint(0, len(self.tables)-1)
-                table = self.tables[i]
-                
-                edge = np.random.randint(0, 4)
-                if edge == 0:
-                    center = (
-                        table.x + np.cos(table.orientation + np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2, 
-                        table.y + np.sin(table.orientation + np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2
-                    )
-                    theta = table.orientation + np.pi
-                
-                elif edge == 1:
-                    center = (
-                        table.x + np.cos(table.orientation + np.pi) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2, 
-                        table.y + np.sin(table.orientation + np.pi) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2
-                    )
-                    theta = table.orientation - np.pi/2
-                
-                elif edge == 2:
-                    center = (
-                        table.x + np.cos(table.orientation - np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2, 
-                        table.y + np.sin(table.orientation - np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2
-                    )
-                    theta = table.orientation
-                
-                elif edge == 3:
-                    center = (
-                        table.x + np.cos(table.orientation) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2, 
-                        table.y + np.sin(table.orientation) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2
-                    )
-                    theta = table.orientation + np.pi/2
-
-                laptop = Laptop(
-                    id=self.id,
-                    x=center[0],
-                    y=center[1],
-                    theta=theta,
-                    width=self.LAPTOP_WIDTH,
-                    length=self.LAPTOP_LENGTH
-                )
-
-                collides = False
-                for obj in self.laptops: # it should not collide with any laptop on the table
-                    if(laptop.collides(obj)):
-                        collides = True
-                        break
-                
-                for interaction in (self.moving_interactions + self.static_interactions + self.h_l_interactions):
-                    if interaction.name == "human-laptop-interaction":
-                        if(interaction.collides(laptop)):
-                            collides = True
-                            break
-
-                if collides:
-                    del laptop
-                
-                else:
-                    i = Human_Laptop_Interaction(laptop, self.LAPTOP_WIDTH+self.HUMAN_LAPTOP_DISTANCE, self.HUMAN_DIAMETER)
-                    c = False
-                    for o in self.objects:
-                        if i.collides(o, human_only=True):
-                            c = True
-                            break
-                    if c:
-                        del i
-                    else:
-                        self.h_l_interactions.append(i)
-                        self.objects.append(i)
-                        self.id+=1
-                        i.human.id = self.id
-                        self.id += 1
-                        break
-            if not success:
-                break
-        if not success:
-            self.reset()
+            laptop, interaction = self._sample_human_laptop_interaction(start_time, SocNavGymObject.HUMAN_LAPTOP_INTERACTION)
+            if laptop == None or interaction == None:
+                obs, info = self.reset()
+                return obs, info
+            self.h_l_interactions.append(interaction)
+            self.objects.append(interaction)
+            self.id+=1
+            interaction.human.id = self.id
+            self.id += 1
 
         for _ in range(self.NUMBER_OF_H_L_INTERACTIONS_NON_DISPERSING):
             # sampling a laptop
-            while True:
-                if self.check_timeout(start_time):
-                    print("timed out, starting again")
-                    success = 0
-                    break
-                i = random.randint(0, len(self.tables)-1)
-                table = self.tables[i]
-                
-                edge = np.random.randint(0, 4)
-                if edge == 0:
-                    center = (
-                        table.x + np.cos(table.orientation + np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2, 
-                        table.y + np.sin(table.orientation + np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2
-                    )
-                    theta = table.orientation + np.pi
-                
-                elif edge == 1:
-                    center = (
-                        table.x + np.cos(table.orientation + np.pi) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2, 
-                        table.y + np.sin(table.orientation + np.pi) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2
-                    )
-                    theta = table.orientation - np.pi/2
-                
-                elif edge == 2:
-                    center = (
-                        table.x + np.cos(table.orientation - np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2, 
-                        table.y + np.sin(table.orientation - np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2
-                    )
-                    theta = table.orientation
-                
-                elif edge == 3:
-                    center = (
-                        table.x + np.cos(table.orientation) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2, 
-                        table.y + np.sin(table.orientation) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2
-                    )
-                    theta = table.orientation + np.pi/2
-
-                laptop = Laptop(
-                    id=self.id,
-                    x=center[0],
-                    y=center[1],
-                    theta=theta,
-                    width=self.LAPTOP_WIDTH,
-                    length=self.LAPTOP_LENGTH
-                )
-
-                collides = False
-                for obj in self.laptops: # it should not collide with any laptop on the table
-                    if(laptop.collides(obj)):
-                        collides = True
-                        break
-                
-                for interaction in (self.moving_interactions + self.static_interactions + self.h_l_interactions):
-                    if interaction.name == "human-laptop-interaction":
-                        if(interaction.collides(laptop)):
-                            collides = True
-                            break
-
-                if collides:
-                    del laptop
-                
-                else:
-                    i = Human_Laptop_Interaction(laptop, self.LAPTOP_WIDTH+self.HUMAN_LAPTOP_DISTANCE, self.HUMAN_DIAMETER, False)
-                    c = False
-                    for o in self.objects:
-                        if i.collides(o, human_only=True):
-                            c = True
-                            break
-                    if c:
-                        del i
-                    else:
-                        self.h_l_interactions.append(i)
-                        self.objects.append(i)
-                        self.id+=1
-                        i.human.id = self.id
-                        self.id += 1
-                        break
-            if not success:
-                break
-        if not success:
-            self.reset()
+            laptop, interaction = self._sample_human_laptop_interaction(start_time, SocNavGymObject.HUMAN_LAPTOP_INTERACTION_NON_DISPERSING)
+            if laptop == None or interaction == None:
+                obs, info = self.reset()
+                return obs, info
+            self.h_l_interactions.append(interaction)
+            self.objects.append(interaction)
+            self.id+=1
+            interaction.human.id = self.id
+            self.id += 1
 
         # assigning ids to walls
         for wall in self.walls:
@@ -3618,7 +3329,8 @@ class SocNavEnv_v1(gym.Env):
             self.goals[human.id] = o
             human.set_goal(o.x, o.y)
         if not success:
-            self.reset()
+            obs, info = self.reset()
+            return obs, info
 
         for human in self.static_humans:   
             self.goals[human.id] = Plant(id=None, x=human.x, y=human.y, radius=self.HUMAN_GOAL_RADIUS)
@@ -3626,7 +3338,8 @@ class SocNavEnv_v1(gym.Env):
 
         robot_goal = self.sample_goal(self.GOAL_RADIUS, HALF_SIZE_X, HALF_SIZE_Y)
         if robot_goal is None:
-            self.reset()
+            obs, info = self.reset()
+            return obs, info
         self.goals[self.robot.id] = robot_goal
         self.robot.goal_x = robot_goal.x
         self.robot.goal_y = robot_goal.y
@@ -3643,7 +3356,8 @@ class SocNavEnv_v1(gym.Env):
                 self.goals[human.id] = o
             i.set_goal(o.x, o.y)
         if not success:
-            self.reset()
+            obs, info = self.reset()
+            return obs, info
 
         self._is_terminated = False
         self._is_truncated = False

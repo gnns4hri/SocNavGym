@@ -21,7 +21,9 @@ REQUIRED = [
     "numpy",
     "matplotlib",
     "shapely",
-    "Cython"
+    "Cython",
+    "pyyaml",
+    "pandas"
 ]
 EXCLUDES=["environment_configs", "tests"]
 

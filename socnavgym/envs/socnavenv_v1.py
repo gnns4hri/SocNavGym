@@ -2715,7 +2715,7 @@ class SocNavEnv_v1(gym.Env):
             return True
         else:
             return False
-    
+
     def _get_walls_for_L_shaped_room(self, location: int) -> List[Wall]:
         """Returns a list of walls according to the value of location
 
@@ -3086,7 +3086,7 @@ class SocNavEnv_v1(gym.Env):
             # check collision with other laptops in case of laptop. Otherwise, check collision with all other objects.
             objects_to_check_collision = None
             if object_type == SocNavGymObject.LAPTOP:
-                objects_to_check_collision = self.laptops
+                objects_to_check_collision = copy.deepcopy(self.laptops)
                 for i in self.h_l_interactions:
                     objects_to_check_collision.append(i.laptop)
             else: objects_to_check_collision = self.objects
@@ -3108,8 +3108,9 @@ class SocNavEnv_v1(gym.Env):
                 return None, None
             laptop = self._sample_object(start_time, SocNavGymObject.LAPTOP)
             if laptop == None:
-                return None
-            i = Human_Laptop_Interaction(laptop, self.LAPTOP_WIDTH+self.HUMAN_LAPTOP_DISTANCE, self.HUMAN_DIAMETER, object_type==SocNavGymObject.HUMAN_LAPTOP_INTERACTION)
+                return None, None
+            can_disperse = object_type == SocNavGymObject.HUMAN_LAPTOP_INTERACTION
+            i = Human_Laptop_Interaction(laptop, self.LAPTOP_WIDTH+self.HUMAN_LAPTOP_DISTANCE, self.HUMAN_DIAMETER, can_disperse=can_disperse)
             c = False
             for o in self.objects:
                 if i.collides(o, human_only=True):
@@ -3117,7 +3118,10 @@ class SocNavEnv_v1(gym.Env):
                     break
             if not c:
                 return laptop, i
-
+            else:
+                del i
+                del laptop
+            
     def reset(self, seed=None, options=None) :
         """
         Resets the environment
@@ -3169,7 +3173,7 @@ class SocNavEnv_v1(gym.Env):
 
         # adding walls to the environment
         self._add_walls()
-        
+
         success = 1
         # robot
         robot = self._sample_object(start_time, SocNavGymObject.ROBOT)
@@ -3226,7 +3230,6 @@ class SocNavEnv_v1(gym.Env):
             self.tables.append(table)
             self.objects.append(table)
             self.id += 1
-            
 
         # laptops
         if(len(self.tables) == 0):
@@ -3243,7 +3246,6 @@ class SocNavEnv_v1(gym.Env):
                 self.objects.append(laptop)
                 self.id += 1
 
-
         # interactions        
         for ind in range(self.NUMBER_OF_H_H_DYNAMIC_INTERACTIONS):
             i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC, extra_info={"index": ind})
@@ -3257,7 +3259,7 @@ class SocNavEnv_v1(gym.Env):
                 self.id += 1
 
         for ind in range(self.NUMBER_OF_H_H_DYNAMIC_INTERACTIONS_NON_DISPERSING):
-            i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC, extra_info={"index": ind})
+            i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC_NON_DISPERSING, extra_info={"index": ind})
             if i == None:
                 obs, info = self.reset()
                 return obs, info
@@ -3266,7 +3268,6 @@ class SocNavEnv_v1(gym.Env):
             for human in i.humans:
                 human.id = self.id
                 self.id += 1
-
 
         for ind in range(self.NUMBER_OF_H_H_STATIC_INTERACTIONS):
             i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_STATIC, extra_info={"index": ind})

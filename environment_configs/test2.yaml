@@ -63,8 +63,8 @@ env:
     min_dynamic_humans: 0  # minimum no. of dynamic humans
     max_dynamic_humans: 0  # maximum no. of dynamic humans
 
-    min_tables: 0  # minimum no. of tables
-    max_tables: 0  # maximum no. of tables  
+    min_tables: 1  # minimum no. of tables
+    max_tables: 1  # maximum no. of tables  
 
     min_plants: 0  # minimum no. of plants
     max_plants: 0  # maximum no. of plants  

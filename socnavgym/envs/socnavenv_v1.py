@@ -3396,7 +3396,7 @@ class SocNavEnv_v1(gym.Env):
 
         return obs, {}
 
-    def render(self, mode="human", draw_human_gaze=False):
+    def render_without_showing(self, mode="human", draw_human_gaze=False):
         """
         Visualizing the environment
         """
@@ -3445,6 +3445,10 @@ class SocNavEnv_v1(gym.Env):
         # cv2.imwrite("img"+str(self.count)+".jpg", self.world_image)
         # self.count+=1
 
+        return self.world_image
+
+    def render(self, mode="human", draw_human_gaze=False):
+        self.world_image = self.render_without_showing(mode, draw_human_gaze)
         cv2.imshow("world", self.world_image)
         k = cv2.waitKey(self.MILLISECONDS)
         if k%255 == 27:

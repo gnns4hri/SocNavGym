@@ -3401,11 +3401,6 @@ class SocNavEnv_v1(gym.Env):
         Visualizing the environment
         """
 
-        if not self.window_initialised:
-            cv2.namedWindow("world", cv2.WINDOW_NORMAL) 
-            cv2.resizeWindow("world", int(self.RESOLUTION_VIEW), int(self.RESOLUTION_VIEW))
-            self.window_initialised = True
-        
         self.world_image = (np.ones((int(self.RESOLUTION_Y),int(self.RESOLUTION_X),3))*255).astype(np.uint8)
 
         # can be used for debugging. 
@@ -3448,6 +3443,10 @@ class SocNavEnv_v1(gym.Env):
         return self.world_image
 
     def render(self, mode="human", draw_human_gaze=False):
+        if not self.window_initialised:
+            cv2.namedWindow("world", cv2.WINDOW_NORMAL) 
+            cv2.resizeWindow("world", int(self.RESOLUTION_VIEW), int(self.RESOLUTION_VIEW))
+            self.window_initialised = True
         self.world_image = self.render_without_showing(mode, draw_human_gaze)
         cv2.imshow("world", self.world_image)
         k = cv2.waitKey(self.MILLISECONDS)

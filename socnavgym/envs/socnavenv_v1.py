@@ -1752,7 +1752,8 @@ class SocNavEnv_v1(gym.Env):
                 velocity = self.compute_sfm_velocity(human)
             human.speed = np.linalg.norm(velocity)
             if human.speed < self.SPEED_THRESHOLD and not(self.crowd_forming and human.id in self.humans_forming_crowd.keys()): human.speed = 0
-            human.update_orientation(atan2(velocity[1], velocity[0]))
+            if abs(human.speed) > 0.:
+                human.update_orientation(atan2(velocity[1], velocity[0]))
             human.update(self.TIMESTEP)
 
         # updating moving humans in interactions
@@ -2596,6 +2597,7 @@ class SocNavEnv_v1(gym.Env):
         
         for i in self.h_l_interactions:
             closest_human_dist = min(closest_human_dist, np.sqrt((self.robot.x-i.human.x)**2 + (self.robot.y-i.human.y)**2))
+            h = i.human
             t = compute_time_to_collision(
                 self.robot.x, 
                 self.robot.y, 

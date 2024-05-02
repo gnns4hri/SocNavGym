@@ -134,12 +134,15 @@ class Human_Human_Interaction:
             if velocity is None: raise AssertionError("velocity for update is None")
             n = len(self.humans)
             vel_human = (velocity[0]/n, velocity[1]/n)
-            for human in self.humans:
+            for hIdx, human in enumerate(self.humans):
                 noise_x = np.random.normal(0, self.noise_variance)
                 noise_y = np.random.normal(0, self.noise_variance)
                 human_vel = (vel_human[0]+noise_x, vel_human[1]+noise_y)
                 human.speed = np.linalg.norm(human_vel)
-                human.orientation = atan2(human_vel[1], human_vel[0])
+                if human.speed > 0.01:
+                    human.orientation = atan2(human_vel[1], human_vel[0])
+
+                # print("human moving together", hIdx, human_vel, human.speed, human.orientation, "noise", noise_x, noise_y)
                 human.update(time)
 
             x_com = 0

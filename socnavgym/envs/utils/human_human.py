@@ -6,7 +6,9 @@ from socnavgym.envs.utils.utils import w2px, w2py
 from math import atan2
 from typing import List
 import random
+import math
 
+MAX_ORIENTATION_CHANGE = math.pi/4.
 
 class Human_Human_Interaction:
     """
@@ -34,6 +36,7 @@ class Human_Human_Interaction:
         self.goal_radius = goal_radius
         self.goal_x = None
         self.goal_y = None
+        self.stopped = True
         self.noise_variance = noise
         self.can_disperse = can_disperse
 
@@ -61,10 +64,11 @@ class Human_Human_Interaction:
     
     def has_reached_goal(self, offset=None):
         reached = True
-        for human in self.humans:
-            if not human.has_reached_goal(offset):
-                reached = False
-                break
+        if not self.stopped:
+            for human in self.humans:
+                if not human.has_reached_goal(offset):
+                    reached = False
+                    break
         return reached
 
     def arrange_humans(self):
@@ -133,14 +137,29 @@ class Human_Human_Interaction:
         elif self.type == "moving":            
             if velocity is None: raise AssertionError("velocity for update is None")
             n = len(self.humans)
+            speeds = []
+            orientations = []
+            diff_orientations = []
             vel_human = (velocity[0], velocity[1])
             for human in self.humans:
                 noise_x = np.random.normal(0, self.noise_variance)
                 noise_y = np.random.normal(0, self.noise_variance)
                 human_vel = (vel_human[0]+noise_x, vel_human[1]+noise_y)
-                human.speed = np.linalg.norm(human_vel)
-                human.orientation = atan2(human_vel[1], human_vel[0])
-                human.update(time)
+                speeds.append(np.linalg.norm(human_vel))
+                new_orientation = atan2(human_vel[1], human_vel[0])
+                orientations.append(new_orientation)
+                last_orientation = human.orientation
+                diffO = abs(atan2(np.sin(new_orientation-last_orientation), np.cos(new_orientation-last_orientation)))
+                diff_orientations.append(diffO)
+
+            if np.mean(diff_orientations) > MAX_ORIENTATION_CHANGE and not self.stopped:
+                self.stopped = True
+            else:
+                self.stopped = False
+                for human, s, o in zip(self.humans, speeds, orientations):
+                    human.speed = s
+                    human.orientation = o
+                    human.update(time)
 
             x_com = 0
             y_com = 0

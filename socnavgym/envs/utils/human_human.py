@@ -7,8 +7,10 @@ from math import atan2
 from typing import List
 import random
 import math
+import time as clock
 
 MAX_ORIENTATION_CHANGE = math.pi/4.
+MAX_WAITING_TIME = 5 # seconds
 
 class Human_Human_Interaction:
     """
@@ -37,6 +39,8 @@ class Human_Human_Interaction:
         self.goal_x = None
         self.goal_y = None
         self.stopped = True
+        self.new_goal = False
+        self.time_moving = clock.time()
         self.noise_variance = noise
         self.can_disperse = can_disperse
 
@@ -51,6 +55,7 @@ class Human_Human_Interaction:
 
 
     def set_goal(self, x, y):
+        self.new_goal = True
         self.goal_x = x
         self.goal_y = y
         for human in self.humans:
@@ -152,9 +157,12 @@ class Human_Human_Interaction:
                 diffO = abs(atan2(np.sin(new_orientation-last_orientation), np.cos(new_orientation-last_orientation)))
                 diff_orientations.append(diffO)
 
-            if np.mean(diff_orientations) > MAX_ORIENTATION_CHANGE and not self.stopped:
-                self.stopped = True
+            if np.mean(diff_orientations) > MAX_ORIENTATION_CHANGE and not self.new_goal: # self.stopped:
+                if clock.time()-self.time_moving > MAX_WAITING_TIME:
+                    self.stopped = True
             else:
+                self.time_moving = clock.time()
+                self.new_goal = False
                 self.stopped = False
                 for human, s, o in zip(self.humans, speeds, orientations):
                     human.speed = s

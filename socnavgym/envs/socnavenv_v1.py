@@ -3123,8 +3123,14 @@ class SocNavEnv_v1(gym.Env):
             else:
                 del i
                 del laptop
-            
+
     def reset(self, seed=None, options=None) :
+        success = False
+        while not success:
+            success, obs, info = self.try_reset(seed, options)
+        return obs, info
+
+    def try_reset(self, seed=None, options=None) :
         """
         Resets the environment
         """
@@ -3176,12 +3182,10 @@ class SocNavEnv_v1(gym.Env):
         # adding walls to the environment
         self._add_walls()
 
-        success = 1
         # robot
         robot = self._sample_object(start_time, SocNavGymObject.ROBOT)
         if robot == None:
-            obs, info = self.reset()
-            return obs, info
+            return False, None, None
         self.robot = robot
         self.objects.append(self.robot)
 
@@ -3197,8 +3201,7 @@ class SocNavEnv_v1(gym.Env):
         for _ in range(self.NUMBER_OF_DYNAMIC_HUMANS): # spawn specified number of humans
             human = self._sample_object(start_time, SocNavGymObject.DYNAMIC_HUMAN)
             if human == None:
-                obs, info = self.reset()
-                return obs, info
+                return False, None, None
             self.dynamic_humans.append(human)
             self.objects.append(human)
             self.id += 1
@@ -3207,8 +3210,7 @@ class SocNavEnv_v1(gym.Env):
         for _ in range(self.NUMBER_OF_STATIC_HUMANS): # spawn specified number of humans
             human = self._sample_object(start_time, SocNavGymObject.STATIC_HUMAN)
             if human == None:
-                obs, info = self.reset()
-                return obs, info
+                return False, None, None
             self.static_humans.append(human)
             self.objects.append(human)
             self.id += 1
@@ -3217,8 +3219,7 @@ class SocNavEnv_v1(gym.Env):
         for _ in range(self.NUMBER_OF_PLANTS): # spawn specified number of plants
             plant = self._sample_object(start_time, SocNavGymObject.PLANT)
             if plant == None:
-                obs, info = self.reset()
-                return obs, info
+                return False, None, None
             self.plants.append(plant)
             self.objects.append(plant)
             self.id += 1
@@ -3227,8 +3228,7 @@ class SocNavEnv_v1(gym.Env):
         for _ in range(self.NUMBER_OF_TABLES): # spawn specified number of tables
             table = self._sample_object(start_time, SocNavGymObject.TABLE)  
             if table == None:
-                obs, info = self.reset()
-                return obs, info
+                return False, None, None
             self.tables.append(table)
             self.objects.append(table)
             self.id += 1
@@ -3242,8 +3242,7 @@ class SocNavEnv_v1(gym.Env):
             for _ in range(self.NUMBER_OF_LAPTOPS): # placing laptops on tables
                 laptop = self._sample_object(start_time, SocNavGymObject.LAPTOP)
                 if laptop == None:
-                    obs, info = self.reset()
-                    return obs, info
+                    return False, None, None
                 self.laptops.append(laptop)
                 self.objects.append(laptop)
                 self.id += 1
@@ -3252,8 +3251,7 @@ class SocNavEnv_v1(gym.Env):
         for ind in range(self.NUMBER_OF_H_H_DYNAMIC_INTERACTIONS):
             i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC, extra_info={"index": ind})
             if i == None:
-                obs, info = self.reset()
-                return obs, info
+                return False, None, None
             self.moving_interactions.append(i)
             self.objects.append(i)
             for human in i.humans:
@@ -3263,8 +3261,7 @@ class SocNavEnv_v1(gym.Env):
         for ind in range(self.NUMBER_OF_H_H_DYNAMIC_INTERACTIONS_NON_DISPERSING):
             i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC_NON_DISPERSING, extra_info={"index": ind})
             if i == None:
-                obs, info = self.reset()
-                return obs, info
+                return False, None, None
             self.moving_interactions.append(i)
             self.objects.append(i)
             for human in i.humans:
@@ -3274,8 +3271,7 @@ class SocNavEnv_v1(gym.Env):
         for ind in range(self.NUMBER_OF_H_H_STATIC_INTERACTIONS):
             i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_STATIC, extra_info={"index": ind})
             if i == None:
-                obs, info = self.reset()
-                return obs, info
+                return False, None, None
             self.static_interactions.append(i)
             self.objects.append(i)
             for human in i.humans:
@@ -3285,8 +3281,7 @@ class SocNavEnv_v1(gym.Env):
         for ind in range(self.NUMBER_OF_H_H_STATIC_INTERACTIONS_NON_DISPERSING):
             i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_STATIC_NON_DISPERSING, extra_info={"index": ind})
             if i == None:
-                obs, info = self.reset()
-                return obs, info
+                return False, None, None
             self.static_interactions.append(i)
             self.objects.append(i)
             for human in i.humans:
@@ -3297,8 +3292,7 @@ class SocNavEnv_v1(gym.Env):
             # sampling a laptop
             laptop, interaction = self._sample_human_laptop_interaction(start_time, SocNavGymObject.HUMAN_LAPTOP_INTERACTION)
             if laptop == None or interaction == None:
-                obs, info = self.reset()
-                return obs, info
+                return False, None, None
             self.h_l_interactions.append(interaction)
             self.objects.append(interaction)
             self.id+=1
@@ -3309,8 +3303,7 @@ class SocNavEnv_v1(gym.Env):
             # sampling a laptop
             laptop, interaction = self._sample_human_laptop_interaction(start_time, SocNavGymObject.HUMAN_LAPTOP_INTERACTION_NON_DISPERSING)
             if laptop == None or interaction == None:
-                obs, info = self.reset()
-                return obs, info
+                return False, None, None
             self.h_l_interactions.append(interaction)
             self.objects.append(interaction)
             self.id+=1
@@ -3326,14 +3319,9 @@ class SocNavEnv_v1(gym.Env):
         for human in self.dynamic_humans:   
             o = self.sample_goal(self.HUMAN_GOAL_RADIUS, HALF_SIZE_X, HALF_SIZE_Y)
             if o is None:
-                print("timed out, starting again")
-                success = 0
-                break
+                return False, None, None
             self.goals[human.id] = o
             human.set_goal(o.x, o.y)
-        if not success:
-            obs, info = self.reset()
-            return obs, info
 
         for human in self.static_humans:   
             self.goals[human.id] = Plant(id=None, x=human.x, y=human.y, radius=self.HUMAN_GOAL_RADIUS)
@@ -3341,8 +3329,7 @@ class SocNavEnv_v1(gym.Env):
 
         robot_goal = self.sample_goal(self.GOAL_RADIUS, HALF_SIZE_X, HALF_SIZE_Y)
         if robot_goal is None:
-            obs, info = self.reset()
-            return obs, info
+            return False, None, None
         self.goals[self.robot.id] = robot_goal
         self.robot.goal_x = robot_goal.x
         self.robot.goal_y = robot_goal.y
@@ -3352,15 +3339,10 @@ class SocNavEnv_v1(gym.Env):
         for i in self.moving_interactions:
             o = self.sample_goal(self.INTERACTION_GOAL_RADIUS, HALF_SIZE_X, HALF_SIZE_Y)
             if o is None:
-                print("timed out, starting again")
-                success = 0
-                break
+                return False, None, None
             for human in i.humans:
                 self.goals[human.id] = o
             i.set_goal(o.x, o.y)
-        if not success:
-            obs, info = self.reset()
-            return obs, info
 
         self._is_terminated = False
         self._is_truncated = False
@@ -3396,7 +3378,7 @@ class SocNavEnv_v1(gym.Env):
         if self.reward_calculator.use_sngnn:
             self.reward_calculator.sngnn = SocNavAPI(device=('cuda'+str(self.cuda_device) if torch.cuda.is_available() else 'cpu'), params_dir=(os.path.join(os.path.dirname(os.path.abspath(__file__)), "utils", "sngnnv2", "example_model")))
 
-        return obs, {}
+        return True, obs, {}
 
     def render_without_showing(self, mode="human", draw_human_gaze=False):
         """

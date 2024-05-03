@@ -134,7 +134,7 @@ class Human_Human_Interaction:
             if velocity is None: raise AssertionError("velocity for update is None")
             n = len(self.humans)
             vel_human = (velocity[0], velocity[1])
-            for human in enumerate(self.humans):
+            for human in self.humans:
                 noise_x = np.random.normal(0, self.noise_variance)
                 noise_y = np.random.normal(0, self.noise_variance)
                 human_vel = (vel_human[0]+noise_x, vel_human[1]+noise_y)

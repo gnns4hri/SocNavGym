@@ -9,9 +9,7 @@ import random
 import math
 import time as clock
 
-MAX_ORIENTATION_CHANGE = math.pi/8.
-MAX_CONSECUTIVE_ORIENTATION_CHANGES = 5
-MAX_WAITING_TIME = 5 # seconds
+MAX_ORIENTATION_CHANGE = math.pi/4.
 
 class Human_Human_Interaction:
     """
@@ -39,10 +37,6 @@ class Human_Human_Interaction:
         self.goal_radius = goal_radius
         self.goal_x = None
         self.goal_y = None
-        self.stopped = True
-        self.waiting_for_new_goal = True
-        self.consecutive_orientation_changes = 0
-        self.time_moving = clock.time()
         self.noise_variance = noise
         self.can_disperse = can_disperse
 
@@ -57,7 +51,6 @@ class Human_Human_Interaction:
 
 
     def set_goal(self, x, y):
-        self.waiting_for_new_goal = False
         self.goal_x = x
         self.goal_y = y
         for human in self.humans:
@@ -71,11 +64,10 @@ class Human_Human_Interaction:
     
     def has_reached_goal(self, offset=None):
         reached = True
-        if not self.stopped:
-            for human in self.humans:
-                if not human.has_reached_goal(offset):
-                    reached = False
-                    break
+        for human in self.humans:
+            if not human.has_reached_goal(offset):
+                reached = False
+                break
         return reached
 
     def arrange_humans(self):
@@ -152,35 +144,11 @@ class Human_Human_Interaction:
                 noise_x = np.random.normal(0, self.noise_variance)
                 noise_y = np.random.normal(0, self.noise_variance)
                 human_vel = (vel_human[0]+noise_x, vel_human[1]+noise_y)
-                speeds.append(np.linalg.norm(human_vel))
+                speed = np.linalg.norm(human_vel)
                 new_orientation = atan2(human_vel[1], human_vel[0])
-                orientations.append(new_orientation)
-                last_orientation = human.orientation
-                # Compute orientation changes to check abnormal behavior
-                diffO = abs(atan2(np.sin(new_orientation-last_orientation), np.cos(new_orientation-last_orientation)))
-                diff_orientations.append(diffO)
-
-            # If humans are updating its position, update the number of consecutive abrupt orientation changes
-            if not self.waiting_for_new_goal:
-                if np.mean(diff_orientations) > MAX_ORIENTATION_CHANGE:
-                    self.consecutive_orientation_changes += 1
-                # else:
-                #     self.consecutive_orientation_changes = 0
-
-            # print("consecutive changes", "id", self.humans[0].id, ":", self.consecutive_orientation_changes)
-            if self.consecutive_orientation_changes > MAX_CONSECUTIVE_ORIENTATION_CHANGES: # The number of abrupt orientation changes is over the threshold  
-                self.waiting_for_new_goal = True # Wait until a new goal is assigned
-                if clock.time()-self.time_moving > MAX_WAITING_TIME: # Humans don't move for several seconds
-                    self.stopped = True # generate a new goal
-                    self.consecutive_orientation_changes = 0
-            else: # Update the position of the humans normally
-                self.time_moving = clock.time()
-                self.waiting_for_new_goal = False
-                self.stopped = False
-                for human, s, o in zip(self.humans, speeds, orientations):
-                    human.speed = s
-                    human.orientation = o
-                    human.update(time)
+                human.speed = speed
+                human.orientation = new_orientation
+                human.update(time)
 
             x_com = 0
             y_com = 0

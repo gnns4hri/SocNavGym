@@ -9,7 +9,7 @@ import random
 import math
 import time as clock
 
-MAX_ORIENTATION_CHANGE = math.pi/4.
+MAX_ORIENTATION_CHANGE = math.pi/2.
 
 class Human_Human_Interaction:
     """
@@ -138,7 +138,7 @@ class Human_Human_Interaction:
             n = len(self.humans)
             speeds = []
             orientations = []
-            diff_orientations = []
+            rotating = False
             vel_human = (velocity[0], velocity[1])
             for human in self.humans:
                 noise_x = np.random.normal(0, self.noise_variance)
@@ -146,8 +146,22 @@ class Human_Human_Interaction:
                 human_vel = (vel_human[0]+noise_x, vel_human[1]+noise_y)
                 speed = np.linalg.norm(human_vel)
                 new_orientation = atan2(human_vel[1], human_vel[0])
-                human.speed = speed
-                human.orientation = new_orientation
+                last_orientation = human.orientation
+                diffO = atan2(np.sin(new_orientation-last_orientation), np.cos(new_orientation-last_orientation))
+                if abs(diffO)/time>MAX_ORIENTATION_CHANGE:
+                    if diffO>0:
+                        diffO = MAX_ORIENTATION_CHANGE*time
+                    else:
+                        diffO = -MAX_ORIENTATION_CHANGE*time
+                    new_orientation = atan2(np.sin(last_orientation+diffO), np.cos(last_orientation+diffO))
+                    rotating = True
+                speeds.append(speed)
+                orientations.append(new_orientation)
+
+            for human, s, o in zip(self.humans, speeds, orientations):
+                if rotating: s = 0
+                human.speed = s
+                human.orientation = o
                 human.update(time)
 
             x_com = 0

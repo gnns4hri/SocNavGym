@@ -9,7 +9,8 @@ import random
 import math
 import time as clock
 
-MAX_ORIENTATION_CHANGE = math.pi/4.
+MAX_ORIENTATION_CHANGE = math.pi/8.
+MAX_CONSECUTIVE_ORIENTATION_CHANGES = 5
 MAX_WAITING_TIME = 5 # seconds
 
 class Human_Human_Interaction:
@@ -39,7 +40,8 @@ class Human_Human_Interaction:
         self.goal_x = None
         self.goal_y = None
         self.stopped = True
-        self.new_goal = False
+        self.waiting_for_new_goal = True
+        self.consecutive_orientation_changes = 0
         self.time_moving = clock.time()
         self.noise_variance = noise
         self.can_disperse = can_disperse
@@ -55,7 +57,7 @@ class Human_Human_Interaction:
 
 
     def set_goal(self, x, y):
-        self.new_goal = True
+        self.waiting_for_new_goal = False
         self.goal_x = x
         self.goal_y = y
         for human in self.humans:
@@ -154,15 +156,26 @@ class Human_Human_Interaction:
                 new_orientation = atan2(human_vel[1], human_vel[0])
                 orientations.append(new_orientation)
                 last_orientation = human.orientation
+                # Compute orientation changes to check abnormal behavior
                 diffO = abs(atan2(np.sin(new_orientation-last_orientation), np.cos(new_orientation-last_orientation)))
                 diff_orientations.append(diffO)
 
-            if np.mean(diff_orientations) > MAX_ORIENTATION_CHANGE and not self.new_goal: # self.stopped:
-                if clock.time()-self.time_moving > MAX_WAITING_TIME:
-                    self.stopped = True
-            else:
+            # If humans are updating its position, update the number of consecutive abrupt orientation changes
+            if not self.waiting_for_new_goal:
+                if np.mean(diff_orientations) > MAX_ORIENTATION_CHANGE:
+                    self.consecutive_orientation_changes += 1
+                # else:
+                #     self.consecutive_orientation_changes = 0
+
+            # print("consecutive changes", "id", self.humans[0].id, ":", self.consecutive_orientation_changes)
+            if self.consecutive_orientation_changes > MAX_CONSECUTIVE_ORIENTATION_CHANGES: # The number of abrupt orientation changes is over the threshold  
+                self.waiting_for_new_goal = True # Wait until a new goal is assigned
+                if clock.time()-self.time_moving > MAX_WAITING_TIME: # Humans don't move for several seconds
+                    self.stopped = True # generate a new goal
+                    self.consecutive_orientation_changes = 0
+            else: # Update the position of the humans normally
                 self.time_moving = clock.time()
-                self.new_goal = False
+                self.waiting_for_new_goal = False
                 self.stopped = False
                 for human, s, o in zip(self.humans, speeds, orientations):
                     human.speed = s

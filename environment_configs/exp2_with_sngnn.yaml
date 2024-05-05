@@ -44,6 +44,7 @@ human-laptop-interaction:
 env:
     margin: 0.5  # margin for the env
     max_advance_human: 0.1  # maximum speed for humans
+    max_rotation_human: 1.57 # maximum rotation speed for humans    
     max_advance_robot: 0.1  # maximum linear speed for robot 
     max_rotation: 0.387596899  # maximum rotational speed for robot
     wall_segment_size: 1.0  # size of the wall segment, used when segmenting the wall

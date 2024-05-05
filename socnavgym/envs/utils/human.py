@@ -74,6 +74,20 @@ class Human(Object):
         else:
             return False
     
+    def set_new_orientation_with_limits(self, orientation, max_rotation_speed, time):
+        diffO = atan2(np.sin(orientation-self.orientation), np.cos(orientation-self.orientation))
+        if abs(diffO)/time>max_rotation_speed:
+            if diffO>0:
+                diffO = max_rotation_speed*time
+            else:
+                diffO = -max_rotation_speed*time
+            self.orientation = atan2(np.sin(self.orientation+diffO), np.cos(self.orientation+diffO))
+            return False
+
+        self.orientation = orientation
+        return True
+
+
     def update_orientation(self, theta):
         if self.type == "static": return  # static humans do not change their orientation
         self.orientation = theta

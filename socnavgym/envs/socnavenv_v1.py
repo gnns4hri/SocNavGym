@@ -16,6 +16,7 @@ import yaml
 from gym import spaces
 from shapely.geometry import Point, Polygon
 from collections import namedtuple
+import math
 from math import ceil
 from enum import Enum
 EntityObs = namedtuple("EntityObs", ["id", "x", "y", "theta", "sin_theta", "cos_theta"])
@@ -46,6 +47,8 @@ if 'debug' in sys.argv or "debug=2" in sys.argv:
     DEBUG = 2
 elif "debug=1" in sys.argv:
     DEBUG = 1
+
+MAX_ORIENTATION_CHANGE = math.pi/2.    
 
 class SocNavGymObject(Enum):
     ROBOT = "ROBOT"
@@ -166,6 +169,7 @@ class SocNavEnv_v1(gym.Env):
         # environment parameters
         self.MARGIN = None
         self.MAX_ADVANCE_HUMAN = None
+        self.MAX_ROTATION_HUMAN = None
         self.MAX_ADVANCE_ROBOT = None
         self.MAX_ROTATION = None
         self.SPEED_THRESHOLD = None
@@ -326,6 +330,7 @@ class SocNavEnv_v1(gym.Env):
         # env
         self.MARGIN = config["env"]["margin"]
         self.MAX_ADVANCE_HUMAN = config["env"]["max_advance_human"]
+        self.MAX_ROTATION_HUMAN = config["env"]["max_rotation_human"]
         self.MAX_ADVANCE_ROBOT = config["env"]["max_advance_robot"]
         self.MAX_ROTATION = config["env"]["max_rotation"]
         self.WALL_SEGMENT_SIZE = config["env"]["wall_segment_size"]
@@ -1596,8 +1601,11 @@ class SocNavEnv_v1(gym.Env):
                 if human.collides(object):
                     [fi, fj] = self.get_collision_force(human, object)
                     entity_vel = (fi / human.mass) * self.TIMESTEP
-                    human.update_orientation(np.arctan2(entity_vel[1], entity_vel[0]))
-                    human.speed = min(np.linalg.norm(entity_vel), self.MAX_ADVANCE_HUMAN)
+                    orientation = np.arctan2(entity_vel[1], entity_vel[0])
+                    if human.set_new_orientation_with_limits(orientation, MAX_ORIENTATION_CHANGE, self.TIMESTEP):
+                        human.speed = min(np.linalg.norm(entity_vel), self.MAX_ADVANCE_HUMAN)
+                    else:
+                        human.speed = 0
                     human.update(self.TIMESTEP)
 
     def discrete_to_continuous_action(self, action:int):
@@ -1750,15 +1758,18 @@ class SocNavEnv_v1(gym.Env):
                 velocity = self.compute_orca_velocity(human)
             elif human.policy == "sfm":
                 velocity = self.compute_sfm_velocity(human)
-            human.speed = np.linalg.norm(velocity)
-            if human.speed < self.SPEED_THRESHOLD and not(self.crowd_forming and human.id in self.humans_forming_crowd.keys()): human.speed = 0
-            if abs(human.speed) > 0.:
-                human.update_orientation(atan2(velocity[1], velocity[0]))
+
+            orientation = atan2(velocity[1], velocity[0])
+            if human.set_new_orientation_with_limits(orientation, MAX_ORIENTATION_CHANGE, self.TIMESTEP):
+                human.speed = np.linalg.norm(velocity)
+                if human.speed < self.SPEED_THRESHOLD and not(self.crowd_forming and human.id in self.humans_forming_crowd.keys()): human.speed = 0
+            else:
+                human.speed = 0
             human.update(self.TIMESTEP)
 
         # updating moving humans in interactions
         for index, i in enumerate(self.moving_interactions):
-            i.update(self.TIMESTEP, interaction_vels[index])
+            i.update(self.TIMESTEP, interaction_vels[index], self.MAX_ROTATION_HUMAN)
         
         # update the goals for humans if they have reached goal
         for human in self.dynamic_humans:

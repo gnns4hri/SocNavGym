@@ -1732,7 +1732,17 @@ class SocNavEnv_v1(gym.Env):
         self.robot.vel_a = action[2]        
 
         # update robot
-        self.robot.update(self.TIMESTEP)
+        if self._collision:
+            future_robot = copy.deepcopy(self.robot)
+            future_robot.update(self.TIMESTEP)
+            collision_human, collision_object, collision_wall = self.check_robot_collision(future_robot)
+            collision = collision_human or collision_object or collision_wall
+            execute_action = not collision
+        else:
+            execute_action = True
+
+        if execute_action:
+            self.robot.update(self.TIMESTEP)
 
         # update dummy robot with orca policy
         if (not self.has_orca_robot_collided) and (not self.has_orca_robot_reached_goal):
@@ -2353,41 +2363,8 @@ class SocNavEnv_v1(gym.Env):
             orca_robot_speed = np.linalg.norm(np.array([self.robot_orca.vel_x, self.robot_orca.vel_y], dtype=np.float32))
             self.orca_robot_path_length += orca_robot_speed * self.TIMESTEP
 
-        # check for object-robot and human-robot collisions
-        collision_human = False
-        for human in self.static_humans + self.dynamic_humans:
-            if self.robot.collides(human):
-                collision_human = True
-                break
-        
-        # interaction-robot collision
-        for i in (self.moving_interactions + self.static_interactions + self.h_l_interactions):
-            if collision_human:
-                break
-            if i.name == "human-human-interaction" and  i.collides(self.robot):
-                collision_human = True
-                break
-            elif i.name == "human-laptop-interaction" and self.robot.collides(i.human):
-                collision_human = True
-                break
 
-        collision_object = False
-        collision_wall = False
-        for object in self.plants + self.walls + self.tables + self.laptops:
-            if(self.robot.collides(object)): 
-                collision_object = True
-                break
-        for object in self.walls:
-            if self.robot.collides(object):
-                collision_wall = True
-                break
-        
-        for i in self.h_l_interactions:
-            if collision_object:
-                break
-            if self.robot.collides(i.laptop):
-                collision_object = True
-                break
+        collision_human, collision_object, collision_wall = self.check_robot_collision(self.robot)
 
         collision = collision_object or collision_human        
         
@@ -2726,6 +2703,45 @@ class SocNavEnv_v1(gym.Env):
                 assert(curr_laptops + i == len(self.laptops + self.h_l_interactions) - 1)
 
         return reward, info
+
+    def check_robot_collision(self, robot):
+        # check for object-robot and human-robot collisions
+        collision_human = False
+        for human in self.static_humans + self.dynamic_humans:
+            if robot.collides(human):
+                collision_human = True
+                break
+        
+        # interaction-robot collision
+        for i in (self.moving_interactions + self.static_interactions + self.h_l_interactions):
+            if collision_human:
+                break
+            if i.name == "human-human-interaction" and  i.collides(robot):
+                collision_human = True
+                break
+            elif i.name == "human-laptop-interaction" and robot.collides(i.human):
+                collision_human = True
+                break
+
+        collision_object = False
+        collision_wall = False
+        for object in self.plants + self.walls + self.tables + self.laptops:
+            if(robot.collides(object)): 
+                collision_object = True
+                break
+        for object in self.walls:
+            if robot.collides(object):
+                collision_wall = True
+                break
+        
+        for i in self.h_l_interactions:
+            if collision_object:
+                break
+            if robot.collides(i.laptop):
+                collision_object = True
+                break
+        return collision_human, collision_object, collision_wall
+
 
     def check_timeout(self, start_time, period=30):
         if time.time()-start_time >= period:

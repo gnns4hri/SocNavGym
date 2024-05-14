@@ -5,6 +5,7 @@ rendering:
 episode:
     episode_length: 200  # maximum steps in an episode
     time_step: 1  # number of seconds that one step corresponds to
+    end_with_collision: True # episode end with collision
 
 robot:
     robot_radius: 0.25  # radius of the robot

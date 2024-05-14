@@ -93,6 +93,7 @@ class SocNavEnv_v1(gym.Env):
     # episode params
     EPISODE_LENGTH = None
     TIMESTEP = None
+    END_WITH_COLLISION = None
 
     # rewards
     REWARD_PATH = None
@@ -285,6 +286,7 @@ class SocNavEnv_v1(gym.Env):
         self.EPISODE_LENGTH = config["episode"]["episode_length"]
         assert(self.EPISODE_LENGTH > 0), "episode length should be greater than 0"
         self.TIMESTEP = config["episode"]["time_step"]
+        self.END_WITH_COLLISION = config["episode"]["end_with_collision"]
 
         # robot
         self.ROBOT_RADIUS = config["robot"]["robot_radius"]
@@ -2474,7 +2476,8 @@ class SocNavEnv_v1(gym.Env):
 
         # calculate the reward and record necessary information
         if self.MAP_X/2 < self.robot.x or self.robot.x < -self.MAP_X/2 or self.MAP_Y/2 < self.robot.y or self.robot.y < -self.MAP_Y/2:
-            self._is_terminated = True
+            self._is_terminated = self._is_terminated or self.END_WITH_COLLISION
+            self._collision = True
             info["OUT_OF_MAP"] = True
 
         elif distance_to_goal < self.GOAL_THRESHOLD:
@@ -2483,7 +2486,8 @@ class SocNavEnv_v1(gym.Env):
             info["TIME_TO_REACH_GOAL"] = self.ticks * self.TIMESTEP
 
         elif collision is True:
-            self._is_terminated = True
+            self._is_terminated = self._is_terminated or self.END_WITH_COLLISION
+            self._collision = True
             info["COLLISION"] = True
 
             if collision_human:
@@ -3357,6 +3361,7 @@ class SocNavEnv_v1(gym.Env):
 
         self._is_terminated = False
         self._is_truncated = False
+        self._collision = False
         self.ticks = 0
         self.compliant_count = 0  # keeps track of how many times the agent is outside the personal space of humans
         self.prev_goal_distance = np.sqrt((self.robot.x - self.robot.goal_x)**2 + (self.robot.y - self.robot.goal_y)**2)

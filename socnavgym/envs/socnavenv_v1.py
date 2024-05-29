@@ -3412,7 +3412,7 @@ class SocNavEnv_v1(gym.Env):
 
         return True, obs, {}
 
-    def render_without_showing(self, mode="human", draw_human_gaze=False):
+    def render_without_showing(self, mode="human", draw_human_gaze=False, draw_human_goal=True):
         """
         Visualizing the environment
         """
@@ -3438,11 +3438,12 @@ class SocNavEnv_v1(gym.Env):
 
         cv2.circle(self.world_image, (w2px(self.robot.goal_x, self.PIXEL_TO_WORLD_X, self.MAP_X), w2py(self.robot.goal_y, self.PIXEL_TO_WORLD_Y, self.MAP_Y)), int(w2px(self.robot.x + self.GOAL_RADIUS, self.PIXEL_TO_WORLD_X, self.MAP_X) - w2px(self.robot.x, self.PIXEL_TO_WORLD_X, self.MAP_X)), (0, 255, 0), 2)
         
-        for human in self.dynamic_humans:  # only draw goals for the dynamic humans
-            cv2.circle(self.world_image, (w2px(human.goal_x, self.PIXEL_TO_WORLD_X, self.MAP_X), w2py(human.goal_y, self.PIXEL_TO_WORLD_Y, self.MAP_Y)), int(w2px(human.x + self.HUMAN_GOAL_RADIUS, self.PIXEL_TO_WORLD_X, self.MAP_X) - w2px(human.x, self.PIXEL_TO_WORLD_X, self.MAP_X)), (120, 0, 0), 2)
-        
-        for i in self.moving_interactions:
-            cv2.circle(self.world_image, (w2px(i.goal_x, self.PIXEL_TO_WORLD_X, self.MAP_X), w2py(i.goal_y, self.PIXEL_TO_WORLD_Y, self.MAP_Y)), int(w2px(i.x + i.goal_radius, self.PIXEL_TO_WORLD_X, self.MAP_X) - w2px(i.x, self.PIXEL_TO_WORLD_X, self.MAP_X)), (0, 0, 255), 2)
+        if draw_human_goal:
+            for human in self.dynamic_humans:  # only draw goals for the dynamic humans
+                cv2.circle(self.world_image, (w2px(human.goal_x, self.PIXEL_TO_WORLD_X, self.MAP_X), w2py(human.goal_y, self.PIXEL_TO_WORLD_Y, self.MAP_Y)), int(w2px(human.x + self.HUMAN_GOAL_RADIUS, self.PIXEL_TO_WORLD_X, self.MAP_X) - w2px(human.x, self.PIXEL_TO_WORLD_X, self.MAP_X)), (120, 0, 0), 2)
+            
+            for i in self.moving_interactions:
+                cv2.circle(self.world_image, (w2px(i.goal_x, self.PIXEL_TO_WORLD_X, self.MAP_X), w2py(i.goal_y, self.PIXEL_TO_WORLD_Y, self.MAP_Y)), int(w2px(i.x + i.goal_radius, self.PIXEL_TO_WORLD_X, self.MAP_X) - w2px(i.x, self.PIXEL_TO_WORLD_X, self.MAP_X)), (0, 0, 255), 2)
         
         for human in self.static_humans + self.dynamic_humans:
             human.draw(self.world_image, self.PIXEL_TO_WORLD_X, self.PIXEL_TO_WORLD_Y, self.MAP_X, self.MAP_Y)
@@ -3458,12 +3459,12 @@ class SocNavEnv_v1(gym.Env):
 
         return self.world_image
 
-    def render(self, mode="human", draw_human_gaze=False):
+    def render(self, mode="human", draw_human_gaze=False, draw_human_goal=True):
         if not self.window_initialised:
             cv2.namedWindow("world", cv2.WINDOW_NORMAL) 
             cv2.resizeWindow("world", int(self.RESOLUTION_VIEW), int(self.RESOLUTION_VIEW))
             self.window_initialised = True
-        self.world_image = self.render_without_showing(mode, draw_human_gaze)
+        self.world_image = self.render_without_showing(mode, draw_human_gaze, draw_human_goal)
         cv2.imshow("world", self.world_image)
         k = cv2.waitKey(self.MILLISECONDS)
         if k%255 == 27:

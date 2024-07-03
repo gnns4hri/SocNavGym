@@ -1614,6 +1614,8 @@ class SocNavEnv_v1(gym.Env):
                         human.speed = min(np.linalg.norm(entity_vel), self.MAX_ADVANCE_HUMAN)
                     else:
                         human.speed = 0
+                if human.collides(self.robot):
+                    human.speed = 0        
             human.update(self.TIMESTEP)
 
     def discrete_to_continuous_action(self, action:int):
@@ -1783,7 +1785,7 @@ class SocNavEnv_v1(gym.Env):
                 if human.speed < self.SPEED_THRESHOLD and not(self.crowd_forming and human.id in self.humans_forming_crowd.keys()): human.speed = 0
             else:
                 human.speed = 0
-            human.update(self.TIMESTEP)
+            # human.update(self.TIMESTEP)
 
         # updating moving humans in interactions
         for index, i in enumerate(self.moving_interactions):

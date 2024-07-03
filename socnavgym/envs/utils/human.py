@@ -120,6 +120,10 @@ class Human(Object):
         r_moved = np.random.normal(0, self.pos_noise_std)
         moved = time * self.speed  + r_moved# distance moved = speed x time
         r_angle = np.random.normal(0, self.angle_noise_std)
+        self.initial_x = self.x
+        self.initial_y = self.y
+        self.initial_orientation = self.orientation
+
         self.orientation = self.orientation + r_angle
         self.x += moved * np.cos(self.orientation)  # updating x position
         self.y += moved * np.sin(self.orientation)  # updating y position

@@ -13,7 +13,7 @@ class Human_Laptop_Interaction:
     Class for Human-Laptop interaction
     """
 
-    def __init__(self, laptop:Laptop, distance, human_width, can_disperse=True) -> None:
+    def __init__(self, laptop:Laptop, distance, human_width, can_disperse=True, pos_noise_std=None, angle_noise_std=None) -> None:
         self.name = "human-laptop-interaction"
         # laptop
         self.laptop = laptop
@@ -24,8 +24,10 @@ class Human_Laptop_Interaction:
         self.can_disperse = can_disperse
 
         # generating a human 
-        self.human = Human(speed=0, width=human_width,policy=random.choice(["orca", "sfm"]))
-        
+        self.human = Human(speed=0, width=human_width,policy=random.choice(["orca", "sfm"]), type="static", 
+                            pos_noise_std=pos_noise_std, angle_noise_std=angle_noise_std)
+
+       
         # distance between the human and laptop centers
         self.distance = distance
         
@@ -35,7 +37,10 @@ class Human_Laptop_Interaction:
     def arrange_human(self):
         self.human.x = self.laptop.x + np.cos(self.laptop.orientation - np.pi/2) * self.distance
         self.human.y = self.laptop.y + np.sin(self.laptop.orientation - np.pi/2) * self.distance
+        self.human.initial_x = self.human.x
+        self.human.initial_y = self.human.y
         self.human.orientation = self.laptop.orientation + np.pi/2
+        self.human.initial_orientation = self.human.orientation
         self.x = (self.laptop.x + self.human.x)/2
         self.y = (self.laptop.y + self.human.y)/2
 

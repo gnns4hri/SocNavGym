@@ -4,6 +4,10 @@ from socnavgym.envs.utils.object import Object
 from socnavgym.envs.utils.utils import w2px, w2py
 from math import atan2
 
+# NOISE_POS = (0.01, 0.5)
+# NOISE_ANGLE = (0.1, 0.5)
+GAUSSIAN_NOISE_STD = 0.5
+
 class Human(Object):
     """
     Class for humans
@@ -23,7 +27,9 @@ class Human(Object):
         policy=None,
         prob_to_avoid_robot=0.05,
         type="dynamic",
-        fov=2*np.pi
+        fov=2*np.pi,
+        pos_noise_std=None,
+        angle_noise_std=None
     ) -> None:
         super().__init__(id, "human")
         self.width = None  # diameter of the human
@@ -37,6 +43,9 @@ class Human(Object):
         self.prob_to_avoid_robot = prob_to_avoid_robot
         self.fov = fov  # field of view
         self.type = type  # whether human is static or dynamic
+        self.pos_noise_std = pos_noise_std if pos_noise_std!=None else 0
+        self.angle_noise_std = angle_noise_std if angle_noise_std!=None else 0
+        
         assert(self.type == "static" or self.type == "dynamic"), "type can be \"static\" or \"dynamic\" only."
         self.set(id, x, y, theta, width, speed, goal_x, goal_y, goal_radius, policy)
 
@@ -56,6 +65,10 @@ class Human(Object):
         self.goal_y = goal_y
         self.goal_radius = goal_radius
         self.policy = policy
+        self.initial_x = x
+        self.initial_y = y
+        self.initial_orientation = theta
+
 
     def has_reached_goal(self, offset=None):
         if offset is None: offset = self.width/2
@@ -99,8 +112,15 @@ class Human(Object):
         assert (
             self.x != None and self.y != None and self.orientation != None
         ), "Coordinates or orientation are None type"
-        if self.type == "static": return  # static humans do not change their position
-        moved = time * self.speed  # distance moved = speed x time
+        # if self.type == "static": return  # static humans do not change their position
+        if self.type == "static":
+            self.x = self.initial_x
+            self.y = self.initial_y
+            self.orientation = self.initial_orientation
+        r_moved = np.random.normal(0, self.pos_noise_std)
+        moved = time * self.speed  + r_moved# distance moved = speed x time
+        r_angle = np.random.normal(0, self.angle_noise_std)
+        self.orientation = self.orientation + r_angle
         self.x += moved * np.cos(self.orientation)  # updating x position
         self.y += moved * np.sin(self.orientation)  # updating y position
 

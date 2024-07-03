@@ -108,6 +108,8 @@ class SocNavEnv_v1(gym.Env):
     HUMAN_GOAL_RADIUS = None
     HUMAN_POLICY=None
     HUMAN_GAZE_ANGLE=None
+    HUMAN_POS_NOISE_STD = None
+    HUMAN_ANGLE_NOISE_STD = None
 
     # laptop params
     LAPTOP_WIDTH=None
@@ -304,6 +306,10 @@ class SocNavEnv_v1(gym.Env):
         self.HUMAN_GAZE_ANGLE = config["human"]["gaze_angle"]
         self.PROB_TO_AVOID_ROBOT = config["human"]["prob_to_avoid_robot"]
         self.HUMAN_FOV = config["human"]["fov_angle"]
+        if "pos_noise_std" in config["human"].keys():
+            self.HUMAN_POS_NOISE_STD = config["human"]["pos_noise_std"]
+        if "angle_noise_std" in config["human"].keys():
+            self.HUMAN_ANGLE_NOISE_STD = config["human"]["angle_noise_std"]
 
         # laptop
         self.LAPTOP_WIDTH = config["laptop"]["laptop_width"]
@@ -1608,7 +1614,7 @@ class SocNavEnv_v1(gym.Env):
                         human.speed = min(np.linalg.norm(entity_vel), self.MAX_ADVANCE_HUMAN)
                     else:
                         human.speed = 0
-                    human.update(self.TIMESTEP)
+            human.update(self.TIMESTEP)
 
     def discrete_to_continuous_action(self, action:int):
         """
@@ -2998,7 +3004,9 @@ class SocNavEnv_v1(gym.Env):
                 "policy": policy,
                 "fov": self.HUMAN_FOV,
                 "prob_to_avoid_robot": self.PROB_TO_AVOID_ROBOT,
-                "type": human_type
+                "type": human_type,
+                "pos_noise_std": self.HUMAN_POS_NOISE_STD,
+                "angle_noise_std": self.HUMAN_ANGLE_NOISE_STD
             }
         elif object_type == SocNavGymObject.PLANT:
             arg_dict = {
@@ -3091,7 +3099,9 @@ class SocNavEnv_v1(gym.Env):
                 "MAX_HUMAN_SPEED": self.MAX_ADVANCE_HUMAN, 
                 "goal_radius": self.INTERACTION_GOAL_RADIUS, 
                 "noise": self.INTERACTION_NOISE_VARIANCE, 
-                "can_disperse": can_disperse
+                "can_disperse": can_disperse,
+                "pos_noise_std": self.HUMAN_POS_NOISE_STD,
+                "angle_noise_std": self.HUMAN_ANGLE_NOISE_STD
             }
         elif object_type == SocNavGymObject.HUMAN_LAPTOP_INTERACTION \
             or object_type == SocNavGymObject.HUMAN_LAPTOP_INTERACTION_NON_DISPERSING:
@@ -3100,7 +3110,10 @@ class SocNavEnv_v1(gym.Env):
                 "laptop": extra_info["laptop"],
                 "distance": self.LAPTOP_WIDTH+self.HUMAN_LAPTOP_DISTANCE,
                 "width": self.HUMAN_DIAMETER,
-                "can_disperse": object_type == SocNavGymObject.HUMAN_LAPTOP_INTERACTION
+                "can_disperse": object_type == SocNavGymObject.HUMAN_LAPTOP_INTERACTION,
+                "pos_noise_std": self.HUMAN_POS_NOISE_STD,
+                "angle_noise_std": self.HUMAN_ANGLE_NOISE_STD
+
             }
 
         return arg_dict
@@ -3143,7 +3156,8 @@ class SocNavEnv_v1(gym.Env):
             if laptop == None:
                 return None, None
             can_disperse = object_type == SocNavGymObject.HUMAN_LAPTOP_INTERACTION
-            i = Human_Laptop_Interaction(laptop, self.LAPTOP_WIDTH+self.HUMAN_LAPTOP_DISTANCE, self.HUMAN_DIAMETER, can_disperse=can_disperse)
+            i = Human_Laptop_Interaction(laptop, self.LAPTOP_WIDTH+self.HUMAN_LAPTOP_DISTANCE, self.HUMAN_DIAMETER, can_disperse=can_disperse,
+                                        pos_noise_std = self.HUMAN_POS_NOISE_STD, angle_noise_std = self.HUMAN_ANGLE_NOISE_STD)
             c = False
             for o in self.objects:
                 if i.collides(o, human_only=True):

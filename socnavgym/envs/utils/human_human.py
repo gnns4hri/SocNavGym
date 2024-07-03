@@ -15,7 +15,22 @@ class Human_Human_Interaction:
     Class for Human-Human Interactions
     """
 
-    def __init__(self, x, y, type:str, numOfHumans:int, radius:float, human_width, MAX_HUMAN_SPEED, goal_radius=None, noise=0, can_disperse=True) -> None:
+    def __init__(
+        self, 
+        x, 
+        y, 
+        type:str, 
+        numOfHumans:int, 
+        radius:float, 
+        human_width, 
+        MAX_HUMAN_SPEED, 
+        goal_radius=None, 
+        noise=0, 
+        can_disperse=True,
+        pos_noise_std=None,
+        angle_noise_std=None
+        ) -> None:
+
         # center of interaction
         self.x = x
         self.y = y
@@ -41,9 +56,11 @@ class Human_Human_Interaction:
 
         for _ in range(numOfHumans):
             if self.type == "stationary":
-                self.add_human(Human(speed=0, width=human_width, goal_radius=self.goal_radius, policy=random.choice(["orca", "sfm"])))
+                self.add_human(Human(speed=0, width=human_width, goal_radius=self.goal_radius, policy=random.choice(["orca", "sfm"]), 
+                                type="static", pos_noise_std=pos_noise_std, angle_noise_std=angle_noise_std))
             else:
-                self.add_human(Human(speed=speed, width=human_width, goal_radius=self.goal_radius, policy=random.choice(["orca", "sfm"])))
+                self.add_human(Human(speed=speed, width=human_width, goal_radius=self.goal_radius, policy=random.choice(["orca", "sfm"]),
+                                pos_noise_std=pos_noise_std, angle_noise_std=angle_noise_std))
     
         # arranging all the humans around a circle
         self.arrange_humans()
@@ -82,10 +99,13 @@ class Human_Human_Interaction:
             h = self.humans[i]
             h.x = self.x + self.radius * np.cos(theta + (np.random.random()-0.5)*np.pi/7)
             h.y = self.y + self.radius * np.sin(theta + (np.random.random()-0.5)*np.pi/7)
+            h.initial_x = h.x
+            h.initial_y = h.y
             
             if self.type == "stationary":
                 # humans would face the center as if talking to each other
                 h.orientation = theta - np.pi + (np.random.random()-0.5)*np.pi/7
+                h.initial_orientation = h.orientation
 
             elif self.type == "moving":
                 # humans moving in the same direction, in a direction one direction

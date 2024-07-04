@@ -1594,7 +1594,7 @@ class SocNavEnv_v1(gym.Env):
         force_b = -force if not entity_b.is_static else None  # forces are applied only to dynamic objects
         return [force_a, force_b]
 
-    def handle_collision(self):
+    def handle_collision_and_update(self):
         all_humans:List[Human] = []
         for human in self.static_humans + self.dynamic_humans: all_humans.append(human)
 
@@ -1616,6 +1616,18 @@ class SocNavEnv_v1(gym.Env):
                         human.speed = 0
                 if human.collides(self.robot):
                     human.speed = 0        
+
+        for i in self.moving_interactions:
+            stop_moving = False
+            for human in i.humans:
+                if human.speed == 0:
+                    stop_moving = True
+            if stop_moving:
+                for human in i.humans:
+                    human.speed = 0
+
+
+        for human in all_humans:
             human.update(self.TIMESTEP)
 
     def discrete_to_continuous_action(self, action:int):
@@ -1789,7 +1801,7 @@ class SocNavEnv_v1(gym.Env):
 
         # updating moving humans in interactions
         for index, i in enumerate(self.moving_interactions):
-            i.update(self.TIMESTEP, interaction_vels[index], self.MAX_ROTATION_HUMAN)
+            i.update_speed(self.TIMESTEP, interaction_vels[index], self.MAX_ROTATION_HUMAN)
         
         # update the goals for humans if they have reached goal
         for human in self.dynamic_humans:
@@ -1839,7 +1851,7 @@ class SocNavEnv_v1(gym.Env):
                 self.finish_h_l_formation()
 
         # handling collisions
-        self.handle_collision()
+        self.handle_collision_and_update()
 
         # getting observations
         observation = self._get_obs()

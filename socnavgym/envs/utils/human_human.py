@@ -148,7 +148,7 @@ class Human_Human_Interaction:
             if h.collides(obj): return True
         return False
 
-    def update(self, time, velocity=None, max_rotation_speed=math.pi/2.):
+    def update_speed(self, time, velocity=None, max_rotation_speed=math.pi/2.):
         if self.type == "stationary":
             pass
 
@@ -172,7 +172,7 @@ class Human_Human_Interaction:
             for human, s in zip(self.humans, speeds):
                 if rotating: s = 0
                 human.speed = s
-                human.update(time)
+                # human.update(time)
 
             x_com = 0
             y_com = 0

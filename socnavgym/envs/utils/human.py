@@ -4,9 +4,6 @@ from socnavgym.envs.utils.object import Object
 from socnavgym.envs.utils.utils import w2px, w2py
 from math import atan2
 
-# NOISE_POS = (0.01, 0.5)
-# NOISE_ANGLE = (0.1, 0.5)
-GAUSSIAN_NOISE_STD = 0.5
 
 class Human(Object):
     """

@@ -1802,6 +1802,10 @@ class SocNavEnv_v1(gym.Env):
         # updating moving humans in interactions
         for index, i in enumerate(self.moving_interactions):
             i.update_speed(self.TIMESTEP, interaction_vels[index], self.MAX_ROTATION_HUMAN)
+
+
+
+            
         
         # update the goals for humans if they have reached goal
         for human in self.dynamic_humans:
@@ -1809,7 +1813,7 @@ class SocNavEnv_v1(gym.Env):
             if self.h_l_forming and human.id == self.h_l_forming_human.id: continue  # handling the human forming the human-laptop-interaction separately
             HALF_SIZE_X = self.MAP_X/2. - self.MARGIN
             HALF_SIZE_Y = self.MAP_Y/2. - self.MARGIN
-            if human.has_reached_goal() or human.speed==0:
+            if human.has_reached_goal():
                 o = self.sample_goal(self.HUMAN_GOAL_RADIUS, HALF_SIZE_X, HALF_SIZE_Y)
                 if o is not None:
                     human.set_goal(o.x, o.y)

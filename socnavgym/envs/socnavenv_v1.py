@@ -1803,9 +1803,6 @@ class SocNavEnv_v1(gym.Env):
         for index, i in enumerate(self.moving_interactions):
             i.update_speed(self.TIMESTEP, interaction_vels[index], self.MAX_ROTATION_HUMAN)
 
-
-
-            
         
         # update the goals for humans if they have reached goal
         for human in self.dynamic_humans:

@@ -3,7 +3,9 @@ import numpy as np
 from socnavgym.envs.utils.object import Object
 from socnavgym.envs.utils.utils import w2px, w2py
 from math import atan2
+import time
 
+MAX_TIME_TO_REACH_GOAL = 50
 
 class Human(Object):
     """
@@ -46,9 +48,12 @@ class Human(Object):
         assert(self.type == "static" or self.type == "dynamic"), "type can be \"static\" or \"dynamic\" only."
         self.set(id, x, y, theta, width, speed, goal_x, goal_y, goal_radius, policy)
 
+        self.initial_time = time.time()
+
     def set_goal(self, goal_x, goal_y):
         self.goal_x = goal_x
         self.goal_y = goal_y
+        self.initial_time = time.time()
 
     def set(self, id, x, y, theta, width, speed, goal_x, goal_y, goal_radius, policy):
         super().set(id, x, y, theta)
@@ -72,7 +77,7 @@ class Human(Object):
         if self.type == "static": return False  # static humans do not have goals, so they would not reach their goal
         # if self.width == None or self.goal_radius == None or self.goal_x==None or self.goal_y == None: return False
         distance_to_goal = np.sqrt((self.x-self.goal_x)**2 + (self.y-self.goal_y)**2)
-        if distance_to_goal < (offset + self.goal_radius):
+        if distance_to_goal < (offset + self.goal_radius) or time.time()-self.initial_time>MAX_TIME_TO_REACH_GOAL:
             return True
         else:
             return False

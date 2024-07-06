@@ -29,6 +29,7 @@ from socnavgym.envs.utils.object import Object
 from socnavgym.envs.utils.plant import Plant
 from socnavgym.envs.utils.robot import Robot
 from socnavgym.envs.utils.table import Table
+from socnavgym.envs.utils.chair import Chair
 from socnavgym.envs.utils.utils import (get_coordinates_of_rotated_rectangle,
                                         get_nearest_point_from_rectangle,
                                         get_square_around_circle,
@@ -56,6 +57,7 @@ class SocNavGymObject(Enum):
     STATIC_HUMAN = "STATIC_HUMAN"
     PLANT = "PLANT"
     TABLE = "TABLE"
+    CHAIR = "CHAIR"
     LAPTOP = "LAPTOP"
     WALL = "WALL"
     HUMAN_HUMAN_INTERACTION_DYNAMIC = "HUMAN_HUMAN_INTERACTION_DYNAMIC"
@@ -71,6 +73,7 @@ class SocNavGymObject(Enum):
         if self == SocNavGymObject.STATIC_HUMAN: return Human
         if self == SocNavGymObject.PLANT: return Plant
         if self == SocNavGymObject.TABLE: return Table
+        if self == SocNavGymObject.CHAIR: return Chair
         if self == SocNavGymObject.LAPTOP: return Laptop
         if self == SocNavGymObject.WALL: return Wall
         if self == SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC: return Human_Human_Interaction
@@ -122,6 +125,10 @@ class SocNavEnv_v1(gym.Env):
     TABLE_WIDTH = None
     TABLE_LENGTH = None
 
+    # chair params
+    CHAIR_WIDTH = None
+    CHAIR_LENGTH = None
+
     # wall params
     WALL_THICKNESS = None
 
@@ -158,6 +165,8 @@ class SocNavEnv_v1(gym.Env):
         self.plants:List[Plant] = []  
         # tables in the environment
         self.tables:List[Table] = []  
+        # chairs in the environment
+        self.chairs:List[Chair] = []  
         # dynamic interactions
         self.moving_interactions:List[Human_Human_Interaction] = []
         # static interactions
@@ -189,6 +198,8 @@ class SocNavEnv_v1(gym.Env):
         self.MAX_HUMANS = None
         self.MIN_TABLES = None
         self.MAX_TABLES = None
+        self.MIN_CHAIRS = None
+        self.MAX_CHAIRS = None
         self.MIN_PLANTS = None
         self.MAX_PLANTS = None
         self.MIN_LAPTOPS = None
@@ -324,6 +335,12 @@ class SocNavEnv_v1(gym.Env):
         self.TABLE_LENGTH = config["table"]["table_length"]
         self.TABLE_RADIUS = np.sqrt((self.TABLE_LENGTH/2)**2 + (self.TABLE_WIDTH/2)**2)
 
+        # chair
+        if "chair" in config.keys():
+            self.CHAIR_WIDTH = config["chair"]["chair_width"]
+            self.CHAIR_LENGTH = config["chair"]["chair_length"]
+            self.CHAIR_RADIUS = np.sqrt((self.CHAIR_LENGTH/2)**2 + (self.CHAIR_WIDTH/2)**2)
+
         # wall
         self.WALL_THICKNESS = config["wall"]["wall_thickness"]
 
@@ -357,6 +374,17 @@ class SocNavEnv_v1(gym.Env):
         self.MIN_TABLES = config["env"]["min_tables"]
         self.MAX_TABLES = config["env"]["max_tables"]
         assert(self.MIN_TABLES <= self.MAX_TABLES), "min_tables should be less than or equal to max_tables"
+
+        if "min_chairs" in config["env"]:
+            self.MIN_CHAIRS = config["env"]["min_chairs"]
+        else:
+            self.MIN_CHAIRS = 0
+        if "max_chairs" in config["env"]:    
+            self.MAX_CHAIRS = config["env"]["max_chairs"]
+        else:
+            self.MAX_CHAIRS = 0
+        assert(self.MIN_CHAIRS <= self.MAX_CHAIRS), "min_chairs should be less than or equal to max_chairs"
+
         
         self.MIN_PLANTS = config["env"]["min_plants"]
         self.MAX_PLANTS = config["env"]["max_plants"]
@@ -475,6 +503,7 @@ class SocNavEnv_v1(gym.Env):
         self.NUMBER_OF_DYNAMIC_HUMANS = random.randint(self.MIN_DYNAMIC_HUMANS, self.MAX_DYNAMIC_HUMANS)  # number of static humans in the env
         self.NUMBER_OF_PLANTS = random.randint(self.MIN_PLANTS, self.MAX_PLANTS)  # number of plants in the env
         self.NUMBER_OF_TABLES = random.randint(self.MIN_TABLES, self.MAX_TABLES)  # number of tables in the env
+        self.NUMBER_OF_CHAIRS = random.randint(self.MIN_CHAIRS, self.MAX_CHAIRS)  # number of chairs in the env
         self.NUMBER_OF_LAPTOPS = random.randint(self.MIN_LAPTOPS, self.MAX_LAPTOPS)  # number of laptops in the env. Laptops will be sampled on tables
         self.NUMBER_OF_H_H_DYNAMIC_INTERACTIONS = random.randint(self.MIN_H_H_DYNAMIC_INTERACTIONS, self.MAX_H_H_DYNAMIC_INTERACTIONS) # number of dynamic human-human interactions
         self.NUMBER_OF_H_H_DYNAMIC_INTERACTIONS_NON_DISPERSING = random.randint(self.MIN_H_H_DYNAMIC_INTERACTIONS_NON_DISPERSING, self.MAX_H_H_DYNAMIC_INTERACTIONS_NON_DISPERSING) # number of dynamic human-human interactions that do not disperse
@@ -770,7 +799,7 @@ class SocNavEnv_v1(gym.Env):
             assert(entity.x != None and entity.y != None and entity.width != None), "Attributes are None type"
             other_obj = Point((entity.x, entity.y)).buffer(entity.width/2)
         
-        elif entity.name == "laptop" or entity.name == "table":
+        elif entity.name == "laptop" or entity.name == "table" or entity.name == "chaie":
             assert(entity.x != None and entity.y != None and entity.width != None and entity.length != None and entity.orientation != None), "Attributes are None type"
             other_obj = Polygon(get_coordinates_of_rotated_rectangle(entity.x, entity.y, entity.orientation, entity.length, entity.width))
 
@@ -895,7 +924,7 @@ class SocNavEnv_v1(gym.Env):
             radius = object.radius
         elif object.name == "human":
             radius = object.width/2
-        elif object.name == "table" or object.name == "laptop":
+        elif object.name == "table" or object.name == "laptop" or object.name == "chair":
             radius = np.sqrt((object.length/2)**2 + (object.width/2)**2)
         else: raise NotImplementedError
 
@@ -1090,7 +1119,7 @@ class SocNavEnv_v1(gym.Env):
             if np.linalg.norm(e_o) != 0:
                 e_o /= np.linalg.norm(e_o)
         
-        elif obstacle.name == "table" or obstacle.name == "laptop":
+        elif obstacle.name == "table" or obstacle.name == "laptop" or obstacle.name == "chair":
             px, py = get_nearest_point_from_rectangle(obstacle.x, obstacle.y, obstacle.length, obstacle.width, obstacle.orientation, human.x, human.y)      
             e_o = np.array([human.x - px, human.y - py])
             if np.linalg.norm(e_o) != 0:
@@ -1137,6 +1166,7 @@ class SocNavEnv_v1(gym.Env):
 
         visible_humans = []
         visible_tables = []
+        visible_chairs = []
         visible_plants = []
         visible_laptops = []
         visible_h_l_interactions = []
@@ -1159,7 +1189,11 @@ class SocNavEnv_v1(gym.Env):
         for table in self.tables:
             # if visible append to visible list
             if self.is_entity_visible_in_human_frame(human, table): visible_tables.append(table)
-        
+
+        for chair in self.chairs:
+            # if visible append to visible list
+            if self.is_entity_visible_in_human_frame(human, chair): visible_chairs.append(chair)
+
         for laptop in self.laptops:
             # if visible append to visible list
             if self.is_entity_visible_in_human_frame(human, laptop): visible_laptops.append(laptop)
@@ -1181,11 +1215,11 @@ class SocNavEnv_v1(gym.Env):
             if self.is_entity_visible_in_human_frame(human, interaction): visible_h_l_interactions.append(interaction)
 
         if human.avoids_robot:
-            for obj in visible_plants + visible_walls + visible_tables + visible_laptops + [self.robot] + visible_static_interactions:
+            for obj in visible_plants + visible_walls + visible_tables + visible_chairs + visible_laptops + [self.robot] + visible_static_interactions:
                 f += w2 * self.get_obstacle_force(human, obj, self.sfm_r0)
 
         else:
-            for obj in visible_plants + visible_walls + visible_tables + visible_laptops + visible_static_interactions:
+            for obj in visible_plants + visible_walls + visible_tables + visible_chairs + visible_laptops + visible_static_interactions:
                 f += w2 * self.get_obstacle_force(human, obj, self.sfm_r0)
 
         for other_human in visible_humans:
@@ -1225,6 +1259,7 @@ class SocNavEnv_v1(gym.Env):
         # these lists would correspond to the entities that are visible to the human
         visible_humans = []
         visible_tables = []
+        visible_chairs = []
         visible_plants = []
         visible_laptops = []
         visible_h_l_interactions = []
@@ -1247,7 +1282,11 @@ class SocNavEnv_v1(gym.Env):
         for table in self.tables:
             # if visible append to visible list
             if self.is_entity_visible_in_human_frame(human, table): visible_tables.append(table)
-        
+
+        for chair in self.chairs:
+            # if visible append to visible list
+            if self.is_entity_visible_in_human_frame(human, chair): visible_chairs.append(chair)
+
         for laptop in self.laptops:
             # if visible append to visible list
             if self.is_entity_visible_in_human_frame(human, laptop): visible_laptops.append(laptop)
@@ -1316,7 +1355,7 @@ class SocNavEnv_v1(gym.Env):
             sim.setAgentPrefVelocity(h, (pref_vel[0], pref_vel[1]))
 
         # adding visible obstacles to the simulator
-        for obj in visible_tables + visible_laptops + visible_plants + visible_walls:
+        for obj in visible_tables + visible_chairs + visible_laptops + visible_plants + visible_walls:
             p = self.get_obstacle_corners(obj)
             sim.addObstacle(p)
 
@@ -1344,6 +1383,7 @@ class SocNavEnv_v1(gym.Env):
         # these lists would correspond to the entities that are visible to the robot
         visible_humans = []
         visible_tables = []
+        visible_chairs = []
         visible_plants = []
         visible_laptops = []
         visible_h_l_interactions = []
@@ -1360,7 +1400,10 @@ class SocNavEnv_v1(gym.Env):
         
         for table in self.tables:
             visible_tables.append(table)
-        
+
+        for chair in self.chairs:
+            visible_chairs.append(chair)
+
         for laptop in self.laptops:
             visible_laptops.append(laptop)
 
@@ -1411,7 +1454,7 @@ class SocNavEnv_v1(gym.Env):
             sim.setAgentPrefVelocity(h, (pref_vel[0], pref_vel[1]))
 
         # adding visible obstacles to the simulator
-        for obj in visible_tables + visible_laptops + visible_plants + visible_walls:
+        for obj in visible_tables + visible_chairs + visible_laptops + visible_plants + visible_walls:
             p = self.get_obstacle_corners(obj)
             sim.addObstacle(p)
 
@@ -1433,7 +1476,7 @@ class SocNavEnv_v1(gym.Env):
         return vel
 
     def get_obstacle_corners(self, obs:Object):
-        if obs.name == "laptop" or obs.name == "table":
+        if obs.name == "laptop" or obs.name == "table" or obs.name == "chair":
             return get_coordinates_of_rotated_rectangle(obs.x, obs.y, obs.orientation, obs.length, obs.width)
         
         elif obs.name == "wall":
@@ -1467,7 +1510,7 @@ class SocNavEnv_v1(gym.Env):
             pref_vel *= self.MAX_ADVANCE_HUMAN
             sim.setAgentPrefVelocity(h, (pref_vel[0], pref_vel[1]))
 
-        for obj in self.tables + self.laptops + self.plants + self.walls:
+        for obj in self.tables + self.chairs + self.laptops + self.plants + self.walls:
             p = self.get_obstacle_corners(obj)
             sim.addObstacle(p)
 
@@ -1528,7 +1571,7 @@ class SocNavEnv_v1(gym.Env):
             radius_a = 0
         
         # approximating the rectangular objects with a circle that circumscribes it
-        elif  entity_a.name == "table" or entity_a.name == "laptop":
+        elif  entity_a.name == "table" or entity_a.name == "laptop" or entity_a.name == "chair":
             radius_a = np.sqrt((entity_a.length/2)**2 + (entity_a.width/2)**2)
 
         else: raise NotImplementedError
@@ -1543,7 +1586,7 @@ class SocNavEnv_v1(gym.Env):
         elif entity_b.name == "wall":
             radius_b = 0
         
-        elif  entity_b.name == "table" or entity_b.name == "laptop":
+        elif  entity_b.name == "table" or entity_b.name == "laptop" or entity_b.name == "chair":
             radius_b = np.sqrt((entity_b.length/2)**2 + (entity_b.width/2)**2)
         
         else: raise NotImplementedError
@@ -1605,7 +1648,7 @@ class SocNavEnv_v1(gym.Env):
 
         for human in all_humans:
             # check collisions with objects
-            for object in self.plants + self.walls + self.tables + self.laptops:
+            for object in self.plants + self.walls + self.tables + self.laptops + self.chairs:
                 if human.collides(object):
                     [fi, fj] = self.get_collision_force(human, object)
                     entity_vel = (fi / human.mass) * self.TIMESTEP
@@ -2096,7 +2139,7 @@ class SocNavEnv_v1(gym.Env):
         if numHumans <= 1: # cannot form a crowd with one or less humans
             pass
         else:
-            all_objects = self.static_humans + self.dynamic_humans + self.tables + self.laptops + self.plants + self.walls + self.static_interactions + self.moving_interactions + self.h_l_interactions + [self.robot]
+            all_objects = self.static_humans + self.dynamic_humans + self.tables + self.chairs + self.laptops + self.plants + self.walls + self.static_interactions + self.moving_interactions + self.h_l_interactions + [self.robot]
             if(len(self.dynamic_humans) < numHumans):  # check if the number of moving humans are greater than the number of humans required to form a crowd
                 pass
             else:
@@ -2241,7 +2284,7 @@ class SocNavEnv_v1(gym.Env):
             self.h_l_forming_human.policy = 'orca'  # using orca policy seems to work better
 
             # list of all the objects for collision check
-            all_objects = self.static_humans + self.dynamic_humans + self.tables + self.laptops + self.plants + self.walls + self.static_interactions + self.moving_interactions + self.h_l_interactions + [self.robot]
+            all_objects = self.static_humans + self.dynamic_humans + self.tables + self.chairs + self.laptops + self.plants + self.walls + self.static_interactions + self.moving_interactions + self.h_l_interactions + [self.robot]
 
             # creating the human-laptop-interaction object
             self.upcoming_h_l_interaction = Human_Laptop_Interaction(
@@ -2362,7 +2405,7 @@ class SocNavEnv_v1(gym.Env):
             # check for object-robot collisions
             orca_robot_collision = False
 
-            for object in self.static_humans + self.dynamic_humans + self.plants + self.walls + self.tables + self.laptops:
+            for object in self.static_humans + self.dynamic_humans + self.plants + self.walls + self.tables + self.chairs + self.laptops:
                 if(self.robot_orca.collides(object)): 
                     orca_robot_collision = True
                     
@@ -2677,7 +2720,17 @@ class SocNavEnv_v1(gym.Env):
             )
             obstacle_dist_sum += d
             obstacle_count += 1
-        
+
+        for chair in self.chairs:
+            p_x, p_y = get_nearest_point_from_rectangle(chair.x, chair.y, chair.length, chair.width, chair.orientation, self.robot.x, self.robot.y)
+            d = np.sqrt((self.robot.x - p_x)**2 + (self.robot.y - p_y)**2)
+            closest_obstacle_dist = min(
+                closest_obstacle_dist,
+                d
+            )
+            obstacle_dist_sum += d
+            obstacle_count += 1
+
         for wall in self.walls:
             p_x, p_y = get_nearest_point_from_rectangle(wall.x, wall.y, wall.length, wall.thickness, wall.orientation, self.robot.x, self.robot.y)
             d = np.sqrt((self.robot.x - p_x)**2 + (self.robot.y - p_y)**2)
@@ -2746,7 +2799,7 @@ class SocNavEnv_v1(gym.Env):
 
         collision_object = False
         collision_wall = False
-        for object in self.plants + self.walls + self.tables + self.laptops:
+        for object in self.plants + self.walls + self.tables + self.laptops + self.chairs:
             if(robot.collides(object)): 
                 collision_object = True
                 break
@@ -3039,6 +3092,15 @@ class SocNavEnv_v1(gym.Env):
                 "width": self.TABLE_WIDTH,
                 "length": self.TABLE_LENGTH
             }
+        elif object_type == SocNavGymObject.CHAIR:
+            arg_dict = {
+                "id": self.id,
+                "x": random.uniform(-HALF_SIZE_X, HALF_SIZE_X),
+                "y": random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y),
+                "theta": random.uniform(-np.pi, np.pi),
+                "width": self.CHAIR_WIDTH,
+                "length": self.CHAIR_LENGTH
+            }
         elif object_type == SocNavGymObject.LAPTOP:
             # pick a random table
             i = random.randint(0, len(self.tables)-1)
@@ -3223,6 +3285,7 @@ class SocNavEnv_v1(gym.Env):
         self.dynamic_humans = []
         self.plants = []
         self.tables = []
+        self.chairs = []
         self.goals:Dict[int, Plant] = {}  # dictionary to store all the goals. The key would be the id of the entity. The goal would be a Plant object so that collision checks can be done.
         self.moving_interactions = []  # a list to keep track of moving interactions
         self.static_interactions = []
@@ -3292,6 +3355,16 @@ class SocNavEnv_v1(gym.Env):
             self.tables.append(table)
             self.objects.append(table)
             self.id += 1
+
+        # chairs
+        for _ in range(self.NUMBER_OF_CHAIRS): # spawn specified number of chairs
+            chair = self._sample_object(start_time, SocNavGymObject.CHAIR)  
+            if chair == None:
+                return False, None, None
+            self.chairs.append(chair)
+            self.objects.append(chair)
+            self.id += 1
+
 
         # laptops
         if(len(self.tables) == 0):
@@ -3458,6 +3531,9 @@ class SocNavEnv_v1(gym.Env):
 
         for table in self.tables:
             table.draw(self.world_image, self.PIXEL_TO_WORLD_X, self.PIXEL_TO_WORLD_Y, self.MAP_X, self.MAP_Y)
+
+        for chair in self.chairs:
+            chair.draw(self.world_image, self.PIXEL_TO_WORLD_X, self.PIXEL_TO_WORLD_Y, self.MAP_X, self.MAP_Y)
 
         for laptop in self.laptops:
             laptop.draw(self.world_image, self.PIXEL_TO_WORLD_X, self.PIXEL_TO_WORLD_Y, self.MAP_X, self.MAP_Y)

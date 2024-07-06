@@ -98,7 +98,7 @@ class Object(object):
             assert(self.x != None and self.y != None and self.width != None), "Attributes are None type"
             curr_obj = Point((self.x, self.y)).buffer(self.width/2)
         
-        elif self.name == "laptop" or self.name == "table":
+        elif self.name == "laptop" or self.name == "table" or self.name == "chair":
             assert(self.x != None and self.y != None and self.width != None and self.length != None and self.orientation != None), "Attributes are None type"
             curr_obj = Polygon(get_coordinates_of_rotated_rectangle(self.x, self.y, self.orientation, self.length, self.width))
 
@@ -117,7 +117,7 @@ class Object(object):
             assert(obj.x != None and obj.y != None and obj.width != None), "Attributes are None type"
             other_obj = Point((obj.x, obj.y)).buffer(obj.width/2)
         
-        elif obj.name == "laptop" or obj.name == "table":
+        elif obj.name == "laptop" or obj.name == "table" or obj.name == "chair":
             assert(obj.x != None and obj.y != None and obj.width != None and obj.length != None and obj.orientation != None), "Attributes are None type"
             other_obj = Polygon(get_coordinates_of_rotated_rectangle(obj.x, obj.y, obj.orientation, obj.length, obj.width))
 

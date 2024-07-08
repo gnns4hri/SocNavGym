@@ -124,10 +124,15 @@ class SocNavEnv_v1(gym.Env):
     # table params
     TABLE_WIDTH = None
     TABLE_LENGTH = None
+    TABLE_WIDTH_MARGIN = None
+    TABLE_LENGTH_MARGIN = None
+
 
     # chair params
     CHAIR_WIDTH = None
     CHAIR_LENGTH = None
+    CHAIR_WIDTH_MARGIN = None
+    CHAIR_LENGTH_MARGIN = None
 
     # wall params
     WALL_THICKNESS = None
@@ -334,12 +339,29 @@ class SocNavEnv_v1(gym.Env):
         self.TABLE_WIDTH = config["table"]["table_width"]
         self.TABLE_LENGTH = config["table"]["table_length"]
         self.TABLE_RADIUS = np.sqrt((self.TABLE_LENGTH/2)**2 + (self.TABLE_WIDTH/2)**2)
+        if "table_width_margin" in config["table"].keys():
+            self.TABLE_WIDTH_MARGIN = config["table"]["table_width_margin"]
+        else:
+            self.TABLE_WIDTH_MARGIN = 0
+        if "table_length_margin" in config["table"].keys():
+            self.TABLE_LENGTH_MARGIN = config["table"]["table_length_margin"]
+        else:
+            self.TABLE_LENGTH_MARGIN = 0
+
 
         # chair
         if "chair" in config.keys():
             self.CHAIR_WIDTH = config["chair"]["chair_width"]
             self.CHAIR_LENGTH = config["chair"]["chair_length"]
             self.CHAIR_RADIUS = np.sqrt((self.CHAIR_LENGTH/2)**2 + (self.CHAIR_WIDTH/2)**2)
+            if "chair_width_margin" in config["chair"].keys():
+                self.CHAIR_WIDTH_MARGIN = config["chair"]["chair_width_margin"]
+            else:
+                self.CHAIR_WIDTH_MARGIN = 0
+            if "chair_length_margin" in config["chair"].keys():
+                self.CHAIR_LENGTH_MARGIN = config["chair"]["chair_length_margin"]
+            else:
+                self.CHAIR_LENGTH_MARGIN = 0
 
         # wall
         self.WALL_THICKNESS = config["wall"]["wall_thickness"]
@@ -3089,8 +3111,8 @@ class SocNavEnv_v1(gym.Env):
                 "x": random.uniform(-HALF_SIZE_X, HALF_SIZE_X),
                 "y": random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y),
                 "theta": random.uniform(-np.pi, np.pi),
-                "width": self.TABLE_WIDTH,
-                "length": self.TABLE_LENGTH
+                "width": self.TABLE_WIDTH + random.uniform(-self.TABLE_WIDTH_MARGIN, self.TABLE_WIDTH_MARGIN),
+                "length": self.TABLE_LENGTH + random.uniform(-self.TABLE_LENGTH_MARGIN, self.TABLE_LENGTH_MARGIN)
             }
         elif object_type == SocNavGymObject.CHAIR:
             arg_dict = {
@@ -3098,8 +3120,8 @@ class SocNavEnv_v1(gym.Env):
                 "x": random.uniform(-HALF_SIZE_X, HALF_SIZE_X),
                 "y": random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y),
                 "theta": random.uniform(-np.pi, np.pi),
-                "width": self.CHAIR_WIDTH,
-                "length": self.CHAIR_LENGTH
+                "width": self.CHAIR_WIDTH + random.uniform(-self.CHAIR_WIDTH_MARGIN, self.CHAIR_WIDTH_MARGIN),
+                "length": self.CHAIR_LENGTH + random.uniform(-self.CHAIR_LENGTH_MARGIN, self.CHAIR_LENGTH_MARGIN)
             }
         elif object_type == SocNavGymObject.LAPTOP:
             # pick a random table
@@ -3110,29 +3132,29 @@ class SocNavEnv_v1(gym.Env):
             edge = np.random.randint(0, 4)
             if edge == 0:
                 center = (
-                    table.x + np.cos(table.orientation + np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2, 
-                    table.y + np.sin(table.orientation + np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2
+                    table.x + np.cos(table.orientation + np.pi/2) * (table.width-self.LAPTOP_WIDTH)/2, 
+                    table.y + np.sin(table.orientation + np.pi/2) * (table.width-self.LAPTOP_WIDTH)/2
                 )
                 theta = table.orientation + np.pi
             
             elif edge == 1:
                 center = (
-                    table.x + np.cos(table.orientation + np.pi) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2, 
-                    table.y + np.sin(table.orientation + np.pi) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2
+                    table.x + np.cos(table.orientation + np.pi) * (table.length-self.LAPTOP_LENGTH)/2, 
+                    table.y + np.sin(table.orientation + np.pi) * (table.length-self.LAPTOP_LENGTH)/2
                 )
                 theta = table.orientation - np.pi/2
             
             elif edge == 2:
                 center = (
-                    table.x + np.cos(table.orientation - np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2, 
-                    table.y + np.sin(table.orientation - np.pi/2) * (self.TABLE_WIDTH-self.LAPTOP_WIDTH)/2
+                    table.x + np.cos(table.orientation - np.pi/2) * (table.width-self.LAPTOP_WIDTH)/2, 
+                    table.y + np.sin(table.orientation - np.pi/2) * (table.width-self.LAPTOP_WIDTH)/2
                 )
                 theta = table.orientation
             
             elif edge == 3:
                 center = (
-                    table.x + np.cos(table.orientation) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2, 
-                    table.y + np.sin(table.orientation) * (self.TABLE_LENGTH-self.LAPTOP_LENGTH)/2
+                    table.x + np.cos(table.orientation) * (table.length-self.LAPTOP_LENGTH)/2, 
+                    table.y + np.sin(table.orientation) * (table.length-self.LAPTOP_LENGTH)/2
                 )
                 theta = table.orientation + np.pi/2
             

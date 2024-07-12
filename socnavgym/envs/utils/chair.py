@@ -22,7 +22,7 @@ class Chair(Object):
 
     def draw(self, img, PIXEL_TO_WORLD_X, PIXEL_TO_WORLD_Y, MAP_SIZE_X, MAP_SIZE_Y):
         if self.color == None:
-            color = (100, 0, 0)  # dark blue
+            color = (100, 100, 100)  # dark gray
         else: color = self.color
 
         assert (
@@ -78,7 +78,7 @@ class Chair(Object):
         part_points = [p13, p14, p15, p16]
 
         object_points.append(part_points)
-        part_colors.append((200, 0, 0))
+        part_colors.append((200, 200, 200))
 
         im_op = []
         for op in object_points:
@@ -94,4 +94,4 @@ class Chair(Object):
             points = np.array(ip)
             points = points.reshape((-1, 1, 2))
             cv2.fillPoly(img, [np.int32(points)], c, cv2.LINE_AA)  # filling the rectangle made from the points with the specified color
-            cv2.polylines(img, [np.int32(points)], True, (0, 0, 0), 2)  # bordering the rectangle
+            cv2.polylines(img, [np.int32(points)], True, (0, 0, 0), 2, cv2.LINE_AA)  # bordering the rectangle

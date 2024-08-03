@@ -120,6 +120,7 @@ class SocNavEnv_v1(gym.Env):
     
     # plant params
     PLANT_RADIUS =None
+    PLANT_RADIUS_MARGIN =None
 
     # table params
     TABLE_WIDTH = None
@@ -334,6 +335,10 @@ class SocNavEnv_v1(gym.Env):
 
         # plant
         self.PLANT_RADIUS = config["plant"]["plant_radius"]
+        if "plant_radius_margin" in config["plant"].keys():
+            self.PLANT_RADIUS_MARGIN = config["plant"]["plant_radius_margin"]
+        else:
+            self.PLANT_RADIUS_MARGIN = 0
 
         # table
         self.TABLE_WIDTH = config["table"]["table_width"]
@@ -3103,7 +3108,7 @@ class SocNavEnv_v1(gym.Env):
                 "id": self.id,
                 "x": random.uniform(-HALF_SIZE_X, HALF_SIZE_X),
                 "y": random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y),
-                "radius": self.PLANT_RADIUS
+                "radius": self.PLANT_RADIUS + + random.uniform(-self.PLANT_RADIUS_MARGIN, self.PLANT_RADIUS_MARGIN)
             }
         elif object_type == SocNavGymObject.TABLE:
             arg_dict = {

@@ -517,12 +517,12 @@ class SocNavEnv_v1(gym.Env):
         """
         To randomly initialize the number of entities of each type. Specifically, this function would initialize the MAP_SIZE, NUMBER_OF_HUMANS, NUMBER_OF_PLANTS, NUMBER_OF_LAPTOPS and NUMBER_OF_TABLES
         """
-        self.MAP_X = random.randint(self.MIN_MAP_X, self.MAX_MAP_X)
+        self.MAP_X = random.uniform(self.MIN_MAP_X, self.MAX_MAP_X)
         
         if self.shape == "square" or self.shape == "L":
             self.MAP_Y = self.MAP_X
         else :
-            self.MAP_Y = random.randint(self.MIN_MAP_Y, self.MAX_MAP_Y)
+            self.MAP_Y = random.uniform(self.MIN_MAP_Y, self.MAX_MAP_Y)
         
         self.RESOLUTION_X = int(1850 * self.MAP_X/(self.MAP_X + self.MAP_Y))
         self.RESOLUTION_Y = int(1850 * self.MAP_Y/(self.MAP_X + self.MAP_Y))

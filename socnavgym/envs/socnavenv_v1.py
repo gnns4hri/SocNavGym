@@ -308,8 +308,18 @@ class SocNavEnv_v1(gym.Env):
         self.END_WITH_COLLISION = config["episode"]["end_with_collision"]
 
         # robot
-        self.ROBOT_RADIUS = config["robot"]["robot_radius"]
-        self.GOAL_RADIUS = config["robot"]["goal_radius"]
+        self.INITIAL_ROBOT_RADIUS = config["robot"]["robot_radius"]
+        self.ROBOT_RADIUS = self.INITIAL_ROBOT_RADIUS
+        if "robot_radius_margin" in config["robot"].keys():
+            self.ROBOT_RADIUS_MARGIN = config["robot"]["robot_radius_margin"]
+        else:
+            self.ROBOT_RADIUS_MARGIN = 0
+        self.INITIAL_GOAL_RADIUS = config["robot"]["goal_radius"]
+        self.GOAL_RADIUS = self.INITIAL_GOAL_RADIUS
+        if "goal_radius_margin" in config["robot"].keys():
+            self.GOAL_RADIUS_MARGIN = config["robot"]["goal_radius_margin"]
+        else:
+            self.GOAL_RADIUS_MARGIN = 0
         assert(self.ROBOT_RADIUS > 0 and self.GOAL_RADIUS > 0), "robot parameters in config file should be greater than 0"
         self.GOAL_THRESHOLD = self.ROBOT_RADIUS + self.GOAL_RADIUS
         self.ROBOT_TYPE = config["robot"]["robot_type"]
@@ -524,6 +534,9 @@ class SocNavEnv_v1(gym.Env):
         else :
             self.MAP_Y = random.uniform(self.MIN_MAP_Y, self.MAX_MAP_Y)
         
+        self.ROBOT_RADIUS = self.INITIAL_ROBOT_RADIUS + random.uniform(-self.ROBOT_RADIUS_MARGIN, self.ROBOT_RADIUS_MARGIN)
+        self.GOAL_RADIUS = self.INITIAL_GOAL_RADIUS + random.uniform(-self.GOAL_RADIUS_MARGIN, self.GOAL_RADIUS_MARGIN)
+
         self.RESOLUTION_X = int(1850 * self.MAP_X/(self.MAP_X + self.MAP_Y))
         self.RESOLUTION_Y = int(1850 * self.MAP_Y/(self.MAP_X + self.MAP_Y))
         self.NUMBER_OF_STATIC_HUMANS = random.randint(self.MIN_STATIC_HUMANS, self.MAX_STATIC_HUMANS)  # number of static humans in the env

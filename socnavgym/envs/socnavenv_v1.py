@@ -321,7 +321,7 @@ class SocNavEnv_v1(gym.Env):
         else:
             self.GOAL_RADIUS_MARGIN = 0
         assert(self.ROBOT_RADIUS > 0 and self.GOAL_RADIUS > 0), "robot parameters in config file should be greater than 0"
-        self.GOAL_THRESHOLD = self.ROBOT_RADIUS + self.GOAL_RADIUS
+        self.GOAL_THRESHOLD = self.GOAL_RADIUS # self.ROBOT_RADIUS + self.GOAL_RADIUS
         self.ROBOT_TYPE = config["robot"]["robot_type"]
         assert(self.ROBOT_TYPE == "diff-drive" or self.ROBOT_TYPE == "holonomic")
 
@@ -536,7 +536,7 @@ class SocNavEnv_v1(gym.Env):
         
         self.ROBOT_RADIUS = self.INITIAL_ROBOT_RADIUS + random.uniform(-self.ROBOT_RADIUS_MARGIN, self.ROBOT_RADIUS_MARGIN)
         self.GOAL_RADIUS = self.INITIAL_GOAL_RADIUS + random.uniform(-self.GOAL_RADIUS_MARGIN, self.GOAL_RADIUS_MARGIN)
-        self.GOAL_THRESHOLD = self.GOAL_RADIUS + self.ROBOT_RADIUS
+        self.GOAL_THRESHOLD = self.GOAL_RADIUS # + self.ROBOT_RADIUS
 
         self.RESOLUTION_X = int(1850 * self.MAP_X/(self.MAP_X + self.MAP_Y))
         self.RESOLUTION_Y = int(1850 * self.MAP_Y/(self.MAP_X + self.MAP_Y))

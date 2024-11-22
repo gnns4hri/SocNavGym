@@ -21,22 +21,22 @@
 
 
 ## Description
-This repository contains the implementation of our paper "SocNavGym: A Reinforcement Learning Gym for Social Navigation", published in IEEE ROMAN, 2023. 
+This repository contains the implementation of our paper [SocNavGym: A Reinforcement Learning Gym for Social Navigation"](https://arxiv.org/abs/2304.14102), published in IEEE ROMAN, 2023. 
 
 ## Installation
 1. Install Python-RVO2 by following the instructions given in [this](https://github.com/sybrenstuvel/Python-RVO2/) repository.
 2. Install DGL (Deep Graph Library) for your system using [this](https://www.dgl.ai/pages/start.html) link.
-3. For installing the environment using pip: 
+3. To install the environment using pip: 
     ```bash
     python3 -m pip install socnavgym
     ```
 
-    For installing from source:
+   To install from source:
     ```bash
     git clone https://github.com/gnns4hri/SocNavGym.git
     python3 -m pip install .  # to install the environment to your Python libraries. This is optional. If you don't run this, then just make sure that your current working directory is the root of the repository when importing socnavgym.
     ```
-4. The Deep RL agents are written using Stable Baselines3. We used the following command to install SB3 for our experiments 
+4. The test Deep RL agents are written using Stable Baselines3. We used the following command to install SB3 for our experiments 
     ```bash
     pip install git+https://github.com/carlosluis/stable-baselines3@fix_tests
     ```

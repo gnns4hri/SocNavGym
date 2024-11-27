@@ -45,13 +45,13 @@ This repository contains the implementation of our paper [SocNavGym: A Reinforce
 ## Usage
 ```python
 import socnavgym
-import gym
+import gymnasium as gym
 env = gym.make('SocNavGym-v1', config="<PATH_TO_CONFIG>")  
 ```
 ## Sample Code
 ```python
 import socnavgym
-import gym
+import gymnasium as gym
 env = gym.make("SocNavGym-v1", config="./environment_configs/exp1_no_sngnn.yaml") 
 obs, _ = env.reset()
 
@@ -64,7 +64,7 @@ for i in range(1000):
 ```
 
 ## About the environment
-```SocNavGym-v1``` is a highly customisable environment and the parameters of the environment can be controlled using the config files. There are a few config files in [environment_configs/](https://github.com/gnns4hri/SocNavGym/tree/main/environment_configs). For a better understanding of each parameter refer to [this](https://github.com/gnns4hri/SocNavGym#config-file) section. Other than the robot, the environment supports entities like plants, tables, laptops. The environment also models interactions between humans, and human-laptop. It can also contain moving crowds, and static crowds, and the ability to form new crowds and interactions, as well as disperse existing crowds and interactions. The environment follows the OpenAI Gym format implementing the `step`, `render` and `reset` functions. The environment uses the latest Gym API (gym 0.26.2).
+```SocNavGym-v1``` is a highly customisable environment and the parameters of the environment can be controlled using the config files. There are a few config files in [environment_configs/](https://github.com/gnns4hri/SocNavGym/tree/main/environment_configs). For a better understanding of each parameter refer to [this](https://github.com/gnns4hri/SocNavGym#config-file) section. Other than the robot, the environment supports entities like plants, tables, laptops. The environment also models interactions between humans, and human-laptop. It can also contain moving crowds, and static crowds, and the ability to form new crowds and interactions, as well as disperse existing crowds and interactions. The environment follows the Farama foundation format implementing the `step`, `render` and `reset` functions. The environment uses the latest Gymnasium API (gymnasium 0.29.1).
 
 ## Conventions
 * X-axis points in the direction of zero-angle.
@@ -74,7 +74,7 @@ for i in range(1000):
 ## Observation Space
 The observation returned when ```env.step(action)``` is called, consists of the following (all in the<b> robot frame</b> unless you're using the [`WorldFrameObservations`](https://github.com/gnns4hri/SocNavGym#wrappers) wrapper):
 
-The observation is of the type `gym.Spaces.Dict`. The dictionary has the following keys:
+The observation is of the type `gymnasium.Spaces.Dict`. The dictionary has the following keys:
 1. ```"robot"``` : This is a vector of shape (9,) of which the first six values represent the one-hot encoding of the robot, i.e ```[1, 0, 0, 0, 0, 0]```. The next two values represent the goal's x and y coordinates in the robot frame and the last value is the robot's radius.
 
 2. The other keys present in the observation are ```"humans"```, ```"plants"```, ```"laptops"```, ```"tables"``` and ```"walls"```. Every entity (human, plant, laptop, table, or wall) would have an observation vector given by the structure below:
@@ -628,7 +628,7 @@ The behaviour of the environment is controlled using the config file. The config
 </table>
 
 ## Wrappers
-Gym wrappers are convenient to have changes in the observation-space / action-space. SocNavGym implements 4 wrappers. 
+Gymnasium wrappers are convenient to have changes in the observation-space / action-space. SocNavGym implements 4 wrappers. 
 
 The following are the wrappers implemented by SocNavGym:
 1. `DiscreteActions` : To change the environment from a continuous action space environment to a discrete action space environment. The action space consists of 7 discrete actions. They are :

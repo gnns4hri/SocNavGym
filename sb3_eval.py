@@ -1,4 +1,4 @@
-import gym
+import gymnasium as gym
 import socnavgym
 import torch
 from socnavgym.wrappers import DiscreteActions

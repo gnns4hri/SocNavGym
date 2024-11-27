@@ -7,13 +7,13 @@ from typing import List, Dict
 import copy
 from importlib.machinery import SourceFileLoader
 import cv2
-import gym
+import gymnasium as gym
 import matplotlib.pyplot as plt
 import numpy as np
 import rvo2
 import torch
 import yaml
-from gym import spaces
+from gymnasium import spaces
 from shapely.geometry import Point, Polygon
 from collections import namedtuple
 import math
@@ -146,14 +146,19 @@ class SocNavEnv_v1(gym.Env):
     # human-laptop interaction params
     HUMAN_LAPTOP_DISTANCE = None
 
-    def __init__(self, config:str=None) -> None:
+    def __init__(self, config:str=None, render_mode:str=None) -> None:
         """
         Args : 
             config: Path to the environment config file
         """
         super().__init__()
         
-        assert(config is not None), "Argument config_path is None. Please call gym.make(\"SocNavGym-v1\", config_path=path_to_config)"
+        assert(config is not None), "Argument config is None. Please call gym.make(\"SocNavGym-v1\", config=path_to_config)"
+
+
+        self.render_mode_ = render_mode
+        if render_mode is None:
+            self.render_mode_ = "human"
 
         self.window_initialised = False
         self.has_configured = False
@@ -3605,12 +3610,12 @@ class SocNavEnv_v1(gym.Env):
 
         return self.world_image
 
-    def render(self, mode="human", draw_human_gaze=False, draw_human_goal=True):
+    def render(self, draw_human_gaze=False, draw_human_goal=True):
         if not self.window_initialised:
             cv2.namedWindow("world", cv2.WINDOW_NORMAL) 
             cv2.resizeWindow("world", int(self.RESOLUTION_VIEW), int(self.RESOLUTION_VIEW))
             self.window_initialised = True
-        self.world_image = self.render_without_showing(mode, draw_human_gaze, draw_human_goal)
+        self.world_image = self.render_without_showing(self.render_mode_, draw_human_gaze, draw_human_goal)
         cv2.imshow("world", self.world_image)
         k = cv2.waitKey(self.MILLISECONDS)
         if k%255 == 27:

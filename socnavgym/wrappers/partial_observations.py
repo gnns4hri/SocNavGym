@@ -1,5 +1,5 @@
-import gym
-from gym import spaces
+import gymnasium as gym
+from gymnasium import spaces
 from socnavgym.envs.socnavenv_v1 import SocNavEnv_v1
 from socnavgym.envs.utils.wall import Wall
 from socnavgym.envs.utils.utils import w2px, w2py

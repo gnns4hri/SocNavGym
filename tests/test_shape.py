@@ -2,7 +2,7 @@ import pytest
 import sys
 import os
 sys.path.insert(1, os.path.dirname(os.path.abspath(__file__)) + "/..")
-import gym
+import gymnasium as gym
 import socnavgym
 import yaml
 

@@ -16,7 +16,7 @@ with open("README.md", "r") as f:
     LONG_DESCRIPTION = f.read()
 
 REQUIRED = [
-    "gym >= 0.26.2",
+    "gymnasium >= 0.29.1",
     "opencv-python",
     "numpy",
     "matplotlib",

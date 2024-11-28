@@ -1,5 +1,5 @@
-import gym
-from gym.spaces import Discrete
+import gymnasium as gym
+from gymnasium.spaces import Discrete
 from socnavgym.envs.socnavenv_v1 import SocNavEnv_v1
 import numpy as np
 

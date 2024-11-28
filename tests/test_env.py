@@ -2,10 +2,10 @@ import pytest
 import sys
 import os
 sys.path.insert(1, os.path.dirname(os.path.abspath(__file__)) + "/..")
-import gym
+import gymnasium as gym
 import socnavgym
 from socnavgym.wrappers import WorldFrameObservations, PartialObservations, NoisyObservations, DiscreteActions
-from gym.utils.env_checker import check_env
+from gymnasium.utils.env_checker import check_env
 import numpy as np
 
 

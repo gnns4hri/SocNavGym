@@ -5,7 +5,7 @@ from socnavgym.envs.utils.utils import w2px, w2py
 from math import atan2
 import time
 
-MAX_TIME_TO_REACH_GOAL = 50
+MAX_TIME_TO_REACH_GOAL = 15
 
 class Human(Object):
     """

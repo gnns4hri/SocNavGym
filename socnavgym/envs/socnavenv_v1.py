@@ -325,6 +325,18 @@ class SocNavEnv_v1(gym.Env):
         self.ROBOT_TYPE = config["robot"]["robot_type"]
         assert(self.ROBOT_TYPE == "diff-drive" or self.ROBOT_TYPE == "holonomic")
 
+        if "min_goal_orientation_threshold" in config["robot"].keys():
+            self.MIN_GOAL_ORIENTATION_THRESHOLD = config["robot"]["min_goal_orientation_threshold"]
+        else:
+            self.MIN_GOAL_ORIENTATION_THRESHOLD = np.pi
+        if "max_goal_orientation_threshold" in config["robot"].keys():
+            self.MAX_GOAL_ORIENTATION_THRESHOLD = config["robot"]["max_goal_orientation_threshold"]
+        else:
+            self.MAX_GOAL_ORIENTATION_THRESHOLD = self.MIN_GOAL_ORIENTATION_THRESHOLD
+        assert(self.MAX_GOAL_ORIENTATION_THRESHOLD >=  self.MIN_GOAL_ORIENTATION_THRESHOLD), "the maximum goal orientation threshold should be greater or equal than the minimum goal orientation threshold"
+
+        self.GOAL_ORIENTATION = 0
+        self.GOAL_ORIENTATION_THRESHOLD = np.pi
         # human
         self.HUMAN_DIAMETER = config["human"]["human_diameter"]
         self.HUMAN_GOAL_RADIUS = config["human"]["human_goal_radius"]
@@ -537,6 +549,7 @@ class SocNavEnv_v1(gym.Env):
         self.ROBOT_RADIUS = self.INITIAL_ROBOT_RADIUS + random.uniform(-self.ROBOT_RADIUS_MARGIN, self.ROBOT_RADIUS_MARGIN)
         self.GOAL_RADIUS = self.INITIAL_GOAL_RADIUS + random.uniform(-self.GOAL_RADIUS_MARGIN, self.GOAL_RADIUS_MARGIN)
         self.GOAL_THRESHOLD = self.GOAL_RADIUS # + self.ROBOT_RADIUS
+        self.GOAL_ORIENTATION_THRESHOLD = random.uniform(self.MIN_GOAL_ORIENTATION_THRESHOLD, self.MAX_GOAL_ORIENTATION_THRESHOLD)
 
         self.RESOLUTION_X = int(1850 * self.MAP_X/(self.MAP_X + self.MAP_Y))
         self.RESOLUTION_Y = int(1850 * self.MAP_Y/(self.MAP_X + self.MAP_Y))
@@ -2439,6 +2452,7 @@ class SocNavEnv_v1(gym.Env):
 
         # calculate the distance to the goal
         distance_to_goal = np.sqrt((self.robot.goal_x - self.robot.x)**2 + (self.robot.goal_y - self.robot.y)**2)
+        diff_goal_angle = abs(np.arctan2(np.sin(self.robot.goal_a), np.cos(self.robot.goal_a)) - np.arctan2(np.sin(self.robot.orientation), np.cos(self.robot.orientation)))
 
         # calculate the distance to goal for the orca robot
         if (not self.has_orca_robot_collided) and (not self.has_orca_robot_reached_goal):
@@ -2562,12 +2576,12 @@ class SocNavEnv_v1(gym.Env):
             self._collision = True
             info["OUT_OF_MAP"] = True
 
-        elif distance_to_goal < self.GOAL_THRESHOLD:
+        if distance_to_goal < self.GOAL_THRESHOLD and diff_goal_angle < self.GOAL_ORIENTATION_THRESHOLD:
             self._is_terminated = True
             info["SUCCESS"] = True
             info["TIME_TO_REACH_GOAL"] = self.ticks * self.TIMESTEP
 
-        elif collision is True:
+        if collision is True:
             self._is_terminated = self._is_terminated or self.END_WITH_COLLISION
             self._collision = True
             info["COLLISION"] = True
@@ -2578,7 +2592,7 @@ class SocNavEnv_v1(gym.Env):
             if collision_object:
                 info["COLLISION_OBJECT"] = True
 
-        elif self.ticks > self.EPISODE_LENGTH:
+        if self.ticks > self.EPISODE_LENGTH:
             self._is_truncated = True
             info["TIMEOUT"] = True
 
@@ -3090,6 +3104,7 @@ class SocNavEnv_v1(gym.Env):
                 "radius": self.ROBOT_RADIUS,
                 "goal_x": None,
                 "goal_y": None,
+                "goal_a": None,
                 "type": self.ROBOT_TYPE
             }
         elif object_type == SocNavGymObject.STATIC_HUMAN or object_type == SocNavGymObject.DYNAMIC_HUMAN:
@@ -3507,8 +3522,10 @@ class SocNavEnv_v1(gym.Env):
         self.goals[self.robot.id] = robot_goal
         self.robot.goal_x = robot_goal.x
         self.robot.goal_y = robot_goal.y
+        self.robot.goal_a = random.uniform(-np.pi, np.pi)
         self.robot_orca.goal_x = robot_goal.x
         self.robot_orca.goal_y = robot_goal.y
+        self.robot_orca.goal_a = self.robot.goal_a
 
         for i in self.moving_interactions:
             o = self.sample_goal(self.INTERACTION_GOAL_RADIUS, HALF_SIZE_X, HALF_SIZE_Y)
@@ -3582,8 +3599,23 @@ class SocNavEnv_v1(gym.Env):
         for plant in self.plants:
             plant.draw(self.world_image, self.PIXEL_TO_WORLD_X, self.PIXEL_TO_WORLD_Y, self.MAP_X, self.MAP_Y)
 
-        cv2.circle(self.world_image, (w2px(self.robot.goal_x, self.PIXEL_TO_WORLD_X, self.MAP_X), w2py(self.robot.goal_y, self.PIXEL_TO_WORLD_Y, self.MAP_Y)), int(w2px(self.robot.x + self.GOAL_RADIUS, self.PIXEL_TO_WORLD_X, self.MAP_X) - w2px(self.robot.x, self.PIXEL_TO_WORLD_X, self.MAP_X)), (0, 255, 0), 2)
-        
+        goal_center = (
+            w2px(self.robot.goal_x, self.PIXEL_TO_WORLD_X, self.MAP_X),
+            w2py(self.robot.goal_y, self.PIXEL_TO_WORLD_Y, self.MAP_Y)
+        )
+        goal_radius = int(abs(w2px(self.robot.goal_x + self.GOAL_RADIUS, self.PIXEL_TO_WORLD_X, self.MAP_X)-w2px(self.robot.goal_x, self.PIXEL_TO_WORLD_X, self.MAP_X)))
+        cv2.circle(self.world_image, goal_center, goal_radius, (0, 255, 0), 2)
+
+        startAngle = (-self.robot.goal_a-self.GOAL_ORIENTATION_THRESHOLD)*180./np.pi
+        endAngle = (-self.robot.goal_a+self.GOAL_ORIENTATION_THRESHOLD)*180./np.pi
+        cv2.ellipse(self.world_image, goal_center, (goal_radius, goal_radius), 0, startAngle, endAngle, [0, 180, 0], -1)
+
+        goal_front = (
+            w2px(self.robot.goal_x + self.GOAL_RADIUS*np.cos(self.robot.goal_a), self.PIXEL_TO_WORLD_X, self.MAP_X),
+            w2py(self.robot.goal_y + self.GOAL_RADIUS*np.sin(self.robot.goal_a), self.PIXEL_TO_WORLD_Y, self.MAP_Y)
+        )
+        cv2.line(self.world_image, goal_center, goal_front, (0, 255, 0), 2)
+
         if draw_human_goal:
             for human in self.dynamic_humans:  # only draw goals for the dynamic humans
                 cv2.circle(self.world_image, (w2px(human.goal_x, self.PIXEL_TO_WORLD_X, self.MAP_X), w2py(human.goal_y, self.PIXEL_TO_WORLD_Y, self.MAP_Y)), int(w2px(human.x + self.HUMAN_GOAL_RADIUS, self.PIXEL_TO_WORLD_X, self.MAP_X) - w2px(human.x, self.PIXEL_TO_WORLD_X, self.MAP_X)), (120, 0, 0), 2)

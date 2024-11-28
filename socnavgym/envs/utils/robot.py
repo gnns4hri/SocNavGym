@@ -5,13 +5,14 @@ from socnavgym.envs.utils.utils import w2px, w2py
 from math import atan2
 
 class Robot(Object):
-    def __init__(self, id=None, x=None, y=None, theta=None, radius=None, goal_x=None, goal_y=None, type="diff-drive") -> None:
+    def __init__(self, id=None, x=None, y=None, theta=None, radius=None, goal_x=None, goal_y=None, goal_a=None, type="diff-drive") -> None:
         super().__init__(id, "robot")
         self.is_static = False
-        self.radius = None  # radius of the robot
-        self.goal_x = None  # x-coordinate of the goal
-        self.goal_y = None  # y-coordinate of the goal
-        self.type = None  # Type of the robot i.e holonomic or diff-drive
+        self.radius = radius  # radius of the robot
+        self.goal_x = goal_x  # x-coordinate of the goal
+        self.goal_y = goal_y  # y-coordinate of the goal
+        self.goal_a = goal_a
+        self.type = type  # Type of the robot i.e holonomic or diff-drive
 
         # variables used for robot velocity
         self.vel_x = 0.0  # velocity in the direction that the robot is facing
@@ -19,13 +20,14 @@ class Robot(Object):
         self.vel_a = 0.0  # angular velocity
 
         assert(type == "diff-drive" or type == "holonomic")
-        self.set(id, x, y, theta, radius, goal_x, goal_y, type)
+        self.set(id, x, y, theta, radius, goal_x, goal_y, goal_a, type)
 
-    def set(self, id, x, y, theta, radius, goal_x, goal_y, type):
+    def set(self, id, x, y, theta, radius, goal_x, goal_y, goal_a, type):
         super().set(id, x, y, theta)
         self.radius = radius
         self.goal_x = goal_x
         self.goal_y = goal_y
+        self.goal_a = goal_a
         self.type = type
 
     def update(self, time):

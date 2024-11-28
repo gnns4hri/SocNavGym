@@ -2596,7 +2596,7 @@ class SocNavEnv_v1(gym.Env):
             if collision_object:
                 info["COLLISION_OBJECT"] = True
 
-        if self.ticks > self.EPISODE_LENGTH:
+        if self.ticks >= self.EPISODE_LENGTH:
             self._is_truncated = True
             info["TIMEOUT"] = True
 

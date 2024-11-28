@@ -335,7 +335,6 @@ class SocNavEnv_v1(gym.Env):
             self.MAX_GOAL_ORIENTATION_THRESHOLD = self.MIN_GOAL_ORIENTATION_THRESHOLD
         assert(self.MAX_GOAL_ORIENTATION_THRESHOLD >=  self.MIN_GOAL_ORIENTATION_THRESHOLD), "the maximum goal orientation threshold should be greater or equal than the minimum goal orientation threshold"
 
-        self.GOAL_ORIENTATION = 0
         self.GOAL_ORIENTATION_THRESHOLD = np.pi
         # human
         self.HUMAN_DIAMETER = config["human"]["human_diameter"]

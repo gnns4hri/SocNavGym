@@ -1068,6 +1068,14 @@ class SocNavEnv_v2(gym.Env):
         # converting into the required shape
         robot_obs = goal_in_robot_frame.flatten()
         # print(f"{robot_obs.shape=}")
+        
+        # adding the radius of the goal
+        robot_obs = np.concatenate((robot_obs, np.array([self.GOAL_THRESHOLD], dtype=np.float32))).flatten()
+
+        # adding the angle of the goal
+        goal_angle_obs = np.array([(np.sin(self.robot.goal_a - self.robot.orientation)), np.cos(self.robot.goal_a - self.robot.orientation)]) 
+        goal_angle_obs = np.concatenate((goal_angle_obs, np.array([self.GOAL_ORIENTATION_THRESHOLD], dtype=np.float32))).flatten()
+        robot_obs = np.concatenate((robot_obs, goal_angle_obs, dtype=np.float32))).flatten()
 
         # adding the radius of the robot to the robot's observation
         robot_obs = np.concatenate((robot_obs, np.array([self.ROBOT_RADIUS], dtype=np.float32))).flatten()
@@ -1150,13 +1158,13 @@ class SocNavEnv_v2(gym.Env):
 
 
         # inserting wall observations to the dictionary
-        # # if not self.get_padded_observations:
-        # wall_obs = np.array([], dtype=np.float32)
-        # for wall in self.walls:
-        #     obs = self._get_entity_obs(wall)
-        #     wall_obs = np.concatenate((wall_obs, obs), dtype=np.float32)
-        # if self.is_entity_present["walls"]:
-        #     d["walls"] = wall_obs
+        # if not self.get_padded_observations:
+        wall_obs = np.array([], dtype=np.float32)
+        for wall in self.walls:
+            obs = self._get_entity_obs(wall)
+            wall_obs = np.concatenate((wall_obs, obs), dtype=np.float32)
+        if self.is_entity_present["walls"]:
+            d["walls"] = wall_obs
 
         return d
     

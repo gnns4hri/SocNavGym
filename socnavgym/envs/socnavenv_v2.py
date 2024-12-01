@@ -1,7 +1,8 @@
 import os
-import random
 import sys
 import time
+import random
+
 from math import atan2
 from typing import List, Dict
 import copy
@@ -83,11 +84,11 @@ class SocNavGymObject(Enum):
         if self == SocNavGymObject.HUMAN_LAPTOP_INTERACTION: return Human_Laptop_Interaction
         if self == SocNavGymObject.HUMAN_LAPTOP_INTERACTION_NON_DISPERSING: return Human_Laptop_Interaction
 
-class SocNavEnv_v1(gym.Env):
+class SocNavEnv_v2(gym.Env):
     """
     Class for the environment
     """
-    metadata = {"render_modes": ["human", "rgb_array"],"render_fps": 4}
+    metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
     
     # rendering params
     RESOLUTION_VIEW = None
@@ -153,8 +154,12 @@ class SocNavEnv_v1(gym.Env):
         """
         super().__init__()
         
-        assert(config is not None), "Argument config is None. Please call gym.make(\"SocNavGym-v1\", config=path_to_config)"
-
+        if config is None:
+            try:
+                config = os.environ["SOCNAV_CONFIG_FILE"]
+            except:
+                print("Argument config is None. Please call gym.make(\"SocNavGym-v2\", config=path_to_config) or set SOCNAV_CONFIG_FILE environment variable to point to the config file.")
+                sys.exit(-1)
 
         self.render_mode_ = render_mode
         # self.render_mode_save = render_mode
@@ -186,7 +191,7 @@ class SocNavEnv_v1(gym.Env):
         # human-laptop-interactions
         self.h_l_interactions:List[Human_Laptop_Interaction] = []
 
-        
+
         # robot
         self.robot:Robot = None
 
@@ -254,10 +259,6 @@ class SocNavEnv_v1(gym.Env):
         
         # parameters for integrating multiagent particle environment's forces
 
-        # contact response parameters
-        self.contact_force = 1e+2
-        self.contact_margin = 1e-3
-
         # shape of the environment
         self.set_shape = None
         self.shape = None
@@ -268,9 +269,9 @@ class SocNavEnv_v1(gym.Env):
         # some shapes for general use
 
         # dimension of an entity observation
-        self.entity_obs_dim = 14  
+        self.entity_obs_dim = 8
         # dimension of robot observation
-        self.robot_obs_dim = 9
+        self.robot_obs_dim = 3
 
         # contact response parameters taken from OpenAI's multiagent particle environment
         self.contact_force = 1e+2
@@ -631,65 +632,70 @@ class SocNavEnv_v1(gym.Env):
         Returns:
         gym.spaces.Dict : the observation space of the environment
         """
-
+        biggest_side = max(self.MAX_MAP_X, self.MAX_MAP_Y)
+        biggest_dist = biggest_side * np.sqrt(2)
         d = {
 
+
             "robot": spaces.Box(
-                low=np.array([0, 0, 0, 0, 0, 0, -self.MAP_X * np.sqrt(2), -self.MAP_Y * np.sqrt(2), -self.ROBOT_RADIUS], dtype=np.float32), 
-                high=np.array([1, 1, 1, 1, 1, 1, +self.MAP_X * np.sqrt(2), +self.MAP_Y * np.sqrt(2), self.ROBOT_RADIUS], dtype=np.float32),
-                shape=((self.robot_obs_dim, )),
-                dtype=np.float32
+                low   = np.array([-biggest_dist, -biggest_dist, self.ROBOT_RADIUS+self.ROBOT_RADIUS_MARGIN], dtype=np.float32), 
+                high  = np.array([+biggest_dist, +biggest_dist, self.ROBOT_RADIUS+self.ROBOT_RADIUS_MARGIN], dtype=np.float32),
+                shape = ((3,)),
+                dtype = np.float32
 
             )
         }
 
         if self.is_entity_present["humans"]:
             d["humans"] =  spaces.Box(
-                low=np.array([0, 0, 0, 0, 0, 0, -self.MAP_X * np.sqrt(2), -self.MAP_Y * np.sqrt(2), -1.0, -1.0, -self.HUMAN_DIAMETER/2, -(self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -2*np.pi/self.TIMESTEP, 0] * ((self.MAX_HUMANS + (self.MAX_H_L_INTERACTIONS + self.MAX_H_L_INTERACTIONS_NON_DISPERSING) + ((self.MAX_H_H_DYNAMIC_INTERACTIONS + self.MAX_H_H_DYNAMIC_INTERACTIONS_NON_DISPERSING)*self.MAX_HUMAN_IN_H_H_INTERACTIONS) + ((self.MAX_H_H_STATIC_INTERACTIONS + self.MAX_H_H_STATIC_INTERACTIONS_NON_DISPERSING)*self.MAX_HUMAN_IN_H_H_INTERACTIONS)) if self.get_padded_observations else self.total_humans), dtype=np.float32),
-                high=np.array([1, 1, 1, 1, 1, 1, +self.MAP_X * np.sqrt(2), +self.MAP_Y * np.sqrt(2), 1.0, 1.0, self.HUMAN_DIAMETER/2, +(self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +2*np.pi/self.TIMESTEP, 1] * ((self.MAX_HUMANS + (self.MAX_H_L_INTERACTIONS + self.MAX_H_L_INTERACTIONS_NON_DISPERSING) + ((self.MAX_H_H_DYNAMIC_INTERACTIONS + self.MAX_H_H_DYNAMIC_INTERACTIONS_NON_DISPERSING)*self.MAX_HUMAN_IN_H_H_INTERACTIONS) + ((self.MAX_H_H_STATIC_INTERACTIONS + self.MAX_H_H_STATIC_INTERACTIONS_NON_DISPERSING)*self.MAX_HUMAN_IN_H_H_INTERACTIONS)) if self.get_padded_observations else self.total_humans), dtype=np.float32),
-                shape=(((self.robot.one_hot_encoding.shape[0] + 8) * ((self.MAX_HUMANS + (self.MAX_H_L_INTERACTIONS + self.MAX_H_L_INTERACTIONS_NON_DISPERSING) + ((self.MAX_H_H_DYNAMIC_INTERACTIONS + self.MAX_H_H_DYNAMIC_INTERACTIONS_NON_DISPERSING)*self.MAX_HUMAN_IN_H_H_INTERACTIONS) + ((self.MAX_H_H_STATIC_INTERACTIONS + self.MAX_H_H_STATIC_INTERACTIONS_NON_DISPERSING)*self.MAX_HUMAN_IN_H_H_INTERACTIONS)) if self.get_padded_observations else self.total_humans),)),
-                dtype=np.float32
+                low   = np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, -(self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -2*np.pi/self.TIMESTEP, 0], dtype=np.float32),
+                high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, +(self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +2*np.pi/self.TIMESTEP, 1], dtype=np.float32),
+                shape = ((8,)),
+                dtype = np.float32
             )
+
+        # print(d["humans"])
 
         if self.is_entity_present["laptops"]:
             d["laptops"] =  spaces.Box(
-                low=np.array([0, 0, 0, 0, 0, 0, -self.MAP_X * np.sqrt(2), -self.MAP_Y * np.sqrt(2), -1.0, -1.0, -self.LAPTOP_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0] * ((self.MAX_LAPTOPS + (self.MAX_H_L_INTERACTIONS + self.MAX_H_L_INTERACTIONS_NON_DISPERSING)) if self.get_padded_observations else (self.NUMBER_OF_LAPTOPS + self.TOTAL_H_L_INTERACTIONS)), dtype=np.float32),
-                high=np.array([1, 1, 1, 1, 1, 1, +self.MAP_X * np.sqrt(2), +self.MAP_Y * np.sqrt(2), 1.0, 1.0, self.LAPTOP_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1] * ((self.MAX_LAPTOPS + (self.MAX_H_L_INTERACTIONS + self.MAX_H_L_INTERACTIONS_NON_DISPERSING)) if self.get_padded_observations else (self.NUMBER_OF_LAPTOPS + self.TOTAL_H_L_INTERACTIONS)), dtype=np.float32),
-                shape=(((self.robot.one_hot_encoding.shape[0] + 8)*((self.MAX_LAPTOPS + (self.MAX_H_L_INTERACTIONS + self.MAX_H_L_INTERACTIONS_NON_DISPERSING)) if self.get_padded_observations else (self.NUMBER_OF_LAPTOPS + self.TOTAL_H_L_INTERACTIONS)),)),
+                low=np.array([-biggest_dist, -biggest_dist, -1.0, -1.0, -self.LAPTOP_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0], dtype=np.float32),
+                high=np.array([+biggest_dist, +biggest_dist, 1.0, 1.0, self.LAPTOP_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1], dtype=np.float32),
+                shape = ((8,)),
                 dtype=np.float32
 
             )
 
         if self.is_entity_present["tables"]:
             d["tables"] =  spaces.Box(
-                low=np.array([0, 0, 0, 0, 0, 0, -self.MAP_X * np.sqrt(2), -self.MAP_Y * np.sqrt(2), -1.0, -1.0, -self.TABLE_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0] * (self.MAX_TABLES if self.get_padded_observations else self.NUMBER_OF_TABLES), dtype=np.float32),
-                high=np.array([1, 1, 1, 1, 1, 1, +self.MAP_X * np.sqrt(2), +self.MAP_Y * np.sqrt(2), 1.0, 1.0, self.TABLE_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1] * (self.MAX_TABLES if self.get_padded_observations else self.NUMBER_OF_TABLES), dtype=np.float32),
-                shape=(((self.robot.one_hot_encoding.shape[0] + 8)*(self.MAX_TABLES if self.get_padded_observations else self.NUMBER_OF_TABLES),)),
+                low=np.array([-biggest_dist, -biggest_dist, -1.0, -1.0, -self.TABLE_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0], dtype=np.float32),
+                high=np.array([+biggest_dist, +biggest_dist, 1.0, 1.0, self.TABLE_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1], dtype=np.float32),
+                shape = ((8,)),
                 dtype=np.float32
 
             )
 
         if self.is_entity_present["plants"]:
             d["plants"] =  spaces.Box(
-                low=np.array([0, 0, 0, 0, 0, 0, -self.MAP_X * np.sqrt(2), -self.MAP_Y * np.sqrt(2), -1.0, -1.0, -self.PLANT_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0] * (self.MAX_PLANTS if self.get_padded_observations else self.NUMBER_OF_PLANTS), dtype=np.float32),
-                high=np.array([1, 1, 1, 1, 1, 1, +self.MAP_X * np.sqrt(2), +self.MAP_Y * np.sqrt(2), 1.0, 1.0, self.PLANT_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1] * (self.MAX_PLANTS if self.get_padded_observations else self.NUMBER_OF_PLANTS), dtype=np.float32),
-                shape=(((self.robot.one_hot_encoding.shape[0] + 8)*(self.MAX_PLANTS if self.get_padded_observations else self.NUMBER_OF_PLANTS),)),
+                low=np.array([-biggest_dist, -biggest_dist, -1.0, -1.0, -self.PLANT_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0], dtype=np.float32),
+                high=np.array([+biggest_dist, +biggest_dist, 1.0, 1.0, self.PLANT_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1], dtype=np.float32),
+                shape = ((8,)),
                 dtype=np.float32
-
             )
 
-        if not self.get_padded_observations:
-            total_segments = 0
-            for w in self.walls:
-                total_segments += w.length//self.WALL_SEGMENT_SIZE
-                if w.length % self.WALL_SEGMENT_SIZE != 0: total_segments += 1
-            if self.is_entity_present["walls"]:
-                d["walls"] = spaces.Box(
-                    low=np.array([0, 0, 0, 0, 0, 0, -self.MAP_X * np.sqrt(2), -self.MAP_Y * np.sqrt(2), -1.0, -1.0, -self.WALL_SEGMENT_SIZE, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0] * int(total_segments), dtype=np.float32),
-                    high=np.array([1, 1, 1, 1, 1, 1, +self.MAP_X * np.sqrt(2), +self.MAP_Y * np.sqrt(2), 1.0, 1.0, +self.WALL_SEGMENT_SIZE, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1] * int(total_segments), dtype=np.float32),
-                    shape=(((self.robot.one_hot_encoding.shape[0] + 8)*int(total_segments),)),
-                    dtype=np.float32
-                )
+        # if not self.get_padded_observations:
+        # total_segments = 0
+        # for w in self.walls:
+        #     total_segments += w.length//self.WALL_SEGMENT_SIZE
+        #     if w.length % self.WALL_SEGMENT_SIZE != 0:
+        #         total_segments += 1
+        # if self.is_entity_present["walls"]:
+        #     b = max(self.MAP_X, self.MAP_Y)
+        #     d["walls"] = spaces.Box(
+        #         low   = np.array([-b*np.sqrt(2), -b*np.sqrt(2), -1.0, -1.0, -self.WALL_SEGMENT_SIZE, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0] * int(total_segments), dtype=np.float32),
+        #         high  = np.array([+b*np.sqrt(2), +b*np.sqrt(2),  1.0,  1.0, +self.WALL_SEGMENT_SIZE, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1] * int(total_segments), dtype=np.float32),
+        #         shape = (((8)*int(total_segments),)),
+        #         dtype = np.float32
+        #     )
 
         return spaces.Dict(d)
 
@@ -917,7 +923,7 @@ class SocNavEnv_v1(gym.Env):
             
             for center, length in zip(centers, lengths):
                 # wall encoding
-                obs = np.concatenate((obs, wall.one_hot_encoding))
+                obs = np.concatenate((obs))
                 # coorinates of the wall
                 obs = np.concatenate((obs, self.get_robot_frame_coordinates(np.array([[center[0], center[1]]])).flatten()))
                 # sin and cos of relative angles
@@ -954,7 +960,6 @@ class SocNavEnv_v1(gym.Env):
         output = np.concatenate(
             (
                 output,
-                object.one_hot_encoding
             ),
             dtype=np.float32
         )
@@ -1038,13 +1043,13 @@ class SocNavEnv_v1(gym.Env):
         output = output.flatten()
         self._current_observations[object.id] = EntityObs(
             object.id,
-            output[6],
-            output[7],
-            np.arctan2(output[8], output[9]),
-            output[8],
-            output[9]
+            output[0],
+            output[1],
+            np.arctan2(output[2], output[3]),
+            output[2],
+            output[3]
         )
-        assert(self.entity_obs_dim == output.flatten().shape[-1]), "The value of self.entity_obs_dim needs to be changed"
+        assert(self.entity_obs_dim == output.flatten().shape[-1]), f"The value of self.entity_obs_dim needs to be changed {self.entity_obs_dim} == {output.flatten().shape[-1]}"
         return output.flatten()
 
     def _get_obs(self):
@@ -1057,15 +1062,13 @@ class SocNavEnv_v1(gym.Env):
 
         # the observations will go inside this dictionary
         d = {}
-        
+
         # goal coordinates in the robot frame
         goal_in_robot_frame = self.get_robot_frame_coordinates(np.array([[self.robot.goal_x, self.robot.goal_y]], dtype=np.float32))
         # converting into the required shape
         robot_obs = goal_in_robot_frame.flatten()
+        # print(f"{robot_obs.shape=}")
 
-        # concatenating with the robot's one-hot-encoding
-        robot_obs = np.concatenate((self.robot.one_hot_encoding, robot_obs), dtype=np.float32)
-        
         # adding the radius of the robot to the robot's observation
         robot_obs = np.concatenate((robot_obs, np.array([self.ROBOT_RADIUS], dtype=np.float32))).flatten()
 
@@ -1144,14 +1147,16 @@ class SocNavEnv_v1(gym.Env):
         if self.is_entity_present["plants"]:
             d["plants"] = plant_obs
 
+
+
         # inserting wall observations to the dictionary
-        if not self.get_padded_observations:
-            wall_obs = np.array([], dtype=np.float32)
-            for wall in self.walls:
-                obs = self._get_entity_obs(wall)
-                wall_obs = np.concatenate((wall_obs, obs), dtype=np.float32)
-            if self.is_entity_present["walls"]:
-                d["walls"] = wall_obs
+        # # if not self.get_padded_observations:
+        # wall_obs = np.array([], dtype=np.float32)
+        # for wall in self.walls:
+        #     obs = self._get_entity_obs(wall)
+        #     wall_obs = np.concatenate((wall_obs, obs), dtype=np.float32)
+        # if self.is_entity_present["walls"]:
+        #     d["walls"] = wall_obs
 
         return d
     
@@ -1818,7 +1823,8 @@ class SocNavEnv_v1(gym.Env):
             action = act.astype(np.float32)
             # action[0] = (float(action[0]+1.0)/2.0)*self.MAX_ADVANCE_ROBOT   # [-1, +1] --> [0, self.MAX_ADVANCE_ROBOT]
             action[0] = ((action[0]+0.0)/1.0)*self.MAX_ADVANCE_ROBOT  # [-1, +1] --> [-MAX_ADVANCE, +MAX_ADVANCE]
-            if action[1] != 0.0 and self.robot.type == "diff-drive": raise AssertionError("Differential Drive robot cannot have lateral speed")
+            if self.robot.type == "diff-drive":
+                action[1] = 0.0
             action[1] = ((action[1]+0.0)/1.0)*self.MAX_ADVANCE_ROBOT  # [-1, +1] --> [-MAX_ADVANCE, +MAX_ADVANCE]
             action[2] = (float(action[2]+0.0)/1.0)*self.MAX_ROTATION  # [-1, +1] --> [-self.MAX_ROTATION, +self.MAX_ROTATION]
             # if action[0] < 0:               # Advance must be positive

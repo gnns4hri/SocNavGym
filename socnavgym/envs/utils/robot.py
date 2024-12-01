@@ -80,28 +80,33 @@ class Robot(Object):
         
         
         left = (
-            w2px(self.x + self.radius*0.35*np.cos(self.orientation + np.pi/2), PIXEL_TO_WORLD_X, MAP_SIZE_X),
-            w2py(self.y + self.radius*0.35*np.sin(self.orientation + np.pi/2), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
+            w2px(self.x + self.radius*0.3*np.cos(self.orientation + np.pi/2), PIXEL_TO_WORLD_X, MAP_SIZE_X),
+            w2py(self.y + self.radius*0.3*np.sin(self.orientation + np.pi/2), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
         )
 
         right = (
-            w2px(self.x + self.radius*0.35*np.cos(self.orientation - np.pi/2), PIXEL_TO_WORLD_X, MAP_SIZE_X),
-            w2py(self.y + self.radius*0.35*np.sin(self.orientation - np.pi/2), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
+            w2px(self.x + self.radius*0.3*np.cos(self.orientation - np.pi/2), PIXEL_TO_WORLD_X, MAP_SIZE_X),
+            w2py(self.y + self.radius*0.3*np.sin(self.orientation - np.pi/2), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
         )
 
         front = (
-            w2px(self.x + self.radius*0.35*np.cos(self.orientation), PIXEL_TO_WORLD_X, MAP_SIZE_X),
-            w2py(self.y + self.radius*0.35*np.sin(self.orientation), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
+            w2px(self.x + self.radius*0.85*np.cos(self.orientation), PIXEL_TO_WORLD_X, MAP_SIZE_X),
+            w2py(self.y + self.radius*0.85*np.sin(self.orientation), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
         )
-
+        back = (
+            w2px(self.x - self.radius*0.5*np.cos(self.orientation), PIXEL_TO_WORLD_X, MAP_SIZE_X),
+            w2py(self.y - self.radius*0.5*np.sin(self.orientation), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
+        )
         center = (
             w2px(self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X),
             w2py(self.y, PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
         )
 
-        # drawing lines to get sense of the orientation of the robot.
-        cv2.line(img, left, right, (27, 194, 169), 2)
-        cv2.line(img, center, front, (27, 194, 169), 2)
+
+        # drawing a polygonlines to get sense of the orientation of the robot.
+        points = np.array([left, right, front, left], dtype=np.int32)
+        cv2.fillPoly(img,  [points], color=(27, 194, 169))
+        cv2.line(img, back, center, (27, 194, 169), int(0.05*PIXEL_TO_WORLD_X))
 
     def draw_range(self, img, range, fov, PIXEL_TO_WORLD_X, PIXEL_TO_WORLD_Y, MAP_SIZE_X, MAP_SIZE_Y):
         center = (w2px(self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X), w2py(self.y, PIXEL_TO_WORLD_Y, MAP_SIZE_Y))

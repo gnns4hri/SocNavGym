@@ -7,15 +7,17 @@ from socnavgym.envs.rewards.reward_api import RewardAPI
 class Reward(RewardAPI):
     def __init__(self, env: SocNavEnv_v1) -> None:
         super().__init__(env)
-        self.reach_reward = 1.0
-        self.out_of_map_reward = -1.0 
-        self.max_steps_reward = -1.0 
-        self.alive_reward = -0.00001 
-        self.collision_reward = -1.0
-        self.distance_reward_scaler = 5.0
+        self.reach_reward = 10.0
+        self.out_of_map_reward = -10.0 
+        self.max_steps_reward = -5.0 
+        self.alive_reward = -1e-6 
+        self.collision_reward = -10.0
+        self.distance_reward_scaler = 0.1
         self.discomfort_distance = 0.6
         self.discomfort_penalty_factor = 0.5
         self.prev_distance = None
+        self.prev_angular_distance = None
+
 
     def compute_dmin(self, action):
         dmin = float('inf')
@@ -93,16 +95,24 @@ class Reward(RewardAPI):
             if dmin < self.discomfort_distance:
                 dsrnn_reward = (dmin - self.discomfort_distance) * self.discomfort_penalty_factor * self.env.TIMESTEP
 
-            distance_to_goal = np.sqrt((self.env.robot.goal_x - self.env.robot.x)**2 + (self.env.robot.goal_y - self.env.robot.y)**2)
             distance_reward = 0.0
+            distance_to_goal = np.sqrt((self.env.robot.goal_x - self.env.robot.x)**2 + (self.env.robot.goal_y - self.env.robot.y)**2)
             if self.prev_distance is not None:
-                distance_reward = -(distance_to_goal-self.prev_distance) * self.distance_reward_scaler
-            
+                distance_reward = (self.prev_distance-distance_to_goal) * self.distance_reward_scaler
             self.prev_distance = distance_to_goal
+
+            angular_distance_reward = 0.0
+            angular_distance_to_goal = np.abs(self.env.robot.goal_a - self.env.robot.orientation)
+            if distance_to_goal < 1.0:
+                if self.prev_angular_distance is not None:
+                    angular_distance_reward = (self.prev_angular_distance-angular_distance_to_goal) * self.distance_reward_scaler
+            self.prev_angular_distance = angular_distance_to_goal
+
 
             self.info["DISCOMFORT_SNGNN"] = 0.0
             self.info["DISCOMFORT_DSRNN"] = dsrnn_reward
             self.info["distance_reward"] = distance_reward
+            self.info["ang_distance_reward"] = angular_distance_reward
             self.info["alive_reward"] = self.alive_reward
 
-            return dsrnn_reward + distance_reward + self.alive_reward
+            return dsrnn_reward + distance_reward + self.alive_reward  # + angular_distance_reward

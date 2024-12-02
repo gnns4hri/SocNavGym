@@ -53,7 +53,6 @@ elif "debug=1" in sys.argv:
 MAX_ORIENTATION_CHANGE = math.pi/2.    
 
 MINIMAL = True
-RELATIVE_FRAME = 'GOAL_FR'
 
 class SocNavGymObject(Enum):
     ROBOT = "ROBOT"
@@ -92,7 +91,7 @@ class SocNavEnv_v2(gym.Env):
     Class for the environment
     """
     metadata = {"render_modes": ["human", "rgb_array"], "render_fps": 10}
-    
+
     # rendering params
     RESOLUTION_VIEW = None
     MILLISECONDS = None
@@ -157,6 +156,8 @@ class SocNavEnv_v2(gym.Env):
         """
         super().__init__()
         
+        self.RELATIVE_FRAME = 'GOAL_FR'
+
         if config is None:
             try:
                 config = os.environ["SOCNAV_CONFIG_FILE"]
@@ -657,7 +658,6 @@ class SocNavEnv_v2(gym.Env):
                 dtype = np.float32
             )
 
-
         if MINIMAL is not True:
 
             if self.is_entity_present["laptops"]:
@@ -1098,26 +1098,20 @@ class SocNavEnv_v2(gym.Env):
         Returns:
             numpy.ndarray : observation as described in the observation space.
         """
-
-        if RELATIVE_FRAME == 'ROBOT_FR':
-            self.get_relative_frame_coordinates = self.get_robot_frame_coordinates
-            self.relative_frame.x = self.robot.x
-            self.relative_frame.y = self.robot.y
-            self.relative_frame.orientation = self.robot.orientation
-            self.relative_frame.vel_x = self.robot.vel_x
-            self.relative_frame.vel_y = self.robot.vel_y
-            self.relative_frame.vel_a = self.robot.vel_a
+        self.relative_frame = self.robot
+        if self.RELATIVE_FRAME == 'ROBOT_FR':
+            self.relative_transformation_matrix = self.transformation_matrix
             robot_obs = np.array([0., 0., 0., 1., 0., 0., 0.])
-        elif RELATIVE_FRAME == 'GOAL_FR':
-            self.get_relative_frame_coordinates = self.get_goal_frame_coordinates
+        elif self.RELATIVE_FRAME == 'GOAL_FR':
+            self.relative_transformation_matrix = self.goal_transformation_matrix
             self.relative_frame.x = self.robot.goal_x
             self.relative_frame.y = self.robot.goal_y
             self.relative_frame.orientation = self.robot.goal_a
             self.relative_frame.vel_x = 0.
             self.relative_frame.vel_y = 0.
             self.relative_frame.vel_a = 0.
-            robot_in_goal_frame = self.get_relative_frame_coordinates(np.array([[self.robot.x, self.robot.y]], dtype=np.float32)) 
-            robot_angle_obs = np.array([(np.sin(self.robot.orientation - self.relative_frame.orientation)), np.cos(self.robot.orientation - self.relative_frame.orientation)])
+            robot_in_goal_frame = self.get_relative_frame_coordinates(np.array([[self.robot.x, self.robot.y]], dtype=np.float32)).flatten()
+            robot_angle_obs = np.array([(np.sin(self.robot.orientation - self.relative_frame.orientation)), np.cos(self.robot.orientation - self.relative_frame.orientation)]).flatten()
             robot_obs = np.concatenate((robot_in_goal_frame, robot_angle_obs), dtype=np.float32).flatten()
             relative_vel_x = np.cos(self.relative_frame.orientation)*self.robot.vel_x  + np.sin(self.relative_frame.orientation)*self.robot.vel_y
             relative_vel_y = -np.sin(self.relative_frame.orientation)*self.robot.vel_x + np.cos(self.relative_frame.orientation)*self.robot.vel_y

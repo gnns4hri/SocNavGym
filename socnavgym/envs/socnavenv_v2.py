@@ -652,9 +652,9 @@ class SocNavEnv_v2(gym.Env):
 
         if self.is_entity_present["humans"]:
             d["humans"] =  spaces.Box(
-                low   = np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, -(self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -2*np.pi/self.TIMESTEP, 0], dtype=np.float32),
-                high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, +(self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +2*np.pi/self.TIMESTEP, 1], dtype=np.float32),
-                shape = ((8,)),
+                low   = np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, -(self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -2*np.pi/self.TIMESTEP, 0]*self.total_humans, dtype=np.float32),
+                high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, +(self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +2*np.pi/self.TIMESTEP, 1]*self.total_humans, dtype=np.float32),
+                shape = ((8*self.total_humans,)),
                 dtype = np.float32
             )
 
@@ -995,31 +995,14 @@ class SocNavEnv_v2(gym.Env):
         # initializing output array
         output = np.array([], dtype=np.float32)
         
-        # object's one-hot encoding
-        output = np.concatenate(
-            (
-                output,
-            ),
-            dtype=np.float32
-        )
 
         # object's coordinates in the robot frame
-        output = np.concatenate(
-                    (
-                        output,
-                        self.get_relative_frame_coordinates(np.array([[object.x, object.y]])).flatten() 
-                    ),
-                    dtype=np.float32
-                )
+        r_coords = self.get_relative_frame_coordinates(np.array([[object.x, object.y]])).flatten() 
+        output = np.concatenate((output, r_coords), dtype=np.float32)
 
         # sin and cos of the relative angle of the object
-        output = np.concatenate(
-                    (
-                        output,
-                        np.array([(np.sin(object.orientation - self.relative_frame.orientation)), np.cos(object.orientation - self.relative_frame.orientation)]) 
-                    ),
-                    dtype=np.float32
-                )
+        s_c = np.array([(np.sin(object.orientation - self.relative_frame.orientation)), np.cos(object.orientation - self.relative_frame.orientation)])
+        output = np.concatenate((output, s_c), dtype=np.float32)
 
         # object's radius
         radius = 0
@@ -1031,13 +1014,7 @@ class SocNavEnv_v2(gym.Env):
             radius = np.sqrt((object.length/2)**2 + (object.width/2)**2)
         else: raise NotImplementedError
 
-        output = np.concatenate(
-            (
-                output,
-                np.array([radius], dtype=np.float32)
-            ),
-            dtype=np.float32
-        )
+        output = np.concatenate((output, np.array([radius], dtype=np.float32)), dtype=np.float32)
 
         relative_vel_x = self.relative_frame.vel_x * np.cos(self.relative_frame.orientation) + self.relative_frame.vel_y * np.cos(self.relative_frame.orientation + np.pi/2)
         relative_vel_y = self.relative_frame.vel_x * np.sin(self.relative_frame.orientation) + self.relative_frame.vel_y * np.sin(self.relative_frame.orientation + np.pi/2)
@@ -1052,33 +1029,19 @@ class SocNavEnv_v2(gym.Env):
             relative_speeds[0] = np.sqrt((object.speed*np.cos(object.orientation) - relative_vel_x)**2 + (object.speed*np.sin(object.orientation) - relative_vel_y)**2) 
             relative_speeds[1] = (np.arctan2(np.sin(object.orientation - self.relative_frame.orientation), np.cos(object.orientation - self.relative_frame.orientation)) - self._prev_observations[object.id].theta) / self.TIMESTEP
         
-        output = np.concatenate(
-                    (
-                        output,
-                        relative_speeds
-                    ),
-                    dtype=np.float32
-                )
+        output = np.concatenate((output, relative_speeds), dtype=np.float32)
 
         # adding gaze
         gaze = 0.0
-
         if object.name == "human":
             robot_in_human_frame = self.get_human_frame_coordinates(object, np.array([[self.robot.x, self.robot.y]])).flatten()
             robot_x = robot_in_human_frame[0]
             robot_y = robot_in_human_frame[1]
-
             if np.arctan2(robot_y, robot_x) >= -self.HUMAN_GAZE_ANGLE/2 and np.arctan2(robot_y, robot_x)<= self.HUMAN_GAZE_ANGLE/2:
                 gaze = 1.0
+        output = np.concatenate((output, np.array([gaze])), dtype=np.float32)
 
-        output = np.concatenate(
-                    (
-                        output,
-                        np.array([gaze])
-                    ),
-                    dtype=np.float32
-                )
-                
+
         output = output.flatten()
         self._current_observations[object.id] = EntityObs(
             object.id,
@@ -1125,7 +1088,7 @@ class SocNavEnv_v2(gym.Env):
         # goal coordinates in the robot frame
         goal_in_relative_frame = self.get_relative_frame_coordinates(np.array([[self.robot.goal_x, self.robot.goal_y]], dtype=np.float32))
         # converting into the required shape
-        robot_obs = np.concatenate((robot_obs, goal_in_relative_frame.flatten()), dtype=np.float32).flatten()
+        robot_obs = goal_in_relative_frame.flatten().flatten()
         # print(f"{robot_obs.shape=}")
         
         # adding the radius of the goal
@@ -1157,9 +1120,9 @@ class SocNavEnv_v2(gym.Env):
                 obs = self._get_entity_obs(i.human)
                 human_obs = np.concatenate((human_obs, obs), dtype=np.float32)
        
-        if self.get_padded_observations:
-            # padding with zeros
-            human_obs = np.concatenate((human_obs, np.zeros(self.observation_space["humans"].shape[0] - human_obs.shape[0])), dtype=np.float32)
+        # if self.get_padded_observations:
+        #     # padding with zeros
+        #     human_obs = np.concatenate((human_obs, np.zeros(self.observation_space["humans"].shape[0] - human_obs.shape[0])), dtype=np.float32)
         
         # inserting in the dictionary
         if self.is_entity_present["humans"]:
@@ -1177,9 +1140,9 @@ class SocNavEnv_v2(gym.Env):
                 obs = self._get_entity_obs(i.laptop)
                 laptop_obs = np.concatenate((laptop_obs, obs), dtype=np.float32)
         
-            if self.get_padded_observations:
-                # padding with zeros
-                laptop_obs = np.concatenate((laptop_obs, np.zeros(self.observation_space["laptops"].shape[0] -laptop_obs.shape[0])), dtype=np.float32)
+            # if self.get_padded_observations:
+            #     # padding with zeros
+            #     laptop_obs = np.concatenate((laptop_obs, np.zeros(self.observation_space["laptops"].shape[0] -laptop_obs.shape[0])), dtype=np.float32)
             
             # inserting in the dictionary
             if self.is_entity_present["laptops"]:
@@ -1192,9 +1155,9 @@ class SocNavEnv_v2(gym.Env):
                 obs = self._get_entity_obs(table)
                 table_obs = np.concatenate((table_obs, obs), dtype=np.float32)
 
-            if self.get_padded_observations:
-                # padding with zeros
-                table_obs = np.concatenate((table_obs, np.zeros(self.observation_space["tables"].shape[0] -table_obs.shape[0])), dtype=np.float32)
+            # if self.get_padded_observations:
+            #     # padding with zeros
+            #     table_obs = np.concatenate((table_obs, np.zeros(self.observation_space["tables"].shape[0] -table_obs.shape[0])), dtype=np.float32)
             
             # inserting in the dictionary
             if self.is_entity_present["tables"]:
@@ -1207,9 +1170,9 @@ class SocNavEnv_v2(gym.Env):
                 obs = self._get_entity_obs(plant)
                 plant_obs = np.concatenate((plant_obs, obs), dtype=np.float32)
 
-            if self.get_padded_observations:
-                # padding with zeros
-                plant_obs = np.concatenate((plant_obs, np.zeros(self.observation_space["plants"].shape[0] -plant_obs.shape[0])), dtype=np.float32)
+            # if self.get_padded_observations:
+            #     # padding with zeros
+            #     plant_obs = np.concatenate((plant_obs, np.zeros(self.observation_space["plants"].shape[0] -plant_obs.shape[0])), dtype=np.float32)
             
             # inserting in the dictionary
             if self.is_entity_present["plants"]:
@@ -1225,6 +1188,9 @@ class SocNavEnv_v2(gym.Env):
             # if self.is_entity_present["walls"]:
             #     d["walls"] = wall_obs
 
+        # shape = 0
+        # for k in d.keys():
+        #     print(f"obs {k}: {d[k].shape}")
         return d
     
     def get_desired_force(self, human:Human):

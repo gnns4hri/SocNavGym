@@ -13,7 +13,7 @@ def test_observations():
     laptop = [[8, 0, 0], [5, 5, 0], [-np.sqrt(3), 1, 0], [-7, 0, 0]]
     answer = [[3, 0, 0, 1], [4, 4, 0, 1], [-2, 0, 0.5, np.sqrt(3)/2], [-4*np.sqrt(2), 0, -1/np.sqrt(2), 1/np.sqrt(2)]]
 
-    env = gym.make("SocNavGym-v1", config=os.path.dirname(os.path.abspath(__file__)) + "/../environment_configs/test2.yaml")
+    env = gym.make("SocNavGym-v2", config=os.path.dirname(os.path.abspath(__file__)) + "/../environment_configs/test2.yaml")
     env.set_padded_observations(True)
     obs, _ = env.reset()
     for i in range(len(robot)):

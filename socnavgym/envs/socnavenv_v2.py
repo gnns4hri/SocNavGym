@@ -1061,7 +1061,7 @@ class SocNavEnv_v2(gym.Env):
         Returns:
             numpy.ndarray : observation as described in the observation space.
         """
-        self.relative_frame = self.robot
+        self.relative_frame = copy.deepcopy(self.robot)
         if self.RELATIVE_FRAME == 'ROBOT_FR':
             self.relative_transformation_matrix = self.transformation_matrix
             robot_obs = np.array([0., 0., 0., 1., 0., 0., 0.])

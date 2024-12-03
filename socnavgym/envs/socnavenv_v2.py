@@ -3685,6 +3685,11 @@ class SocNavEnv_v2(gym.Env):
         ## uncomment to save the images 
         # cv2.imwrite("img"+str(self.count)+".jpg", self.world_image)
         # self.count+=1
+        if self._is_terminated or self._is_truncated:
+            w = self.world_image.shape[0]
+            h = self.world_image.shape[1]
+            cv2.line(self.world_image, (0,0), (w-1, h-1), (0,0,0), 1)
+            cv2.line(self.world_image, (w-1,0), (0, h-1), (0,0,0), 1)
 
         return self.world_image
 

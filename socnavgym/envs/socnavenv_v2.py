@@ -995,7 +995,6 @@ class SocNavEnv_v2(gym.Env):
         # initializing output array
         output = np.array([], dtype=np.float32)
         
-
         # object's coordinates in the robot frame
         r_coords = self.get_relative_frame_coordinates(np.array([[object.x, object.y]])).flatten() 
         output = np.concatenate((output, r_coords), dtype=np.float32)
@@ -1062,6 +1061,7 @@ class SocNavEnv_v2(gym.Env):
             numpy.ndarray : observation as described in the observation space.
         """
         self.relative_frame = copy.deepcopy(self.robot)
+
         if self.RELATIVE_FRAME == 'ROBOT_FR':
             self.relative_transformation_matrix = self.transformation_matrix
             robot_obs = np.array([0., 0., 0., 1., 0., 0., 0.])
@@ -1084,32 +1084,38 @@ class SocNavEnv_v2(gym.Env):
 
         # the observations will go inside this dictionary
         d = {}
-
         # goal coordinates in the robot frame
         goal_in_relative_frame = self.get_relative_frame_coordinates(np.array([[self.robot.goal_x, self.robot.goal_y]], dtype=np.float32))
+
+        if self.RELATIVE_FRAME == 'ROBOT_FR':
+            xxx = goal_in_relative_frame[0][0]
+            yyy = goal_in_relative_frame[0][1]
+            r_sin = np.sin(self.robot.goal_a - self.relative_frame.orientation)
+            r_cos = np.cos(self.robot.goal_a - self.relative_frame.orientation)
+        elif self.RELATIVE_FRAME == 'GOAL_FR':
+            xxx = robot_in_goal_frame[0]
+            yyy = robot_in_goal_frame[1]
+            r_sin = robot_angle_obs[0]
+            r_cos = robot_angle_obs[1]
+
         # converting into the required shape
-        robot_obs = goal_in_relative_frame.flatten().flatten()
-        # print(f"{robot_obs.shape=}")
+        robot_obs = np.array([
+            xxx,
+            yyy,
+            self.GOAL_THRESHOLD,
+            r_sin,
+            r_cos,
+            self.GOAL_ORIENTATION_THRESHOLD,
+            self.ROBOT_RADIUS
+            ], dtype=np.float32).flatten()
         
-        # adding the radius of the goal
-        robot_obs = np.concatenate((robot_obs, np.array([self.GOAL_THRESHOLD], dtype=np.float32))).flatten()
-
-        # adding the angle of the goal
-        goal_angle_obs = np.array([(np.sin(self.robot.goal_a - self.relative_frame.orientation)), np.cos(self.robot.goal_a - self.relative_frame.orientation)]) 
-        goal_angle_obs = np.concatenate((goal_angle_obs, np.array([self.GOAL_ORIENTATION_THRESHOLD], dtype=np.float32))).flatten()
-        robot_obs = np.concatenate((robot_obs, goal_angle_obs), dtype=np.float32).flatten()
-
-        # adding the radius of the robot to the robot's observation
-        robot_obs = np.concatenate((robot_obs, np.array([self.ROBOT_RADIUS], dtype=np.float32))).flatten()
-
         # placing it in a dictionary
         d["robot"] = robot_obs
         
         # getting the observations of humans
         human_obs = np.array([], dtype=np.float32)
         for human in self.static_humans + self.dynamic_humans:
-            obs = self._get_entity_obs(human)
-            human_obs = np.concatenate((human_obs, obs), dtype=np.float32)
+            human_obs = np.concatenate((human_obs, self._get_entity_obs(human)), dtype=np.float32)
         
         for i in (self.moving_interactions + self.static_interactions + self.h_l_interactions):
             if i.name == "human-human-interaction":

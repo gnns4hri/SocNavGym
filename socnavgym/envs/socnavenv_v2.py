@@ -639,8 +639,6 @@ class SocNavEnv_v2(gym.Env):
         biggest_side = max(self.MAX_MAP_X, self.MAX_MAP_Y)
         biggest_dist = biggest_side * np.sqrt(2)
         d = {
-
-
             "robot": spaces.Box(
                 low   = np.array([-biggest_dist, -biggest_dist, self.GOAL_RADIUS-self.GOAL_RADIUS_MARGIN, -1, -1, self.MIN_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS-self.ROBOT_RADIUS_MARGIN], dtype=np.float32), 
                 high  = np.array([+biggest_dist, +biggest_dist, self.GOAL_RADIUS+self.GOAL_RADIUS_MARGIN, +1, +1, self.MAX_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS+self.ROBOT_RADIUS_MARGIN], dtype=np.float32),
@@ -650,13 +648,13 @@ class SocNavEnv_v2(gym.Env):
             )
         }
 
-        if self.is_entity_present["humans"]:
-            d["humans"] =  spaces.Box(
-                low   = np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, -(self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -2*np.pi/self.TIMESTEP, 0]*self.total_humans, dtype=np.float32),
-                high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, +(self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +2*np.pi/self.TIMESTEP, 1]*self.total_humans, dtype=np.float32),
-                shape = ((8*self.total_humans,)),
-                dtype = np.float32
-            )
+        MAX_HUMANS = self.MAX_STATIC_HUMANS + self.MAX_DYNAMIC_HUMANS
+        d["humans"] =  spaces.Box(
+            low   = np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, -(self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -2*np.pi/self.TIMESTEP, 0]*MAX_HUMANS, dtype=np.float32),
+            high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, +(self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +2*np.pi/self.TIMESTEP, 1]*MAX_HUMANS, dtype=np.float32),
+            shape = ((8*MAX_HUMANS,)),
+            dtype = np.float32
+        )
 
         if MINIMAL is not True:
 
@@ -1060,6 +1058,17 @@ class SocNavEnv_v2(gym.Env):
         Returns:
             numpy.ndarray : observation as described in the observation space.
         """
+
+        obs_space = self.observation_space
+
+        def pad_and_shuffle(input_vector, big_size, small_size):
+            padded = np.pad(input_vector, (0, big_size-input_vector.shape[0]))
+            reshaped = padded.reshape((-1, small_size))
+            np.random.shuffle(reshaped)
+            result = reshaped.reshape((-1,))
+            return result
+
+
         self.relative_frame = copy.deepcopy(self.robot)
 
         if self.RELATIVE_FRAME == 'ROBOT_FR':
@@ -1126,13 +1135,10 @@ class SocNavEnv_v2(gym.Env):
                 obs = self._get_entity_obs(i.human)
                 human_obs = np.concatenate((human_obs, obs), dtype=np.float32)
        
-        # if self.get_padded_observations:
-        #     # padding with zeros
-        #     human_obs = np.concatenate((human_obs, np.zeros(self.observation_space["humans"].shape[0] - human_obs.shape[0])), dtype=np.float32)
-        
         # inserting in the dictionary
-        if self.is_entity_present["humans"]:
-            d["humans"] = human_obs
+
+        d["humans"] = pad_and_shuffle(human_obs, obs_space["humans"].low.shape[0], 8)
+
 
     
         if MINIMAL is not True:

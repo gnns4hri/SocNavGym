@@ -1,3 +1,4 @@
+import sys
 import cv2
 import numpy as np
 from socnavgym.envs.utils.object import Object
@@ -63,9 +64,12 @@ class Robot(Object):
         assert self.radius != None, "Radius is None type."
         assert self.x != None and self.y != None, "Coordinates are None type"
 
-        radius = w2px(self.x + self.radius, PIXEL_TO_WORLD_X, MAP_SIZE_X) - w2px(
-            self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X
-        )  # calculating no. of pixels corresponding to the radius
+        try:
+            # calculating no. of pixels corresponding to the radius
+            radius = w2px(self.x + self.radius, PIXEL_TO_WORLD_X, MAP_SIZE_X) - w2px(self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X)
+        except ValueError:
+            print(f"{self.x=} {self.radius=} {PIXEL_TO_WORLD_X=} {MAP_SIZE_X=}")
+            sys.exit(-1)
        
         cv2.circle(
             img,

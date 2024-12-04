@@ -115,4 +115,4 @@ class Reward(RewardAPI):
             self.info["ang_distance_reward"] = angular_distance_reward
             self.info["alive_reward"] = self.alive_reward
 
-            return dsrnn_reward + distance_reward + self.alive_reward + angular_distance_reward
+            return dsrnn_reward + distance_reward + self.alive_reward # + angular_distance_reward

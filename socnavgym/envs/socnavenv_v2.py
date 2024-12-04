@@ -251,9 +251,6 @@ class SocNavEnv_v2(gym.Env):
         self.PROB_TO_AVOID_ROBOT = None  # probability that the human would consider the human while calculating it's velocity
         self.HUMAN_FOV = None
 
-        # flag parameter that controls whether padded observations will be returned or not
-        self.get_padded_observations = None
-
         # to check if the episode has finished
         self._is_terminated = True
         self._is_truncated = True
@@ -481,9 +478,6 @@ class SocNavEnv_v2(gym.Env):
         self.MAX_H_L_INTERACTIONS_NON_DISPERSING = config["env"]["max_h_l_interactions_non_dispersing"]
         assert(self.MIN_H_L_INTERACTIONS_NON_DISPERSING <= self.MAX_H_L_INTERACTIONS_NON_DISPERSING), "min_h_l_interactions_non_dispersing should be lesser than or equal to max_h_l_interactions_non_dispersing"
 
-        self.get_padded_observations = config["env"]["get_padded_observations"]
-        assert(self.get_padded_observations == True or self.get_padded_observations == False), "get_padded_observations should be either True or False"
-
         self.set_shape = config["env"]["set_shape"]
         assert(self.set_shape == "random" or self.set_shape == "square" or self.set_shape == "rectangle" or self.set_shape == "L" or self.set_shape == "no-walls"), "set shape can be \"random\", \"square\", \"rectangle\", \"L\", or \"no-walls\""
 
@@ -537,13 +531,6 @@ class SocNavEnv_v2(gym.Env):
 
         l = path.split("/")
         return l[-1][:3], path
-
-    def set_padded_observations(self, val:bool):
-        """
-        To assign True/False to the parameter get_padded_observations. True will indicate that padding will be done. Else padding 
-        Args: val (bool): True/False value that would enable/disable padding in the observations received henceforth 
-        """
-        self.get_padded_observations = val
 
     def randomize_params(self):
         """
@@ -656,48 +643,43 @@ class SocNavEnv_v2(gym.Env):
             dtype = np.float32
         )
 
-        if MINIMAL is not True:
+        MAX_LAPTOPS = self.MAX_LAPTOPS
+        d["laptops"] =  spaces.Box(
+            low=np.array([-biggest_dist, -biggest_dist, -1.0, -1.0, -self.LAPTOP_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_LAPTOPS, dtype=np.float32),
+            high=np.array([+biggest_dist, +biggest_dist, 1.0,  1.0,  self.LAPTOP_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_LAPTOPS, dtype=np.float32),
+            shape = ((8*MAX_LAPTOPS,)),
+            dtype=np.float32
 
-            if self.is_entity_present["laptops"]:
-                d["laptops"] =  spaces.Box(
-                    low=np.array([-biggest_dist, -biggest_dist, -1.0, -1.0, -self.LAPTOP_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0], dtype=np.float32),
-                    high=np.array([+biggest_dist, +biggest_dist, 1.0, 1.0, self.LAPTOP_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1], dtype=np.float32),
-                    shape = ((8,)),
-                    dtype=np.float32
+        )
 
-                )
+        ### OUR TABLES ARE SHOWN AS SQUARE. THIS IS APPALING.
+        MAX_TABLES = self.MAX_TABLES
+        d["tables"] =  spaces.Box(
+            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.TABLE_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_TABLES, dtype=np.float32),
+            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.TABLE_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_TABLES, dtype=np.float32),
+            shape = ((8*MAX_TABLES,)),
+            dtype=np.float32
+        )
 
-            if self.is_entity_present["tables"]:
-                d["tables"] =  spaces.Box(
-                    low=np.array([-biggest_dist, -biggest_dist, -1.0, -1.0, -self.TABLE_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0], dtype=np.float32),
-                    high=np.array([+biggest_dist, +biggest_dist, 1.0, 1.0, self.TABLE_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1], dtype=np.float32),
-                    shape = ((8,)),
-                    dtype=np.float32
+        MAX_PLANTS = self.MAX_PLANTS
+        d["plants"] =  spaces.Box(
+            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.PLANT_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_PLANTS, dtype=np.float32),
+            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.PLANT_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_PLANTS, dtype=np.float32),
+            shape = ((8*MAX_PLANTS,)),
+            dtype=np.float32
+        )
 
-                )
 
-            if self.is_entity_present["plants"]:
-                d["plants"] =  spaces.Box(
-                    low=np.array([-biggest_dist, -biggest_dist, -1.0, -1.0, -self.PLANT_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0], dtype=np.float32),
-                    high=np.array([+biggest_dist, +biggest_dist, 1.0, 1.0, self.PLANT_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1], dtype=np.float32),
-                    shape = ((8,)),
-                    dtype=np.float32
-                )
-
-            # if not self.get_padded_observations:
-            # total_segments = 0
-            # for w in self.walls:
-            #     total_segments += w.length//self.WALL_SEGMENT_SIZE
-            #     if w.length % self.WALL_SEGMENT_SIZE != 0:
-            #         total_segments += 1
-            # if self.is_entity_present["walls"]:
-            #     b = max(self.MAP_X, self.MAP_Y)
-            #     d["walls"] = spaces.Box(
-            #         low   = np.array([-b*np.sqrt(2), -b*np.sqrt(2), -1.0, -1.0, -self.WALL_SEGMENT_SIZE, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0] * int(total_segments), dtype=np.float32),
-            #         high  = np.array([+b*np.sqrt(2), +b*np.sqrt(2),  1.0,  1.0, +self.WALL_SEGMENT_SIZE, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1] * int(total_segments), dtype=np.float32),
-            #         shape = (((8)*int(total_segments),)),
-            #         dtype = np.float32
-            #     )
+        x_max_segs = (((self.MAX_MAP_X-self.MIN_MAP_X)//self.WALL_SEGMENT_SIZE)+1)*2
+        y_max_segs = (((self.MAX_MAP_Y-self.MIN_MAP_Y)//self.WALL_SEGMENT_SIZE)+1)*2
+        total_segments = int(x_max_segs + y_max_segs)
+        b = max(self.MAP_X, self.MAP_Y)
+        d["walls"] = spaces.Box(
+            low   = np.array([-b*np.sqrt(2), -b*np.sqrt(2), -1.0, -1.0, -self.WALL_SEGMENT_SIZE, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0] * total_segments, dtype=np.float32),
+            high  = np.array([+b*np.sqrt(2), +b*np.sqrt(2),  1.0,  1.0, +self.WALL_SEGMENT_SIZE, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1] * total_segments, dtype=np.float32),
+            shape = ((8*total_segments,)),
+            dtype = np.float32
+        )
 
         return spaces.Dict(d)
 
@@ -786,27 +768,6 @@ class SocNavEnv_v2(gym.Env):
 
         return np.linalg.inv(tm)
 
-    @property
-    def is_entity_present(self)->Dict[str, bool]:
-        """
-        Returns a dictionary that contains the keys as the entity types, and the values for each key would be a boolean value specifying whether the entity is present in the environment or not.
-        """
-        if not self.has_configured: raise Exception("Environment not configured")
-        d = {}
-        d["robot"] = True
-        d["humans"] = True
-        d["laptops"] = True
-        d["tables"] = True
-        d["plants"] = True
-        d["walls"] = True
-
-        if (not self.get_padded_observations) and (self.total_humans == 0): d["humans"] = False
-        if (not self.get_padded_observations) and (self.NUMBER_OF_PLANTS == 0): d["plants"] = False
-        if (not self.get_padded_observations) and (self.NUMBER_OF_TABLES == 0): d["tables"] = False
-        if (not self.get_padded_observations) and ((self.NUMBER_OF_LAPTOPS + self.TOTAL_H_L_INTERACTIONS) == 0): d["laptops"] = False
-        if (self.shape == "no-walls"): d["walls"] = False
-
-        return d
 
     def human_transformation_matrix(self, human:Human):
         """
@@ -1058,7 +1019,6 @@ class SocNavEnv_v2(gym.Env):
         Returns:
             numpy.ndarray : observation as described in the observation space.
         """
-
         obs_space = self.observation_space
 
         def pad_and_shuffle(input_vector, big_size, small_size):
@@ -1076,12 +1036,8 @@ class SocNavEnv_v2(gym.Env):
             robot_obs = np.array([0., 0., 0., 1., 0., 0., 0.])
         elif self.RELATIVE_FRAME == 'GOAL_FR':
             self.relative_transformation_matrix = self.goal_transformation_matrix
-            self.relative_frame.x = self.robot.goal_x
-            self.relative_frame.y = self.robot.goal_y
-            self.relative_frame.orientation = self.robot.goal_a
-            self.relative_frame.vel_x = 0.
-            self.relative_frame.vel_y = 0.
-            self.relative_frame.vel_a = 0.
+            self.relative_frame.x, self.relative_frame.y, self.relative_frame.orientation = self.robot.goal_x, self.robot.goal_y, self.robot.goal_a
+            self.relative_frame.vel_x, self.relative_frame.vel_y, self.relative_frame.vel_a = 0., 0., 0.
             robot_in_goal_frame = self.get_relative_frame_coordinates(np.array([[self.robot.x, self.robot.y]], dtype=np.float32)).flatten()
             robot_angle_obs = np.array([(np.sin(self.robot.orientation - self.relative_frame.orientation)), np.cos(self.robot.orientation - self.relative_frame.orientation)]).flatten()
             robot_obs = np.concatenate((robot_in_goal_frame, robot_angle_obs), dtype=np.float32).flatten()
@@ -1093,22 +1049,19 @@ class SocNavEnv_v2(gym.Env):
 
         # the observations will go inside this dictionary
         d = {}
+
         # goal coordinates in the robot frame
         goal_in_relative_frame = self.get_relative_frame_coordinates(np.array([[self.robot.goal_x, self.robot.goal_y]], dtype=np.float32))
 
         if self.RELATIVE_FRAME == 'ROBOT_FR':
-            xxx = goal_in_relative_frame[0][0]
-            yyy = goal_in_relative_frame[0][1]
+            xxx, yyy = goal_in_relative_frame[0][0], goal_in_relative_frame[0][1]
             r_sin = np.sin(self.robot.goal_a - self.relative_frame.orientation)
             r_cos = np.cos(self.robot.goal_a - self.relative_frame.orientation)
         elif self.RELATIVE_FRAME == 'GOAL_FR':
-            xxx = robot_in_goal_frame[0]
-            yyy = robot_in_goal_frame[1]
-            r_sin = robot_angle_obs[0]
-            r_cos = robot_angle_obs[1]
-
-        # converting into the required shape
-        robot_obs = np.array([
+            xxx, yyy = robot_in_goal_frame[0], robot_in_goal_frame[1]
+            r_sin, r_cos = robot_angle_obs[0], robot_angle_obs[1]
+        # placing it in a dictionary
+        d["robot"] = np.array([
             xxx,
             yyy,
             self.GOAL_THRESHOLD,
@@ -1118,91 +1071,32 @@ class SocNavEnv_v2(gym.Env):
             self.ROBOT_RADIUS
             ], dtype=np.float32).flatten()
         
-        # placing it in a dictionary
-        d["robot"] = robot_obs
-        
         # getting the observations of humans
-        human_obs = np.array([], dtype=np.float32)
-        for human in self.static_humans + self.dynamic_humans:
-            human_obs = np.concatenate((human_obs, self._get_entity_obs(human)), dtype=np.float32)
-        
-        for i in (self.moving_interactions + self.static_interactions + self.h_l_interactions):
-            if i.name == "human-human-interaction":
-                for human in i.humans:
-                    obs = self._get_entity_obs(human)
-                    human_obs = np.concatenate((human_obs, obs), dtype=np.float32)
-            elif i.name == "human-laptop-interaction":
-                obs = self._get_entity_obs(i.human)
-                human_obs = np.concatenate((human_obs, obs), dtype=np.float32)
-       
-        # inserting in the dictionary
-
+        human_obs = [self._get_entity_obs(human) for human in self.static_humans + self.dynamic_humans]
+        human_obs = np.concatenate(human_obs, dtype=np.float32)
         d["humans"] = pad_and_shuffle(human_obs, obs_space["humans"].low.shape[0], 8)
 
+        # getting the observations of laptops
+        laptops_obs = [self._get_entity_obs(laptop) for laptop in self.laptops]
+        laptops_obs = np.concatenate(laptops_obs, dtype=np.float32)
+        d["laptops"] = pad_and_shuffle(laptops_obs, obs_space["laptops"].low.shape[0], 8)
 
-    
-        if MINIMAL is not True:
-            # getting the observations of laptops
-            laptop_obs = np.array([], dtype=np.float32)
-            for laptop in self.laptops:
-                obs = self._get_entity_obs(laptop)
-                laptop_obs = np.concatenate((laptop_obs, obs), dtype=np.float32)
-            
-            for i in self.h_l_interactions:
-                obs = self._get_entity_obs(i.laptop)
-                laptop_obs = np.concatenate((laptop_obs, obs), dtype=np.float32)
-        
-            # if self.get_padded_observations:
-            #     # padding with zeros
-            #     laptop_obs = np.concatenate((laptop_obs, np.zeros(self.observation_space["laptops"].shape[0] -laptop_obs.shape[0])), dtype=np.float32)
-            
-            # inserting in the dictionary
-            if self.is_entity_present["laptops"]:
-                d["laptops"] = laptop_obs
-        
+        # getting the observations of tables
+        tables_obs = [self._get_entity_obs(table) for table in self.tables]
+        tables_obs = np.concatenate(tables_obs, dtype=np.float32)
+        d["tables"] = pad_and_shuffle(tables_obs, obs_space["tables"].low.shape[0], 8)
 
-            # getting the observations of tables
-            table_obs = np.array([], dtype=np.float32)
-            for table in self.tables:
-                obs = self._get_entity_obs(table)
-                table_obs = np.concatenate((table_obs, obs), dtype=np.float32)
-
-            # if self.get_padded_observations:
-            #     # padding with zeros
-            #     table_obs = np.concatenate((table_obs, np.zeros(self.observation_space["tables"].shape[0] -table_obs.shape[0])), dtype=np.float32)
-            
-            # inserting in the dictionary
-            if self.is_entity_present["tables"]:
-                d["tables"] = table_obs
+        # getting the observations of plants
+        plants_obs = [self._get_entity_obs(plant) for plant in self.plants]
+        plants_obs = np.concatenate(plants_obs, dtype=np.float32)
+        d["plants"] = pad_and_shuffle(plants_obs, obs_space["plants"].low.shape[0], 8)
 
 
-            # getting the observations of plants
-            plant_obs = np.array([], dtype=np.float32)
-            for plant in self.plants:
-                obs = self._get_entity_obs(plant)
-                plant_obs = np.concatenate((plant_obs, obs), dtype=np.float32)
+        # inserting wall observations to the dictionary
+        walls_obs = [self._get_entity_obs(wall) for wall in self.walls]
+        walls_obs = np.concatenate(walls_obs, dtype=np.float32)
+        d["walls"] = walls_obs
 
-            # if self.get_padded_observations:
-            #     # padding with zeros
-            #     plant_obs = np.concatenate((plant_obs, np.zeros(self.observation_space["plants"].shape[0] -plant_obs.shape[0])), dtype=np.float32)
-            
-            # inserting in the dictionary
-            if self.is_entity_present["plants"]:
-                d["plants"] = plant_obs
-
-
-
-            # inserting wall observations to the dictionary        # if not self.get_padded_observations:
-            # wall_obs = np.array([], dtype=np.float32)
-            # for wall in self.walls:
-            #     obs = self._get_entity_obs(wall)
-            #     wall_obs = np.concatenate((wall_obs, obs), dtype=np.float32)
-            # if self.is_entity_present["walls"]:
-            #     d["walls"] = wall_obs
-
-        # shape = 0
-        # for k in d.keys():
-        #     print(f"obs {k}: {d[k].shape}")
         return d
     
     def get_desired_force(self, human:Human):
@@ -3691,11 +3585,18 @@ class SocNavEnv_v2(gym.Env):
         ## uncomment to save the images 
         # cv2.imwrite("img"+str(self.count)+".jpg", self.world_image)
         # self.count+=1
+        if self._is_terminated:
+            color = (0,0,0)
+        elif self._is_truncated:
+            color = (0,0,0)
+        else:
+            color = (0,0,0)
+
         if self._is_terminated or self._is_truncated:
             w = self.world_image.shape[0]
             h = self.world_image.shape[1]
-            cv2.line(self.world_image, (0,0), (w-1, h-1), (0,0,0), 1)
-            cv2.line(self.world_image, (w-1,0), (0, h-1), (0,0,0), 1)
+            cv2.line(self.world_image, (0,0), (w-1, h-1), color, 1)
+            cv2.line(self.world_image, (w-1,0), (0, h-1), color, 1)
 
         return self.world_image
 

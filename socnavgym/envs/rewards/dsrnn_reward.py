@@ -1,7 +1,10 @@
+import sys
+
+import numpy as np
+
 import socnavgym
 from socnavgym.envs.socnavenv_v1 import SocNavEnv_v1, EntityObs
 from socnavgym.envs.utils.utils import point_to_segment_dist
-import numpy as np
 from socnavgym.envs.rewards.reward_api import RewardAPI
 
 class Reward(RewardAPI):
@@ -99,6 +102,8 @@ class Reward(RewardAPI):
             distance_to_goal = np.sqrt((self.env.robot.goal_x - self.env.robot.x)**2 + (self.env.robot.goal_y - self.env.robot.y)**2)
             if self.prev_distance is not None:
                 distance_reward = (self.prev_distance-distance_to_goal) * self.distance_reward_scaler
+                if np.isnan(distance_reward):
+                    print(f"{self.prev_distance=}, {distance_to_goal=} {self.distance_reward_scaler=}")
             self.prev_distance = distance_to_goal
 
             angular_distance_reward = 0.0
@@ -115,4 +120,10 @@ class Reward(RewardAPI):
             self.info["ang_distance_reward"] = angular_distance_reward
             self.info["alive_reward"] = self.alive_reward
 
-            return dsrnn_reward + distance_reward + self.alive_reward # + angular_distance_reward
+            ret = dsrnn_reward + distance_reward + self.alive_reward # + angular_distance_reward
+
+            if np.isnan(ret):
+                print(f"{dsrnn_reward=} {distance_reward=} + {self.alive_reward=}")
+                sys.exit(-1)
+
+            return ret

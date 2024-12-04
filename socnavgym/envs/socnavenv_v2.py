@@ -698,15 +698,14 @@ class SocNavEnv_v2(gym.Env):
         Returns:
             gym.spaces.Box: The action space
         """
-        if self.robot.type == "holonomic":
-            low  = np.array([-1, -1, -1], dtype=np.float32)
-            high = np.array([+1, +1, +1], dtype=np.float32)
+        # if self.robot.type == "holonomic":
+        low  = np.array([-1, -1, -1], dtype=np.float32)
+        high = np.array([+1, +1, +1], dtype=np.float32)
         
-        elif self.robot.type == "diff-drive":  # lateral speed is 0 for differential drive robots
-            low  = np.array([-1, 0, -1], dtype=np.float32)
-            high = np.array([+1, 0, +1], dtype=np.float32)
-        
-        else: raise NotImplementedError
+        # elif self.robot.type == "diff-drive":  # lateral speed is 0 for differential drive robots
+        #     low  = np.array([-1, -0.01, -1], dtype=np.float32)
+        #     high = np.array([+1, 0.0, +1], dtype=np.float32)
+        #else: raise NotImplementedError
         return spaces.box.Box(low, high, low.shape, np.float32)
 
     @property

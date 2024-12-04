@@ -1108,7 +1108,6 @@ class SocNavEnv_v2(gym.Env):
 
         # inserting wall observations to the dictionary
         walls_obs = [self._get_entity_obs(wall) for wall in self.walls]
-        print(walls_obs)
         walls_obs = np.concatenate(walls_obs, dtype=np.float32) if len(walls_obs) > 0 else np.array([], dtype=np.float32)
         d["walls"] = pad_and_shuffle(walls_obs, obs_space["walls"].low.shape[0], 8)
 

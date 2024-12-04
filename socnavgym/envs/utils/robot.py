@@ -38,26 +38,46 @@ class Robot(Object):
             time (float): Time passed.
         """        
 
-        if self.type == "diff-drive":
-            assert self.vel_y == 0.0,  "Cannot move in lateral direction for a differential drive robot"
-        
-        self.orientation += self.vel_a * time  # updating the robot orientation
-        # restricting the robot's orientation value to be between [-np.pi, +np.pi]
-        if self.orientation > 2*np.pi:
-            self.orientation -= int(self.orientation/(2*np.pi))*(2*np.pi)
-        if self.orientation < -2*np.pi:
-            self.orientation += int(abs(self.orientation)/(2*np.pi))*(2*np.pi)
+        dd = {}
+        dd["init_vel_y"] = self.vel_y
 
-        if self.orientation > np.pi: self.orientation -= 2*np.pi
-        elif self.orientation < -np.pi: self.orientation += 2*np.pi
+        if self.type == "diff-drive":
+            self.vel_y = 0.0
+        dd["after_vel_y"] = self.vel_y
+        dd["vel_a"] = self.vel_a
+        dd["time"] = time
+
+        dd["orientation_init"] = self.orientation
+        self.orientation += self.vel_a * time  # updating the robot orientation
+        dd["orientation_with_vel_a*time"] = self.orientation
+
+        # # restricting the robot's orientation value to be between [-np.pi, +np.pi]
+        # if self.orientation > 2*np.pi:
+        #     self.orientation -= int(self.orientation/(2*np.pi))*(2*np.pi)
+        # if self.orientation < -2*np.pi:
+        #     self.orientation += int(abs(self.orientation)/(2*np.pi))*(2*np.pi)
+
+        dd["orientation_before_normalising"] = self.orientation
+
+        while self.orientation > np.pi:
+            self.orientation -= 2*np.pi
+        while self.orientation < -np.pi:
+            self.orientation += 2*np.pi
+
+        dd["orientation_after_normalising"] = self.orientation
 
         # updating the linear component
         self.x += self.vel_x * np.cos(self.orientation) * time
         self.y += self.vel_x * np.sin(self.orientation) * time
+        dd["x 2"] = self.x
+        dd["y 2"] = self.y
+
 
         # updating the perpendicular component
         self.x += self.vel_y * np.cos(np.pi/2 + self.orientation) * time
         self.y += self.vel_y * np.sin(np.pi/2 + self.orientation) * time
+        dd["x 3"] = self.x
+        dd["y 3"] = self.y
         
     def draw(self, img, PIXEL_TO_WORLD_X, PIXEL_TO_WORLD_Y, MAP_SIZE_X, MAP_SIZE_Y):
         black = (0,0,0) 

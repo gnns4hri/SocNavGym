@@ -682,8 +682,8 @@ class SocNavEnv_v2(gym.Env):
         )
 
 
-        x_max_segs = (((self.MAX_MAP_X-self.MIN_MAP_X)//self.WALL_SEGMENT_SIZE)+1)*2
-        y_max_segs = (((self.MAX_MAP_Y-self.MIN_MAP_Y)//self.WALL_SEGMENT_SIZE)+1)*2
+        x_max_segs = (((self.MAX_MAP_X)//self.WALL_SEGMENT_SIZE)+1)*2
+        y_max_segs = (((self.MAX_MAP_Y)//self.WALL_SEGMENT_SIZE)+1)*2
         total_segments = int(x_max_segs + y_max_segs)
         b = max(self.MAP_X, self.MAP_Y)
         d["walls"] = spaces.Box(
@@ -1108,6 +1108,7 @@ class SocNavEnv_v2(gym.Env):
 
         # inserting wall observations to the dictionary
         walls_obs = [self._get_entity_obs(wall) for wall in self.walls]
+        print(walls_obs)
         walls_obs = np.concatenate(walls_obs, dtype=np.float32) if len(walls_obs) > 0 else np.array([], dtype=np.float32)
         d["walls"] = pad_and_shuffle(walls_obs, obs_space["walls"].low.shape[0], 8)
 

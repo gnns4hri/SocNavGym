@@ -204,6 +204,7 @@ class SocNavEnv_v2(gym.Env):
         self.MAX_ADVANCE_HUMAN = None
         self.MAX_ROTATION_HUMAN = None
         self.MAX_ADVANCE_ROBOT = None
+        self.MIN_ADVANCE_ROBOT = None
         self.MAX_ROTATION = None
         self.SPEED_THRESHOLD = None
         
@@ -413,6 +414,9 @@ class SocNavEnv_v2(gym.Env):
         self.MAX_ADVANCE_HUMAN = config["env"]["max_advance_human"]
         self.MAX_ROTATION_HUMAN = config["env"]["max_rotation_human"]
         self.MAX_ADVANCE_ROBOT = config["env"]["max_advance_robot"]
+        assert(self.MAX_ADVANCE_ROBOT > 0.), "max_advance_robot must be > 0"
+        self.MIN_ADVANCE_ROBOT = config["env"]["min_advance_robot"]
+        assert(self.MIN_ADVANCE_ROBOT <= 0.), "min_advance_robot must be <= 0"
         self.MAX_ROTATION = config["env"]["max_rotation"]
         self.WALL_SEGMENT_SIZE = config["env"]["wall_segment_size"]
         self.SPEED_THRESHOLD = config["env"]["speed_threshold"]
@@ -637,16 +641,16 @@ class SocNavEnv_v2(gym.Env):
 
         MAX_HUMANS = self.MAX_STATIC_HUMANS + self.MAX_DYNAMIC_HUMANS
         d["humans"] =  spaces.Box(
-            low   = np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, -(self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -2*np.pi/self.TIMESTEP, 0]*MAX_HUMANS, dtype=np.float32),
-            high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, +(self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +2*np.pi/self.TIMESTEP, 1]*MAX_HUMANS, dtype=np.float32),
+            low   = np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, (-self.MAX_ADVANCE_HUMAN + self.MIN_ADVANCE_ROBOT)*np.sqrt(2), -2*np.pi/self.TIMESTEP, 0]*MAX_HUMANS, dtype=np.float32),
+            high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, ( self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +2*np.pi/self.TIMESTEP, 1]*MAX_HUMANS, dtype=np.float32),
             shape = ((8*MAX_HUMANS,)),
             dtype = np.float32
         )
 
         MAX_LAPTOPS = self.MAX_LAPTOPS
         d["laptops"] =  spaces.Box(
-            low=np.array([-biggest_dist, -biggest_dist, -1.0, -1.0, -self.LAPTOP_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_LAPTOPS, dtype=np.float32),
-            high=np.array([+biggest_dist, +biggest_dist, 1.0,  1.0,  self.LAPTOP_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_LAPTOPS, dtype=np.float32),
+            low=np.array([-biggest_dist, -biggest_dist, -1.0, -1.0, -self.LAPTOP_RADIUS, self.MIN_ADVANCE_ROBOT*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_LAPTOPS, dtype=np.float32),
+            high=np.array([+biggest_dist, +biggest_dist, 1.0,  1.0,  self.LAPTOP_RADIUS, self.MAX_ADVANCE_ROBOT*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_LAPTOPS, dtype=np.float32),
             shape = ((8*MAX_LAPTOPS,)),
             dtype=np.float32
 
@@ -655,24 +659,24 @@ class SocNavEnv_v2(gym.Env):
         ### OUR TABLES ARE SHOWN AS SQUARE. THIS IS APPALING.
         MAX_TABLES = self.MAX_TABLES
         d["tables"] =  spaces.Box(
-            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.TABLE_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_TABLES, dtype=np.float32),
-            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.TABLE_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_TABLES, dtype=np.float32),
+            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.TABLE_RADIUS, self.MIN_ADVANCE_ROBOT*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_TABLES, dtype=np.float32),
+            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.TABLE_RADIUS, self.MAX_ADVANCE_ROBOT*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_TABLES, dtype=np.float32),
             shape = ((8*MAX_TABLES,)),
             dtype=np.float32
         )
 
         MAX_PLANTS = self.MAX_PLANTS
         d["plants"] =  spaces.Box(
-            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.PLANT_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_PLANTS, dtype=np.float32),
-            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.PLANT_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_PLANTS, dtype=np.float32),
+            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.PLANT_RADIUS, self.MIN_ADVANCE_ROBOT*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_PLANTS, dtype=np.float32),
+            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.PLANT_RADIUS, self.MAX_ADVANCE_ROBOT*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_PLANTS, dtype=np.float32),
             shape = ((8*MAX_PLANTS,)),
             dtype=np.float32
         )
 
         MAX_CHAIRS = self.MAX_CHAIRS
         d["chairs"] =  spaces.Box(
-            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.CHAIR_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_CHAIRS, dtype=np.float32),
-            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.CHAIR_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_CHAIRS, dtype=np.float32),
+            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.CHAIR_RADIUS, self.MIN_ADVANCE_ROBOT*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_CHAIRS, dtype=np.float32),
+            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.CHAIR_RADIUS, self.MAX_ADVANCE_ROBOT*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_CHAIRS, dtype=np.float32),
             shape = ((8*MAX_CHAIRS,)),
             dtype=np.float32
         )
@@ -683,8 +687,8 @@ class SocNavEnv_v2(gym.Env):
         total_segments = int(x_max_segs + y_max_segs)
         b = max(self.MAP_X, self.MAP_Y)
         d["walls"] = spaces.Box(
-            low   = np.array([-b*np.sqrt(2), -b*np.sqrt(2), -1.0, -1.0, -self.WALL_SEGMENT_SIZE, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0] * total_segments, dtype=np.float32),
-            high  = np.array([+b*np.sqrt(2), +b*np.sqrt(2),  1.0,  1.0, +self.WALL_SEGMENT_SIZE, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1] * total_segments, dtype=np.float32),
+            low   = np.array([-b*np.sqrt(2), -b*np.sqrt(2), -1.0, -1.0, -self.WALL_SEGMENT_SIZE, self.MIN_ADVANCE_ROBOT*np.sqrt(2), -self.MAX_ROTATION, 0] * total_segments, dtype=np.float32),
+            high  = np.array([+b*np.sqrt(2), +b*np.sqrt(2),  1.0,  1.0, +self.WALL_SEGMENT_SIZE, self.MAX_ADVANCE_ROBOT*np.sqrt(2), +self.MAX_ROTATION, 1] * total_segments, dtype=np.float32),
             shape = ((8*total_segments,)),
             dtype = np.float32
         )
@@ -693,12 +697,11 @@ class SocNavEnv_v2(gym.Env):
 
     @property
     def action_space(self): # continuous action space 
-        """Returns the action space of the robot. The action space contains three parameters, the linear velocity, perpendicular velocity, and the angular velocity. The values lie in the range of [-1, 1]. Velocities are obtained by mapping from [-1,1] to [-MAX_ADVANCE_ROBOT, +MAX_ADVANCE_ROBOT] for linear and perpendicular velocities, to [-self.MAX_ROTATION, +self.MAX_ROTATION] for angular velocity
+        """Returns the action space of the robot. The action space contains three parameters, the linear velocity, perpendicular velocity, and the angular velocity. The values lie in the range of [-1, 1]. Velocities are obtained by mapping from [-1,1] to [MIN_ADVANCE_ROBOT, MAX_ADVANCE_ROBOT] for linear and perpendicular velocities, to [-self.MAX_ROTATION, +self.MAX_ROTATION] for angular velocity
 
         Returns:
             gym.spaces.Box: The action space
         """
-        # if self.robot.type == "holonomic":
         low  = np.array([-1, -1, -1], dtype=np.float32)
         high = np.array([+1, +1, +1], dtype=np.float32)
         
@@ -1106,7 +1109,7 @@ class SocNavEnv_v2(gym.Env):
         # inserting wall observations to the dictionary
         walls_obs = [self._get_entity_obs(wall) for wall in self.walls]
         walls_obs = np.concatenate(walls_obs, dtype=np.float32) if len(walls_obs) > 0 else np.array([], dtype=np.float32)
-        d["walls"] = walls_obs
+        d["walls"] = pad_and_shuffle(walls_obs, obs_space["walls"].low.shape[0], 8)
 
         return d
     
@@ -1772,7 +1775,10 @@ class SocNavEnv_v2(gym.Env):
             """            
             action = act.astype(np.float32)
             # action[0] = (float(action[0]+1.0)/2.0)*self.MAX_ADVANCE_ROBOT   # [-1, +1] --> [0, self.MAX_ADVANCE_ROBOT]
-            action[0] = ((action[0]+0.0)/1.0)*self.MAX_ADVANCE_ROBOT  # [-1, +1] --> [-MAX_ADVANCE, +MAX_ADVANCE]
+            if action[0]<0:
+                action[0] *= -self.MIN_ADVANCE_ROBOT
+            else:
+                action[0] *= self.MAX_ADVANCE_ROBOT
             if self.robot.type == "diff-drive":
                 action[1] = 0.0
             action[1] = ((action[1]+0.0)/1.0)*self.MAX_ADVANCE_ROBOT  # [-1, +1] --> [-MAX_ADVANCE, +MAX_ADVANCE]
@@ -1781,8 +1787,8 @@ class SocNavEnv_v2(gym.Env):
             #     action[0] *= -1
             if action[0] > self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
                 action[0] = self.MAX_ADVANCE_ROBOT
-            if action[0] < -self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
-                action[0] = -self.MAX_ADVANCE_ROBOT
+            if action[0] < self.MIN_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
+                action[0] = self.MIN_ADVANCE_ROBOT
             if action[1] > self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
                 action[1] = self.MAX_ADVANCE_ROBOT
             if action[1] < -self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT

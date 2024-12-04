@@ -669,6 +669,14 @@ class SocNavEnv_v2(gym.Env):
             dtype=np.float32
         )
 
+        MAX_CHAIRS = self.MAX_CHAIRS
+        d["chairs"] =  spaces.Box(
+            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.CHAIR_RADIUS, -(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_CHAIRS, dtype=np.float32),
+            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.CHAIR_RADIUS, +(self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_CHAIRS, dtype=np.float32),
+            shape = ((8*MAX_CHAIRS,)),
+            dtype=np.float32
+        )
+
 
         x_max_segs = (((self.MAX_MAP_X-self.MIN_MAP_X)//self.WALL_SEGMENT_SIZE)+1)*2
         y_max_segs = (((self.MAX_MAP_Y-self.MIN_MAP_Y)//self.WALL_SEGMENT_SIZE)+1)*2
@@ -1073,28 +1081,32 @@ class SocNavEnv_v2(gym.Env):
         
         # getting the observations of humans
         human_obs = [self._get_entity_obs(human) for human in self.static_humans + self.dynamic_humans]
-        human_obs = np.concatenate(human_obs, dtype=np.float32)
+        human_obs = np.concatenate(human_obs, dtype=np.float32) if len(human_obs) > 0 else np.array([], dtype=np.float32)
         d["humans"] = pad_and_shuffle(human_obs, obs_space["humans"].low.shape[0], 8)
 
         # getting the observations of laptops
         laptops_obs = [self._get_entity_obs(laptop) for laptop in self.laptops]
-        laptops_obs = np.concatenate(laptops_obs, dtype=np.float32)
+        laptops_obs = np.concatenate(laptops_obs, dtype=np.float32) if len(laptops_obs) > 0 else np.array([], dtype=np.float32)
         d["laptops"] = pad_and_shuffle(laptops_obs, obs_space["laptops"].low.shape[0], 8)
 
         # getting the observations of tables
         tables_obs = [self._get_entity_obs(table) for table in self.tables]
-        tables_obs = np.concatenate(tables_obs, dtype=np.float32)
+        tables_obs = np.concatenate(tables_obs, dtype=np.float32) if len(tables_obs) > 0 else np.array([], dtype=np.float32)
         d["tables"] = pad_and_shuffle(tables_obs, obs_space["tables"].low.shape[0], 8)
 
         # getting the observations of plants
         plants_obs = [self._get_entity_obs(plant) for plant in self.plants]
-        plants_obs = np.concatenate(plants_obs, dtype=np.float32)
+        plants_obs = np.concatenate(plants_obs, dtype=np.float32) if len(plants_obs) > 0 else np.array([], dtype=np.float32)
         d["plants"] = pad_and_shuffle(plants_obs, obs_space["plants"].low.shape[0], 8)
 
+        # getting the observations of chairs
+        chairs_obs = [self._get_entity_obs(chair) for chair in self.chairs]
+        chairs_obs = np.concatenate(chairs_obs, dtype=np.float32) if len(chairs_obs) > 0 else np.array([], dtype=np.float32)
+        d["chairs"] = pad_and_shuffle(chairs_obs, obs_space["chairs"].low.shape[0], 8)
 
         # inserting wall observations to the dictionary
         walls_obs = [self._get_entity_obs(wall) for wall in self.walls]
-        walls_obs = np.concatenate(walls_obs, dtype=np.float32)
+        walls_obs = np.concatenate(walls_obs, dtype=np.float32) if len(walls_obs) > 0 else np.array([], dtype=np.float32)
         d["walls"] = walls_obs
 
         return d

@@ -13,7 +13,7 @@ from socnavgym.envs.socnavenv_v2 import SocNavEnv_v2
 
 import gymnasium as gym
 
-from stable_baselines3 import PPO, SAC, TD3, DDPG, TRPO
+from stable_baselines3 import PPO, SAC, TD3, DDPG
 from stable_baselines3.common.callbacks import CheckpointCallback
 
 import wandb
@@ -22,11 +22,14 @@ from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
 from stable_baselines3.common.callbacks import BaseCallback, EvalCallback, StopTrainingOnRewardThreshold, CallbackList
 
-CONFIG_FILE = "omni_config2.yaml"
+CONFIG_FILE = sys.argv[1]
 GYM_NAME = "SocNavGym-v2"
 SB3_POLICY = "MlpPolicy"
-PROJECT_NAME = "RL"
+PROJECT_NAME = "RL3"
 DO_RENDERING = True
+HOURS = 48
+
+START_TIME=time.time()
 #
 # These three constants here should probably be randomised.
 #
@@ -34,14 +37,14 @@ GRID_WIDTH = 250 # size in cells
 GRID_HEIGHT = 250 # size in cells
 GRID_CELL_SIZE = 0.05 # size in meters. Square cells are assumed
 
-NUMBER_OF_ENVS_IN_PARALLEL=12
+NUMBER_OF_ENVS_IN_PARALLEL=10
 
 OBJECTS_IN_GRID = False
 UPDATE_PERIOD = 0.1
-TOTAL_TIMESTEPS= 3_000_000
+TOTAL_TIMESTEPS= 3_000_000_000
 
 KEYS = sorted(["robot", "humans", "laptops", "plants", "tables", "walls"])
-ALGOS = ["TD3", "PPO", "SAC", "DDPG", "TRPO"]
+ALGOS = [sys.argv[2]]
 random.shuffle(ALGOS)
 
 
@@ -131,7 +134,7 @@ if __name__ == '__main__':
             self.episode_count = 0
             self.env = constructor()
             self.original_env = self.env.unwrapped
-            self.save_dir = "SocNav3_RL_jsons/"
+            self.save_dir = f"SocNav3_RL_jsons_{CONFIG_FILE}_{ALGOS}_{START_TIME}/"
             if not os.path.isdir(self.save_dir):
                 os.mkdir(self.save_dir)
             self.data_file_index = 0
@@ -373,6 +376,7 @@ if __name__ == '__main__':
 
 
     for rl_model in ALGOS:
+        print("Running", rl_model)
         match rl_model:
             case "SAC":
                 env = make_vec_env(constructor, n_envs=NUMBER_OF_ENVS_IN_PARALLEL, vec_env_cls=SubprocVecEnv) # SubprocVecEnv  DummyVecEnv
@@ -384,30 +388,29 @@ if __name__ == '__main__':
                 env = constructor()
                 model = TD3(SB3_POLICY, env, verbose=1, tensorboard_log=f"./logs")
             case "DDPG":
-                env = make_vec_env(constructor, n_envs=NUMBER_OF_ENVS_IN_PARALLEL, vec_env_cls=SubprocVecEnv) # SubprocVecEnv  DummyVecEnv
+                env = constructor()
                 model = DDPG(SB3_POLICY, env, verbose=1, tensorboard_log=f"./logs")
             case "TRPO":
                 env = make_vec_env(constructor, n_envs=NUMBER_OF_ENVS_IN_PARALLEL, vec_env_cls=SubprocVecEnv) # SubprocVecEnv  DummyVecEnv
                 model = TRPO(SB3_POLICY, env, verbose=1, tensorboard_log=f"./logs")
 
+        uid = f"{CONFIG_FILE}_{rl_model}_{START_TIME}"
+        run = wandb.init(
+            project=PROJECT_NAME,
+            id=uid,
+            config=config,
+            sync_tensorboard=True,
+            monitor_gym=False,
+            save_code=True,
+        )
+        checkpoint_cb = CheckpointCallback(save_freq=1000, save_path='./logs/', name_prefix=f"{uid}")
+        render_cb = RenderEpisodeCallback(render_freq=50, identifier=uid)
+        wandb_cb = WandbCallback(gradient_save_freq=10, model_save_freq=100, model_save_path=f"models/{uid}", verbose=2, log="all")
+        tlimit_cb = TimeLimitCallback(time_limit_hours=HOURS)  # Set your desired time limit
 
-        if "train" in sys.argv:
-            run = wandb.init(
-                project=PROJECT_NAME,
-                id=rl_model+f"_{time.time()}",
-                config=config,
-                sync_tensorboard=True,
-                monitor_gym=False,
-                save_code=True,
-            )
-            checkpoint_cb = CheckpointCallback(save_freq=1000, save_path='./logs/', name_prefix=f"{rl_model}_{time.time()}")
-            # render_cb = RenderEpisodeCallback(render_freq=50, identifier=rl_model)
-            wandb_cb = WandbCallback(gradient_save_freq=10, model_save_freq=100, model_save_path=f"models/{run.id}", verbose=2, log="all")
-            tlimit_cb = TimeLimitCallback(time_limit_hours=12)  # Set your desired time limit
-
-            model.learn(total_timesteps=TOTAL_TIMESTEPS, callback=CallbackList([checkpoint_cb, wandb_cb, tlimit_cb]))  #  render_cb,
+        model.learn(total_timesteps=TOTAL_TIMESTEPS, callback=CallbackList([checkpoint_cb, wandb_cb, tlimit_cb, render_cb])) 
             
-            run.finish()
+        run.finish()
 
         # if "test" in sys.argv:
         #     env = constructor()

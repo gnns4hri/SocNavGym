@@ -7,7 +7,7 @@ import copy
 from pathlib import Path
 from scipy.interpolate import splprep, splev
 from shapely.geometry import Point, LineString
-import matplotlib.pyplot as plt
+#import matplotlib.pyplot as plt
 from collections import deque
 
 # minimum difference in x or y for a given entity between two consecutive frames

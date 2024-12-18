@@ -9,7 +9,6 @@ import copy
 from importlib.machinery import SourceFileLoader
 import cv2
 import gymnasium as gym
-import matplotlib.pyplot as plt
 import numpy as np
 import rvo2
 import torch

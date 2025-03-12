@@ -1,7 +1,7 @@
 from abc import abstractmethod
 import numpy as np
+import shapely
 from shapely.geometry import LineString, Polygon, Point
-from shapely import affinity
 from socnavgym.envs.utils.utils import get_coordinates_of_rotated_line, get_coordinates_of_rotated_rectangle
 
 class Object(object):
@@ -96,7 +96,7 @@ class Object(object):
         
         elif self.name == "human":
             assert(self.x != None and self.y != None and self.width != None), "Attributes are None type"
-            curr_obj = Point((self.x, self.y)).buffer(self.width/2)
+            curr_obj = shapely.affinity.scale(shapely.geometry.Point((self.x, self.y)).buffer(1), self.width/6, self.width/2)
         
         elif self.name == "laptop" or self.name == "table" or self.name == "chair":
             assert(self.x != None and self.y != None and self.width != None and self.length != None and self.orientation != None), "Attributes are None type"
@@ -115,7 +115,7 @@ class Object(object):
         
         elif obj.name == "human":
             assert(obj.x != None and obj.y != None and obj.width != None), "Attributes are None type"
-            other_obj = Point((obj.x, obj.y)).buffer(obj.width/2)
+            other_obj = shapely.affinity.scale(shapely.geometry.Point((obj.x, obj.y)).buffer(1), obj.width/6, obj.width/2)
         
         elif obj.name == "laptop" or obj.name == "table" or obj.name == "chair":
             assert(obj.x != None and obj.y != None and obj.width != None and obj.length != None and obj.orientation != None), "Attributes are None type"

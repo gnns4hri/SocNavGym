@@ -22,7 +22,15 @@ from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.vec_env import SubprocVecEnv, DummyVecEnv
 from stable_baselines3.common.callbacks import BaseCallback, EvalCallback, StopTrainingOnRewardThreshold, CallbackList
 
-CONFIG_FILE = sys.argv[1]
+import argparse
+parser = argparse.ArgumentParser(description=help)
+parser.add_argument('--config', type=str, help="yaml file path for training", required=True)
+parser.add_argument('--algo', type=str, default="SAC", help="algorithm to use (SAC/PPO/TD3/DDPG)", choices=['SAC', 'PPO', 'TD3', 'DDPG'], required=True)
+parser.add_argument('--testmodelonly', type=str, help="path of the model file in case of test only")
+args = parser.parse_args()
+
+
+CONFIG_FILE = args.config
 GYM_NAME = "SocNavGym-v2"
 SB3_POLICY = "MlpPolicy"
 PROJECT_NAME = "RL3"
@@ -44,8 +52,7 @@ UPDATE_PERIOD = 0.1
 TOTAL_TIMESTEPS= 3_000_000_000
 
 KEYS = sorted(["robot", "humans", "laptops", "plants", "tables", "walls"])
-ALGOS = [sys.argv[2]]
-random.shuffle(ALGOS)
+ALGO = args.algo
 
 
 class TimeLimitCallback(BaseCallback):
@@ -64,13 +71,9 @@ class TimeLimitCallback(BaseCallback):
             return False
         return True
 
-
-
-
 os.environ["SOCNAV_CONFIG_FILE"] = CONFIG_FILE
 
 if __name__ == '__main__':
-
 
     class SocNavGymObservationWrapper(gym.ObservationWrapper):
         def __init__(self, render_mode=None):
@@ -134,7 +137,7 @@ if __name__ == '__main__':
             self.episode_count = 0
             self.env = constructor()
             self.original_env = self.env.unwrapped
-            self.save_dir = f"SocNav3_RL_jsons_{CONFIG_FILE}_{ALGOS}_{START_TIME}/"
+            self.save_dir = f"SocNav3_RL_jsons_{CONFIG_FILE}_{ALGO}_{START_TIME}/"
             if not os.path.isdir(self.save_dir):
                 os.mkdir(self.save_dir)
             self.data_file_index = 0
@@ -371,30 +374,61 @@ if __name__ == '__main__':
                 print("Problem saving the json file")
                 print(e)
                 return
-            
 
 
-
-    for rl_model in ALGOS:
-        print("Running", rl_model)
+    def instantiate_algo(env, rl_model, file=None):
         match rl_model:
             case "SAC":
-                env = make_vec_env(constructor, n_envs=NUMBER_OF_ENVS_IN_PARALLEL, vec_env_cls=SubprocVecEnv) # SubprocVecEnv  DummyVecEnv
                 model = SAC(SB3_POLICY, env, verbose=1, tensorboard_log=f"./logs")
             case "PPO":
-                env = make_vec_env(constructor, n_envs=NUMBER_OF_ENVS_IN_PARALLEL, vec_env_cls=SubprocVecEnv) # SubprocVecEnv  DummyVecEnv
                 model = PPO(SB3_POLICY, env, verbose=1, tensorboard_log=f"./logs")
             case "TD3":
-                env = constructor()
                 model = TD3(SB3_POLICY, env, verbose=1, tensorboard_log=f"./logs")
             case "DDPG":
-                env = constructor()
                 model = DDPG(SB3_POLICY, env, verbose=1, tensorboard_log=f"./logs")
-            case "TRPO":
-                env = make_vec_env(constructor, n_envs=NUMBER_OF_ENVS_IN_PARALLEL, vec_env_cls=SubprocVecEnv) # SubprocVecEnv  DummyVecEnv
-                model = TRPO(SB3_POLICY, env, verbose=1, tensorboard_log=f"./logs")
+        if file is not None:
+            print(f"Using {file}")
+            model.load(file, print_system_info=True)
+        return model
 
-        uid = f"{CONFIG_FILE}_{rl_model}_{START_TIME}"
+    def do_test(rl_model):
+        env = constructor()
+        # env.render_mode = "human"
+        model = instantiate_algo(env, rl_model=ALGO, file=args.testmodelonly)
+        for _ in range(1000):
+            obs, _ = env.reset()
+            print("New episode")
+            new_episode = False
+            reward_acc = 0
+            while new_episode is False:
+                action, _states = model.predict(obs, deterministic=True)
+                # action *= 2
+                obs, reward, terminated, truncated, info = env.step(action)
+                reward_acc += reward
+                if DO_RENDERING is True:
+                    env.render()
+                if terminated or truncated:
+                    new_episode = True
+                    print(f"{reward_acc}")
+        env.close()
+
+
+    if args.testmodelonly is not None:  # IF WE'RE JUST TESTING
+        do_test(rl_model=ALGO)
+    else:                               # IF WE'RE TRAINING INSTEAD
+        print("Training with", ALGO)
+        match ALGO:
+            case "SAC":
+                env = make_vec_env(constructor, n_envs=NUMBER_OF_ENVS_IN_PARALLEL, vec_env_cls=SubprocVecEnv) # SubprocVecEnv  DummyVecEnv
+            case "PPO":
+                env = make_vec_env(constructor, n_envs=NUMBER_OF_ENVS_IN_PARALLEL, vec_env_cls=SubprocVecEnv) # SubprocVecEnv  DummyVecEnv
+            case "TD3":
+                env = constructor()
+            case "DDPG":
+                env = constructor()
+        model = instantiate_algo(env, rl_model=ALGO)
+
+        uid = f"{CONFIG_FILE}_{ALGO}_{START_TIME}"
         run = wandb.init(
             project=PROJECT_NAME,
             id=uid,
@@ -412,33 +446,6 @@ if __name__ == '__main__':
             
         run.finish()
 
-        # if "test" in sys.argv:
-        #     env = constructor()
-        #     # env.render_mode = "human"
-        #     match rl_model:
-        #         case "SAC":
-        #             model = SAC(SB3_POLICY, env, verbose=1)
-        #         case "PPO":
-        #             model = PPO(SB3_POLICY, env, verbose=1)
-        #         case "TD3":
-        #             model = TD3(SB3_POLICY, env, verbose=1)
-        #     model.load("this.zip", print_system_info=True)
-        #     for _ in range(1000):
-        #         obs, _ = env.reset()
-        #         print("New episode")
-        #         new_episode = False
-        #         reward_acc = 0
-        #         while new_episode is False:
-        #             action, _states = model.predict(obs, deterministic=True)
-        #             # action *= 2
-        #             obs, reward, terminated, truncated, info = env.step(action)
-        #             reward_acc += reward
-        #             if DO_RENDERING is True:
-        #                 env.render()
-        #             if terminated or truncated:
-        #                 new_episode = True
-        #                 print(f"{reward_acc}")
-        #     env.close()
 
 
 

@@ -34,6 +34,7 @@ This repository contains the implementation of our paper [SocNavGym: A Reinforce
    To install from source:
     ```bash
     git clone https://github.com/gnns4hri/SocNavGym.git
+    cd SocNavGym
     python3 -m pip install .  # to install the environment to your Python libraries. This is optional. If you don't run this, then just make sure that your current working directory is the root of the repository when importing socnavgym.
     ```
 4. The test Deep RL agents are written using Stable Baselines3. We used the following command to install SB3 for our experiments 

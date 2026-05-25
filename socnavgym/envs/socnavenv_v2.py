@@ -3745,15 +3745,20 @@ class SocNavEnv_v2(gym.Env):
         if not self.window_initialised:
             pygame.init()
             self.screen = pygame.display.set_mode((int(self.RESOLUTION_Y),int(self.RESOLUTION_X)))
-            pygame.display.set_caption("world")
+            pygame.display.set_caption("SocNavGym v0.2")
             # cv2.namedWindow("world", cv2.WINDOW_NORMAL)
             # cv2.resizeWindow("world", int(self.RESOLUTION_VIEW), int(self.RESOLUTION_VIEW))
             self.window_initialised = True
         self.world_image = self.render_without_showing(self.render_mode_, draw_human_gaze, draw_human_goal)
-        cv2.imshow("world", self.world_image)
-        k = cv2.waitKey(self.MILLISECONDS)
-        if k%255 == 27:
-            sys.exit(0)
+        surface = pygame.surfarray.make_surface(cv2.cvtColor(self.world_image, cv2.COLOR_BGR2RGB))
+        surface_resized = pygame.transform.smoothscale(surface, (int(self.RESOLUTION_X), int(self.RESOLUTION_Y)))
+        self.screen.blit(surface_resized, (0,0))
+        pygame.display.flip()
+
+        #cv2.imshow("world", self.world_image)
+        #k = cv2.waitKey(self.MILLISECONDS)
+        #if k%255 == 27:
+        #    sys.exit(0)
 
     def record(self, path:str):
         """To record the episode

@@ -3402,6 +3402,8 @@ class SocNavEnv_v2(gym.Env):
         while not success:
             success, obs, info = self.try_reset(seed, options)
         # self.render_mode_ =
+        self._is_terminated = False
+        self._is_truncated = False
         return obs, info
 
     def try_reset(self, seed=None, options=None) :

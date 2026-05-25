@@ -53,6 +53,14 @@ class Human_Human_Interaction:
         self.goal_y = None
         self.noise_variance = noise
         self.can_disperse = can_disperse
+### Hamna
+### Hamna
+### Hamna
+        self.prev_group_velocity = None
+        self.velocity_smoothing = 0.9
+### Hamna
+### Hamna
+### Hamna
 
         for _ in range(numOfHumans):
             if self.type == "stationary":
@@ -157,11 +165,41 @@ class Human_Human_Interaction:
             n = len(self.humans)
             speeds = []
             rotating = False
-            vel_human = (velocity[0], velocity[1])
+
+### Hamna
+### Hamna
+### Hamna
+#_________
+            current_velocity = np.array([velocity[0], velocity[1]], dtype=np.float32)
+
+            if self.prev_group_velocity is None:
+                smoothed_velocity = current_velocity
+            else:
+                smoothed_velocity = (
+                    self.velocity_smoothing * self.prev_group_velocity
+                    + (1.0 - self.velocity_smoothing) * current_velocity
+                )
+
+            self.prev_group_velocity = smoothed_velocity.copy()
+            vel_human = (smoothed_velocity[0], smoothed_velocity[1])
+#________
+### Hamna
+### Hamna
+### Hamna
+
+
             for human in self.humans:
                 noise_x = np.random.normal(0, self.noise_variance)
                 noise_y = np.random.normal(0, self.noise_variance)
                 human_vel = (vel_human[0]+noise_x, vel_human[1]+noise_y)
+### Hamna
+### Hamna
+### Hamna
+                personal_scale = np.random.uniform(1, 1.08)#_____ crowd nav
+                human_vel = (human_vel[0] * personal_scale, human_vel[1] * personal_scale)#___
+### Hamna
+### Hamna
+### Hamna
                 speed = np.linalg.norm(human_vel)
                 new_orientation = atan2(human_vel[1], human_vel[0])
                 set_o = human.set_new_orientation_with_limits(new_orientation, max_rotation_speed, time)
@@ -170,7 +208,14 @@ class Human_Human_Interaction:
                 speeds.append(speed)
 
             for human, s in zip(self.humans, speeds):
-                if rotating: s = 0
+### Hamna
+### Hamna
+### Hamna
+                if rotating: 
+                   s = 0.35 * s
+### Hamna
+### Hamna
+### Hamna
                 human.speed = s
                 # human.update(time)
 

@@ -8,6 +8,7 @@ from typing import Dict
 import numpy as np
 import copy
 import cv2
+import pygame
 
 class PartialObservations(gym.Wrapper):
     def __init__(self, env: SocNavEnv_v1, fov_angle:float, range:float) -> None:
@@ -272,8 +273,13 @@ class PartialObservations(gym.Wrapper):
     
     def render(self, mode="human"):
         if not self.env.window_initialised:
-            cv2.namedWindow("world", cv2.WINDOW_NORMAL) 
-            cv2.resizeWindow("world", int(self.env.RESOLUTION_VIEW), int(self.env.RESOLUTION_VIEW))
+            pygame.init()
+            self.env.screen = pygame.display.set_mode((int(self.env.RESOLUTION_Y),int(self.env.RESOLUTION_X)))
+            pygame.display.set_caption("world")
+
+            # cv2.namedWindow("world", cv2.WINDOW_NORMAL) 
+            # cv2.resizeWindow("world", int(self.env.RESOLUTION_VIEW), int(self.env.RESOLUTION_VIEW))
+            
             self.env.window_initialised = True
             self.env.world_image = (np.ones((int(self.env.RESOLUTION_Y),int(self.env.RESOLUTION_X),3))*255).astype(np.uint8)
 
@@ -321,10 +327,14 @@ class PartialObservations(gym.Wrapper):
         # cv2.imwrite("img"+str(self.env.count)+".jpg", self.env.world_image)
         # self.env.count+=1
 
-        cv2.imshow("world", self.env.world_image)
-        k = cv2.waitKey(self.env.MILLISECONDS)
-        if k%255 == 27:
-            sys.exit(0)
+        # cv2.imshow("world", self.env.world_image)
+        # k = cv2.waitKey(self.env.MILLISECONDS)
+        # if k%255 == 27:
+        #     sys.exit(0)
+        surface = pygame.surfarray.make_surface(cv2.cvtColor(self.env.world_image, cv2.COLOR_BGR2RGB))
+        surface_resized = pygame.transform.smoothscale(surface, (WS, HS))
+        self.env.screen.blit(surface_resized, (0,0))
+        pygame.display.flip()
         
 
     def one_step_lookahead(self, action_pre):

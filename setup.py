@@ -8,9 +8,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(__file__), "socnavgym"))
 NAME = "socnavgym"
 DESCRIPTION = "An environment for Social Navigation"
 REPOSITORY = "https://github.com/gnns4hri/SocNavGym"
-EMAIL = "sushantswamy1212@gmail.com"
-AUTHOR = "Sushant Swamy"
-VERSION = "0.1.0"
+EMAIL = "ljmanso@ljmanso.com"
+AUTHOR = "Pilar Bachiller, Luis J. Manso, Sushant Swamy, Aditia Kapoor"
+VERSION = "0.2.0"
 
 with open("README.md", "r") as f:
     LONG_DESCRIPTION = f.read()

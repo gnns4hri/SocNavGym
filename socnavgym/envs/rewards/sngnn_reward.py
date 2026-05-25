@@ -10,16 +10,16 @@ class Reward(RewardAPI):
         super().__init__(env)
         self.use_sngnn = True
         self.sngnn_factor = 1.0
-        self.reach_reward = 1.0
-        self.reach_reward = 1.0 
-        self.out_of_map_reward = -1.0 
+        self.reach_reward = 10.0
+        self.out_of_map_reward = -10.0 
         self.max_steps_reward = -1.0 
         self.alive_reward = -0.00001 
         self.collision_reward = -1.0
-        self.distance_reward_scaler = 5.0
+        self.distance_reward_scaler = 0.1
         self.discomfort_distance = 0.6
         self.discomfort_penalty_factor = 0.5
         self.prev_distance = None
+        self.prev_angular_distance = None
 
     def compute_dmin(self, action):
         dmin = float('inf')
@@ -93,11 +93,19 @@ class Reward(RewardAPI):
         else:
             sngnn_value = self.compute_sngnn_reward(action, prev_obs, curr_obs)
             sngnn_reward = (sngnn_value - 1.0) * self.sngnn_factor
-            distance_to_goal = np.sqrt((self.env.robot.goal_x - self.env.robot.x)**2 + (self.env.robot.goal_y - self.env.robot.y)**2)
+
             distance_reward = 0.0
+            distance_to_goal = np.sqrt((self.env.robot.goal_x - self.env.robot.x)**2 + (self.env.robot.goal_y - self.env.robot.y)**2)
             if self.prev_distance is not None:
                 distance_reward = -(distance_to_goal-self.prev_distance) * self.distance_reward_scaler
             self.prev_distance = distance_to_goal
+
+            angular_distance_reward = 0.0
+            angular_distance_to_goal = np.abs(self.env.robot.goal_a - self.env.robot.orientation)
+            if distance_to_goal < 1.0:
+                if self.prev_angular_distance is not None:
+                    angular_distance_reward = -(angular_distance_to_goal-self.prev_angular_distance) * self.distance_reward_scaler
+            self.prev_angular_distance = angular_distance_to_goal
 
             dsrnn_reward = 0.0  # calculating this reward only for comparison purposes. It will be stored in the info dict, but wont be returned
             dmin = self.compute_dmin(action)
@@ -107,7 +115,8 @@ class Reward(RewardAPI):
             self.info["DISCOMFORT_SNGNN"] = sngnn_value
             self.info["DISCOMFORT_DSRNN"] = dsrnn_reward
             self.info["distance_reward"] = distance_reward
+            self.info["ang_distance_reward"] = angular_distance_reward
             self.info["alive_reward"] = self.alive_reward
             self.info["sngnn_reward"] = sngnn_reward
 
-            return sngnn_reward + distance_reward + self.alive_reward
+            return sngnn_reward + distance_reward + angular_distance_reward + self.alive_reward

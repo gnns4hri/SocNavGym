@@ -1,3 +1,4 @@
+import sys
 import cv2
 import numpy as np
 from socnavgym.envs.utils.object import Object
@@ -37,35 +38,55 @@ class Robot(Object):
             time (float): Time passed.
         """        
 
-        if self.type == "diff-drive":
-            assert self.vel_y == 0.0,  "Cannot move in lateral direction for a differential drive robot"
-        
-        self.orientation += self.vel_a * time  # updating the robot orientation
-        # restricting the robot's orientation value to be between [-np.pi, +np.pi]
-        if self.orientation > 2*np.pi:
-            self.orientation -= int(self.orientation/(2*np.pi))*(2*np.pi)
-        if self.orientation < -2*np.pi:
-            self.orientation += int(abs(self.orientation)/(2*np.pi))*(2*np.pi)
+        self.debug_data = {}
+        self.debug_data["init_vel_y"] = self.vel_y
 
+        if self.type == "diff-drive":
+            self.vel_y = 0.0
+
+        self.debug_data["after_vel_y"] = self.vel_y
+        self.debug_data["vel_a"] = self.vel_a
+        self.debug_data["time"] = time
+
+        self.debug_data["orientation_init"] = self.orientation
+        self.orientation += self.vel_a * time  # updating the robot orientation
+        self.debug_data["orientation_with_vel_a*time"] = self.orientation
+
+        # # restricting the robot's orientation value to be between [-np.pi, +np.pi]
+        # if self.orientation > 2*np.pi:
+        #     self.orientation -= int(self.orientation/(2*np.pi))*(2*np.pi)
+        # if self.orientation < -2*np.pi:
+        #     self.orientation += int(abs(self.orientation)/(2*np.pi))*(2*np.pi)
+
+        self.debug_data["orientation_before_normalising"] = self.orientation
         if self.orientation > np.pi: self.orientation -= 2*np.pi
         elif self.orientation < -np.pi: self.orientation += 2*np.pi
 
         # updating the linear component
         self.x += self.vel_x * np.cos(self.orientation) * time
         self.y += self.vel_x * np.sin(self.orientation) * time
+        self.debug_data["x 2"] = self.x
+        self.debug_data["y 2"] = self.y
+
 
         # updating the perpendicular component
         self.x += self.vel_y * np.cos(np.pi/2 + self.orientation) * time
         self.y += self.vel_y * np.sin(np.pi/2 + self.orientation) * time
+        self.debug_data["x 3"] = self.x
+        self.debug_data["y 3"] = self.y
         
     def draw(self, img, PIXEL_TO_WORLD_X, PIXEL_TO_WORLD_Y, MAP_SIZE_X, MAP_SIZE_Y):
         black = (0,0,0) 
         assert self.radius != None, "Radius is None type."
         assert self.x != None and self.y != None, "Coordinates are None type"
 
-        radius = w2px(self.x + self.radius, PIXEL_TO_WORLD_X, MAP_SIZE_X) - w2px(
-            self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X
-        )  # calculating no. of pixels corresponding to the radius
+        try:
+            # calculating no. of pixels corresponding to the radius
+            radius = w2px(self.x + self.radius, PIXEL_TO_WORLD_X, MAP_SIZE_X) - w2px(self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X)
+        except ValueError:
+            print(f"{self.x=} {self.radius=} {PIXEL_TO_WORLD_X=} {MAP_SIZE_X=}")
+            print(self.debug_data)
+            sys.exit(-1)
        
         cv2.circle(
             img,
@@ -80,28 +101,33 @@ class Robot(Object):
         
         
         left = (
-            w2px(self.x + self.radius*0.35*np.cos(self.orientation + np.pi/2), PIXEL_TO_WORLD_X, MAP_SIZE_X),
-            w2py(self.y + self.radius*0.35*np.sin(self.orientation + np.pi/2), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
+            w2px(self.x + self.radius*0.3*np.cos(self.orientation + np.pi/2), PIXEL_TO_WORLD_X, MAP_SIZE_X),
+            w2py(self.y + self.radius*0.3*np.sin(self.orientation + np.pi/2), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
         )
 
         right = (
-            w2px(self.x + self.radius*0.35*np.cos(self.orientation - np.pi/2), PIXEL_TO_WORLD_X, MAP_SIZE_X),
-            w2py(self.y + self.radius*0.35*np.sin(self.orientation - np.pi/2), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
+            w2px(self.x + self.radius*0.3*np.cos(self.orientation - np.pi/2), PIXEL_TO_WORLD_X, MAP_SIZE_X),
+            w2py(self.y + self.radius*0.3*np.sin(self.orientation - np.pi/2), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
         )
 
         front = (
-            w2px(self.x + self.radius*0.35*np.cos(self.orientation), PIXEL_TO_WORLD_X, MAP_SIZE_X),
-            w2py(self.y + self.radius*0.35*np.sin(self.orientation), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
+            w2px(self.x + self.radius*0.85*np.cos(self.orientation), PIXEL_TO_WORLD_X, MAP_SIZE_X),
+            w2py(self.y + self.radius*0.85*np.sin(self.orientation), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
         )
-
+        back = (
+            w2px(self.x - self.radius*0.5*np.cos(self.orientation), PIXEL_TO_WORLD_X, MAP_SIZE_X),
+            w2py(self.y - self.radius*0.5*np.sin(self.orientation), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
+        )
         center = (
             w2px(self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X),
             w2py(self.y, PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
         )
 
-        # drawing lines to get sense of the orientation of the robot.
-        cv2.line(img, left, right, (27, 194, 169), 2)
-        cv2.line(img, center, front, (27, 194, 169), 2)
+
+        # drawing a polygonlines to get sense of the orientation of the robot.
+        points = np.array([left, right, front, left], dtype=np.int32)
+        cv2.fillPoly(img,  [points], color=(27, 194, 169))
+        cv2.line(img, back, center, (27, 194, 169), int(0.05*PIXEL_TO_WORLD_X))
 
     def draw_range(self, img, range, fov, PIXEL_TO_WORLD_X, PIXEL_TO_WORLD_Y, MAP_SIZE_X, MAP_SIZE_Y):
         center = (w2px(self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X), w2py(self.y, PIXEL_TO_WORLD_Y, MAP_SIZE_Y))

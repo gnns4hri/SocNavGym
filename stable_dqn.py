@@ -25,52 +25,54 @@ ap.add_argument("-g", "--gpu", help="gpu id to use", required=False, default="0"
 args = vars(ap.parse_args())
 
 
-if args["api_key"] is not None:
-    from comet_ml import Experiment
+    :param verbose: Verbosity level: 0 for no output, 1 for info messages, 2 for debug messages
+    """
+    def __init__(self, run_name:str, save_path:str, project_name:str, api_key:str, verbose=0):
+        # super(CometMLCallback, self).__init__(verbose)
+        super(CometMLCallback, self).__init__(save_freq=25000, save_path=save_path, verbose=verbose)
+        print("Logging using comet_ml")
+        self.run_name = run_name
+        self.experiment = Experiment(
+            api_key=api_key,
+            project_name=project_name,
+            parse_args=False   
+        )
+        self.experiment.set_name(self.run_name)
 
-    class CometMLCallback(CheckpointCallback):
+    def _on_rollout_end(self) -> None:
         """
-        A custom callback that derives from ``BaseCallback``.
-
-        :param verbose: Verbosity level: 0 for no output, 1 for info messages, 2 for debug messages
+        This event is triggered before updating the policy.
         """
-        def __init__(self, run_name:str, save_path:str, project_name:str, api_key:str, verbose=0):
-            # super(CometMLCallback, self).__init__(verbose)
-            super(CometMLCallback, self).__init__(save_freq=25000, save_path=save_path, verbose=verbose)
-            print("Logging using comet_ml")
-            self.run_name = run_name
-            self.experiment = Experiment(
-                api_key=api_key,
-                project_name=project_name,
-                parse_args=False   
-            )
-            self.experiment.set_name(self.run_name)
+        metrics = {
+            "rollout/ep_rew_mean": safe_mean([ep_info["r"] for ep_info in self.locals['self'].ep_info_buffer]),
+            "rollout/ep_len_mean": safe_mean([ep_info["l"] for ep_info in self.locals['self'].ep_info_buffer])
+        }
+        if len(self.locals['self'].ep_success_buffer) > 0:
+            metrics["rollout/success_rate"] = safe_mean(self.locals['self'].ep_success_buffer)
 
-        def _on_rollout_end(self) -> None:
-            """
-            This event is triggered before updating the policy.
-            """
-            metrics = {
-                "rollout/ep_rew_mean": safe_mean([ep_info["r"] for ep_info in self.locals['self'].ep_info_buffer]),
-                "rollout/ep_len_mean": safe_mean([ep_info["l"] for ep_info in self.locals['self'].ep_info_buffer])
-            }
-            if len(self.locals['self'].ep_success_buffer) > 0:
-                metrics["rollout/success_rate"] = safe_mean(self.locals['self'].ep_success_buffer)
+        l = [
+            "train/loss",
+            "train/n_updates",
+        ]
 
-            l = [
-                "train/loss",
-                "train/n_updates",
-            ]
+        for val in l:
+            if val in self.logger.name_to_value.keys():
+                metrics[val] = self.logger.name_to_value[val]
 
-            for val in l:
-                if val in self.logger.name_to_value.keys():
-                    metrics[val] = self.logger.name_to_value[val]
+        step = self.locals['self'].num_timesteps
 
-            step = self.locals['self'].num_timesteps
+        self.experiment.log_metrics(metrics, step=step)
+        
 
-            self.experiment.log_metrics(metrics, step=step)
-            
-
+ap = argparse.ArgumentParser()
+ap.add_argument("-e", "--env_config", help="path to environment config", required=True)
+ap.add_argument("-r", "--run_name", help="name of comet_ml run", required=True)
+ap.add_argument("-s", "--save_path", help="path to save the model", required=True)
+ap.add_argument("-p", "--project_name", help="project name in comet ml", required=True)
+ap.add_argument("-a", "--api_key", help="api key to your comet ml profile", required=True)
+ap.add_argument("-d", "--use_deep_net", help="True or False, based on whether you want a transformer based feature extractor", required=False, default=False)
+ap.add_argument("-g", "--gpu", help="gpu id to use", required=False, default="0")
+args = vars(ap.parse_args())
 
 env = gym.make("SocNavGym-v1", config=args["env_config"])
 env = DiscreteActions(env)

@@ -17,7 +17,7 @@ def check(env):
 def test_env():
     
     for i in range(10):
-        env = gym.make("SocNavGym-v1", config=os.path.dirname(os.path.abspath(__file__)) + "/../environment_configs/test_env.yaml")
+        env = gym.make("SocNavGym-v2", config=os.path.dirname(os.path.abspath(__file__)) + "/../environment_configs/test_env.yaml")
         env_world = WorldFrameObservations(env)
         env_noise = NoisyObservations(env, np.random.random(), np.random.random()+1e-5)
         env_partial = PartialObservations(env, np.random.random() * np.pi * 2, np.random.randint(1, 5))

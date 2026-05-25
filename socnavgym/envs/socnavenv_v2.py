@@ -3391,19 +3391,14 @@ class SocNavEnv_v2(gym.Env):
                 del laptop
 
     def reset(self, seed=None, options=None) :
-### Hamna
-### Hamna
-### Hamna
         self.collision_count = 0
-### Hamna
-### Hamna
-### Hamna
         success = False
         while not success:
             success, obs, info = self.try_reset(seed, options)
-        # self.render_mode_ =
+
         self._is_terminated = False
         self._is_truncated = False
+
         return obs, info
 
     def try_reset(self, seed=None, options=None) :
@@ -3715,7 +3710,8 @@ class SocNavEnv_v2(gym.Env):
                 cv2.circle(self.world_image, (w2px(human.goal_x, self.PIXEL_TO_WORLD_X, self.MAP_X), w2py(human.goal_y, self.PIXEL_TO_WORLD_Y, self.MAP_Y)), int(w2px(human.x + self.HUMAN_GOAL_RADIUS, self.PIXEL_TO_WORLD_X, self.MAP_X) - w2px(human.x, self.PIXEL_TO_WORLD_X, self.MAP_X)), (120, 0, 0), 2)
 
             for i in self.moving_interactions:
-                cv2.circle(self.world_image, (w2px(i.goal_x, self.PIXEL_TO_WORLD_X, self.MAP_X), w2py(i.goal_y, self.PIXEL_TO_WORLD_Y, self.MAP_Y)), int(w2px(i.x + i.goal_radius, self.PIXEL_TO_WORLD_X, self.MAP_X) - w2px(i.x, self.PIXEL_TO_WORLD_X, self.MAP_X)), (0, 0, 255), 2)
+                cv2.circle(self.world_image, (w2px(i.goal_x, self.PIXEL_TO_WORLD_X,  self.MAP_X), w2py(i.goal_y, self.PIXEL_TO_WORLD_Y, self.MAP_Y)), int(w2px(i.x + i.goal_radius, self.PIXEL_TO_WORLD_X, self.MAP_X) - w2px(i.x, self.PIXEL_TO_WORLD_X, self.MAP_X)), (0, 0, 255),
+2)
 
         for human in self.static_humans + self.dynamic_humans:
             human.draw(self.world_image, self.PIXEL_TO_WORLD_X, self.PIXEL_TO_WORLD_Y, self.MAP_X, self.MAP_Y)
@@ -3728,39 +3724,31 @@ class SocNavEnv_v2(gym.Env):
         ## uncomment to save the images
         # cv2.imwrite("img"+str(self.count)+".jpg", self.world_image)
         # self.count+=1
-        if self._is_terminated:
-            color = (0,0,0)
-        elif self._is_truncated:
-            color = (0,0,0)
-        else:
-            color = (0,0,0)
 
         if self._is_terminated or self._is_truncated:
             w = self.world_image.shape[0]
             h = self.world_image.shape[1]
-            cv2.line(self.world_image, (0,0), (w-1, h-1), color, 1)
-            cv2.line(self.world_image, (w-1,0), (0, h-1), color, 1)
+            cv2.line(self.world_image, (0,0), (w-1, h-1), (0,0,0), 1)
+            cv2.line(self.world_image, (w-1,0), (0, h-1), (0,0,0), 1)
 
         return self.world_image
+
 
     def render(self, draw_human_gaze=False, draw_human_goal=True):
         if not self.window_initialised:
             pygame.init()
-            self.screen = pygame.display.set_mode((int(self.RESOLUTION_Y),int(self.RESOLUTION_X)))
+            self.screen = pygame.display.set_mode((int(self.RESOLUTION_Y), int(self.RESOLUTION_X)))
             pygame.display.set_caption("SocNavGym v0.2")
-            # cv2.namedWindow("world", cv2.WINDOW_NORMAL)
-            # cv2.resizeWindow("world", int(self.RESOLUTION_VIEW), int(self.RESOLUTION_VIEW))
             self.window_initialised = True
         self.world_image = self.render_without_showing(self.render_mode_, draw_human_gaze, draw_human_goal)
         surface = pygame.surfarray.make_surface(cv2.cvtColor(self.world_image, cv2.COLOR_BGR2RGB))
         surface_resized = pygame.transform.smoothscale(surface, (int(self.RESOLUTION_X), int(self.RESOLUTION_Y)))
         self.screen.blit(surface_resized, (0,0))
         pygame.display.flip()
+        for event in pygame.event.get():
+            pass
+        pygame.display.update()
 
-        #cv2.imshow("world", self.world_image)
-        #k = cv2.waitKey(self.MILLISECONDS)
-        #if k%255 == 27:
-        #    sys.exit(0)
 
     def record(self, path:str):
         """To record the episode

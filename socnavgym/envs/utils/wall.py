@@ -8,16 +8,22 @@ class Wall(Object):
     Class for Wall
     """
 
-    def __init__(self, id=None, x=None, y=None, theta=None, length=None, thickness=None) -> None:
+    def __init__(self, id=None, x=None, y=None, orientation=None, length=None, thickness=None) -> None:
         super().__init__(id, "wall")
         self.length = None  # length of the wall
         self.thickness = None # thickness of the wall
-        self.set(id, x, y, theta, length, thickness)
+        self.set(id, x, y, length, thickness, orientation)
 
-    def set(self, id, x, y, theta, length, thickness):
-        super().set(id, x, y, theta)
+    def set(self, id, x, y, length, thickness, orientation):
+        super().set(id, x, y, orientation)
         self.length = length
         self.thickness = thickness
+
+    def __str__(self):
+        return f"((WALL {self.id=}, {self.x=}, {self.y=}, {self.orientation=}, {self.thickness=}, {self.length=}))"
+
+    def __repr__(self):
+        return str(self)
 
     def draw(self, img, PIXEL_TO_WORLD_X, PIXEL_TO_WORLD_Y, MAP_SIZE_X, MAP_SIZE_Y):
         if self.color == None:

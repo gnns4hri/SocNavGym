@@ -16,16 +16,16 @@ class Human_Human_Interaction:
     """
 
     def __init__(
-        self, 
-        x, 
-        y, 
-        type:str, 
-        numOfHumans:int, 
-        radius:float, 
-        human_width, 
-        MAX_HUMAN_SPEED, 
-        goal_radius=None, 
-        noise=0, 
+        self,
+        x,
+        y,
+        type:str,
+        numOfHumans:int,
+        radius:float,
+        human_width,
+        MAX_HUMAN_SPEED,
+        goal_radius=None,
+        noise=0,
         can_disperse=True,
         pos_noise_std=None,
         angle_noise_std=None
@@ -35,10 +35,10 @@ class Human_Human_Interaction:
         self.x = x
         self.y = y
         self.name = "human-human-interaction"
-        assert numOfHumans >= 2, "Need at least 2 humans to interact"       
+        assert numOfHumans >= 2, "Need at least 2 humans to interact"
         if type != "moving" and type != "stationary":
             raise AssertionError("type should be \"moving\" or \"stationary\"")
-        
+
         # indicates the type of interaction, whether it is moving or stationary
         self.type = type
 
@@ -53,14 +53,8 @@ class Human_Human_Interaction:
         self.goal_y = None
         self.noise_variance = noise
         self.can_disperse = can_disperse
-### Hamna
-### Hamna
-### Hamna
         self.prev_group_velocity = None
         self.velocity_smoothing = 0.9
-### Hamna
-### Hamna
-### Hamna
 
         for _ in range(numOfHumans):
             if self.type == "stationary":

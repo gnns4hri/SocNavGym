@@ -1,3 +1,4 @@
+
 import os
 import sys
 import time
@@ -152,7 +153,7 @@ class SocNavEnv_v2(gym.Env):
         """
         super().__init__()
 
-        self.RELATIVE_FRAME = 'GOAL_FR'
+        self.RELATIVE_FRAME = 'ROBOT_FR' #'GOAL_FR'
 
         if config is None:
             try:
@@ -398,6 +399,7 @@ class SocNavEnv_v2(gym.Env):
 
         # wall
         self.WALL_THICKNESS = config["wall"]["wall_thickness"]
+        self.WALL_SEGMENT_SIZE = config["wall"]["wall_segment_size"]
 
         # human-human-interaction
         self.INTERACTION_RADIUS = config["human-human-interaction"]["interaction_radius"]
@@ -416,7 +418,6 @@ class SocNavEnv_v2(gym.Env):
         self.MIN_ADVANCE_ROBOT = config["env"]["min_advance_robot"]
         assert(self.MIN_ADVANCE_ROBOT <= 0.), "min_advance_robot must be <= 0"
         self.MAX_ROTATION = config["env"]["max_rotation"]
-        self.WALL_SEGMENT_SIZE = config["env"]["wall_segment_size"]
         self.SPEED_THRESHOLD = config["env"]["speed_threshold"]
 
         self.MIN_STATIC_HUMANS = config["env"]["min_static_humans"]
@@ -427,7 +428,6 @@ class SocNavEnv_v2(gym.Env):
         self.MAX_DYNAMIC_HUMANS = config["env"]["max_dynamic_humans"]
         assert(self.MIN_DYNAMIC_HUMANS <= self.MAX_DYNAMIC_HUMANS), "min_dynamic_humans should be less than or equal to max_dynamic_humans"
 
-        self.MAX_HUMANS = self.MAX_STATIC_HUMANS + self.MAX_DYNAMIC_HUMANS
 
         self.MIN_TABLES = config["env"]["min_tables"]
         self.MAX_TABLES = config["env"]["max_tables"]
@@ -524,6 +524,14 @@ class SocNavEnv_v2(gym.Env):
 
         assert(issubclass(self.reward_class, reward_api_class)), "Please make Reward class a subclass of RewardAPI class"
         self.reward_calculator = self.reward_class(self)
+
+
+        self.MAX_HUMANS = self.MAX_STATIC_HUMANS + self.MAX_DYNAMIC_HUMANS + \
+            (self.MAX_H_H_DYNAMIC_INTERACTIONS + self.MAX_H_H_DYNAMIC_INTERACTIONS_NON_DISPERSING + \
+            self.MAX_H_H_STATIC_INTERACTIONS  + self.MAX_H_H_STATIC_INTERACTIONS_NON_DISPERSING) * self.MAX_HUMAN_IN_H_H_INTERACTIONS + \
+            self.MAX_H_L_INTERACTIONS + self.MAX_H_L_INTERACTIONS_NON_DISPERSING
+
+
         self.reset()
 
     def process_reward_path(self, path:str):
@@ -637,7 +645,7 @@ class SocNavEnv_v2(gym.Env):
             )
         }
 
-        MAX_HUMANS = self.MAX_STATIC_HUMANS + self.MAX_DYNAMIC_HUMANS
+        MAX_HUMANS = self.MAX_HUMANS
         d["humans"] =  spaces.Box(
             low   = np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, (-self.MAX_ADVANCE_HUMAN + self.MIN_ADVANCE_ROBOT)*np.sqrt(2), -2*np.pi/self.TIMESTEP, 0]*MAX_HUMANS, dtype=np.float32),
             high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, ( self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +2*np.pi/self.TIMESTEP, 1]*MAX_HUMANS, dtype=np.float32),
@@ -654,7 +662,6 @@ class SocNavEnv_v2(gym.Env):
 
         )
 
-        ### OUR TABLES ARE SHOWN AS SQUARE. THIS IS APPALING.
         MAX_TABLES = self.MAX_TABLES
         d["tables"] =  spaces.Box(
             low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.TABLE_RADIUS, self.MIN_ADVANCE_ROBOT*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_TABLES, dtype=np.float32),
@@ -682,11 +689,15 @@ class SocNavEnv_v2(gym.Env):
 
         x_max_segs = (((self.MAX_MAP_X)//self.WALL_SEGMENT_SIZE)+1)*2
         y_max_segs = (((self.MAX_MAP_Y)//self.WALL_SEGMENT_SIZE)+1)*2
+        if x_max_segs<=0 or y_max_segs<=0:
+            x_max_segs = y_max_segs = 16
         total_segments = int(x_max_segs + y_max_segs)
         b = max(self.MAP_X, self.MAP_Y)
+
+        max_segment_size = self.WALL_SEGMENTSIZE if self.WALL_SEGMENT_SIZE > 0 else 50
         d["walls"] = spaces.Box(
-            low   = np.array([-b*np.sqrt(2), -b*np.sqrt(2), -1.0, -1.0, -self.WALL_SEGMENT_SIZE, self.MIN_ADVANCE_ROBOT*np.sqrt(2), -self.MAX_ROTATION, 0] * total_segments, dtype=np.float32),
-            high  = np.array([+b*np.sqrt(2), +b*np.sqrt(2),  1.0,  1.0, +self.WALL_SEGMENT_SIZE, self.MAX_ADVANCE_ROBOT*np.sqrt(2), +self.MAX_ROTATION, 1] * total_segments, dtype=np.float32),
+            low   = np.array([-b*np.sqrt(2), -b*np.sqrt(2), -1.0, -1.0,             0.01, self.MIN_ADVANCE_ROBOT*np.sqrt(2), -self.MAX_ROTATION, 0] * total_segments, dtype=np.float32),
+            high  = np.array([+b*np.sqrt(2), +b*np.sqrt(2),  1.0,  1.0, max_segment_size, self.MAX_ADVANCE_ROBOT*np.sqrt(2), +self.MAX_ROTATION, 1] * total_segments, dtype=np.float32),
             shape = ((8*total_segments,)),
             dtype = np.float32
         )
@@ -916,16 +927,20 @@ class SocNavEnv_v2(gym.Env):
             segment_x = left_x + np.cos(wall.orientation)*(size/2)
             segment_y = left_y + np.sin(wall.orientation)*(size/2)
 
-            for i in range(int(wall.length//size)):
-                centers.append((segment_x, segment_y))
-                lengths.append(size)
-                segment_x += np.cos(wall.orientation)*size
-                segment_y += np.sin(wall.orientation)*size
+            if size<0:
+                centers.append((wall.x, wall.y))
+                lengths.append(wall.length)
+            else:
+                for i in range(int(wall.length//size)):
+                    centers.append((segment_x, segment_y))
+                    lengths.append(size)
+                    segment_x += np.cos(wall.orientation)*size
+                    segment_y += np.sin(wall.orientation)*size
 
-            if(wall.length % size != 0):
-                length = wall.length % size
-                centers.append((right_x - np.cos(wall.orientation)*length/2, right_y - np.sin(wall.orientation)*length/2))
-                lengths.append(length)
+                if wall.length % size != 0:
+                    length = wall.length % size
+                    centers.append((right_x - np.cos(wall.orientation)*length/2, right_y - np.sin(wall.orientation)*length/2))
+                    lengths.append(length)
 
             obs = np.array([], dtype=np.float32)
 
@@ -1030,6 +1045,9 @@ class SocNavEnv_v2(gym.Env):
         obs_space = self.observation_space
 
         def pad_and_shuffle(input_vector, big_size, small_size):
+            """
+                Pads an input vector 
+            """
             padded = np.pad(input_vector, (0, big_size-input_vector.shape[0]))
             reshaped = padded.reshape((-1, small_size))
             np.random.shuffle(reshaped)
@@ -1041,18 +1059,15 @@ class SocNavEnv_v2(gym.Env):
 
         if self.RELATIVE_FRAME == 'ROBOT_FR':
             self.relative_transformation_matrix = self.transformation_matrix
-            robot_obs = np.array([0., 0., 0., 1., 0., 0., 0.])
         elif self.RELATIVE_FRAME == 'GOAL_FR':
             self.relative_transformation_matrix = self.goal_transformation_matrix
             self.relative_frame.x, self.relative_frame.y, self.relative_frame.orientation = self.robot.goal_x, self.robot.goal_y, self.robot.goal_a
             self.relative_frame.vel_x, self.relative_frame.vel_y, self.relative_frame.vel_a = 0., 0., 0.
             robot_in_goal_frame = self.get_relative_frame_coordinates(np.array([[self.robot.x, self.robot.y]], dtype=np.float32)).flatten()
-            robot_angle_obs = np.array([(np.sin(self.robot.orientation - self.relative_frame.orientation)), np.cos(self.robot.orientation - self.relative_frame.orientation)]).flatten()
-            robot_obs = np.concatenate((robot_in_goal_frame, robot_angle_obs), dtype=np.float32).flatten()
+            robot_angle_obs = np.array([np.sin(self.robot.orientation - self.relative_frame.orientation), np.cos(self.robot.orientation - self.relative_frame.orientation)]).flatten()
             relative_vel_x = np.cos(self.relative_frame.orientation)*self.robot.vel_x  + np.sin(self.relative_frame.orientation)*self.robot.vel_y
             relative_vel_y = -np.sin(self.relative_frame.orientation)*self.robot.vel_x + np.cos(self.relative_frame.orientation)*self.robot.vel_y
             robot_vel = np.array([relative_vel_x, relative_vel_y, self.robot.vel_a])
-            robot_obs = np.concatenate((robot_obs, robot_vel), dtype=np.float32).flatten()
 
 
         # the observations will go inside this dictionary
@@ -1080,7 +1095,7 @@ class SocNavEnv_v2(gym.Env):
             ], dtype=np.float32).flatten()
 
         # getting the observations of humans
-        human_obs = [self._get_entity_obs(human) for human in self.static_humans + self.dynamic_humans]
+        human_obs = [self._get_entity_obs(human) for human in self.all_humans]
         human_obs = np.concatenate(human_obs, dtype=np.float32) if len(human_obs) > 0 else np.array([], dtype=np.float32)
         d["humans"] = pad_and_shuffle(human_obs, obs_space["humans"].low.shape[0], 8)
 
@@ -1332,9 +1347,8 @@ class SocNavEnv_v2(gym.Env):
         pref_vel *= self.MAX_ADVANCE_HUMAN
         # setting the preferred velocity
         sim.setAgentPrefVelocity(thisHuman, (pref_vel[0], pref_vel[1]))
-### Hamna
-### Hamna
-### Hamna
+
+
         delay_steps = 1
         # adding visible humans as agents
         for other_human in visible_humans:
@@ -1369,9 +1383,9 @@ class SocNavEnv_v2(gym.Env):
                 dtype=np.float32
             )
              # normalising the velocity
-### Hamna
-### Hamna
-### Hamna
+
+
+
             if not np.linalg.norm(pref_vel) == 0:
                 pref_vel /= np.linalg.norm(pref_vel)
             pref_vel *= self.MAX_ADVANCE_HUMAN
@@ -1479,9 +1493,6 @@ class SocNavEnv_v2(gym.Env):
         sim.setAgentPrefVelocity(envRobot, (pref_vel[0], pref_vel[1]))
 
         # adding visible humans as agents
-### Hamna
-### Hamna
-### Hamna
         for other_human in visible_humans:
 #_____________________________
             if len(other_human.position_history) >= 2:
@@ -1507,9 +1518,7 @@ class SocNavEnv_v2(gym.Env):
             h = sim.addAgent((future_x, future_y))
             # preferred velocity is towards the goal
             pref_vel = np.array([other_human.goal_x-other_human.x, other_human.goal_y-other_human.y], dtype=np.float32)
-### Hamna
-### Hamna
-### Hamna
+
             # normalising the velocity
             if not np.linalg.norm(pref_vel) == 0:
                 pref_vel /= np.linalg.norm(pref_vel)
@@ -1577,9 +1586,6 @@ class SocNavEnv_v2(gym.Env):
         """
         sim = rvo2.PyRVOSimulator(self.TIMESTEP, self.orca_neighborDist, self.total_humans, self.orca_timeHorizon, self.orca_timeHorizonObst, self.HUMAN_DIAMETER/2, self.orca_maxSpeed)
         interactionList = []
-### Hamna
-### Hamna
-### Hamna
 
 
         delay_steps = 3
@@ -1615,9 +1621,8 @@ class SocNavEnv_v2(gym.Env):
       #______________________________
             h = sim.addAgent((future_x, future_y))
             pref_vel = np.array([other_human.goal_x - other_human.x, other_human.goal_y - other_human.y], dtype=np.float32)
-### Hamna
-### Hamna
-### Hamna
+
+
             if not np.linalg.norm(pref_vel) == 0:
                 pref_vel /= np.linalg.norm(pref_vel)
             pref_vel *= self.MAX_ADVANCE_HUMAN
@@ -1749,6 +1754,19 @@ class SocNavEnv_v2(gym.Env):
         force_a = +force if not entity_a.is_static else None  # forces are applied only to dynamic objects
         force_b = -force if not entity_b.is_static else None  # forces are applied only to dynamic objects
         return [force_a, force_b]
+
+
+    @property
+    def all_humans(self):
+        allhumans = []
+        for human in self.static_humans + self.dynamic_humans:
+            allhumans.append(human)
+        for i in self.static_interactions + self.moving_interactions:
+            for h in i.humans:
+                allhumans.append(h)
+        for i in self.h_l_interactions:
+            allhumans.append(i.human)
+        return allhumans
 
     def handle_collision_and_update(self):
         all_humans:List[Human] = []
@@ -2014,9 +2032,8 @@ class SocNavEnv_v2(gym.Env):
         # handling collisions
         self.handle_collision_and_update()
 
-### Hamna
-### Hamna
-### Hamna
+
+
         collision_this_step = False
         all_humans = self.dynamic_humans + self.static_humans
 
@@ -2034,13 +2051,13 @@ class SocNavEnv_v2(gym.Env):
                break
         if collision_this_step:
             self.collision_count += 1
-### Hamna
-### Hamna
-### Hamna
+
+
 
 
         # getting observations
         observation = self._get_obs()
+
 
         # computing rewards and done
         reward, info = self.compute_reward_and_ticks(action)
@@ -2577,13 +2594,6 @@ class SocNavEnv_v2(gym.Env):
 
         dmin = float('inf')
 
-        self.all_humans = []
-        for human in self.static_humans + self.dynamic_humans : self.all_humans.append(human)
-
-        for i in self.static_interactions + self.moving_interactions:
-            for h in i.humans: self.all_humans.append(h)
-
-        for i in self.h_l_interactions: self.all_humans.append(i.human)
 
         for human in self.all_humans:
             px = human.x - self.robot.x
@@ -2644,6 +2654,7 @@ class SocNavEnv_v2(gym.Env):
             "COLLISION": False,
             "DISCOMFORT_DSRNN": 0.0,
             'distance_reward': 0.0,
+            "relative_frame": self.RELATIVE_FRAME,
 
             # metrics with different nomenclature
             "SUCCESS": False,
@@ -2855,30 +2866,21 @@ class SocNavEnv_v2(gym.Env):
         for table in self.tables:
             p_x, p_y = get_nearest_point_from_rectangle(table.x, table.y, table.length, table.width, table.orientation, self.robot.x, self.robot.y)
             d = np.sqrt((self.robot.x - p_x)**2 + (self.robot.y - p_y)**2)
-            closest_obstacle_dist = min(
-                closest_obstacle_dist,
-                d
-            )
+            closest_obstacle_dist = min(closest_obstacle_dist, d)
             obstacle_dist_sum += d
             obstacle_count += 1
 
         for chair in self.chairs:
             p_x, p_y = get_nearest_point_from_rectangle(chair.x, chair.y, chair.length, chair.width, chair.orientation, self.robot.x, self.robot.y)
             d = np.sqrt((self.robot.x - p_x)**2 + (self.robot.y - p_y)**2)
-            closest_obstacle_dist = min(
-                closest_obstacle_dist,
-                d
-            )
+            closest_obstacle_dist = min(closest_obstacle_dist, d)
             obstacle_dist_sum += d
             obstacle_count += 1
 
         for wall in self.walls:
             p_x, p_y = get_nearest_point_from_rectangle(wall.x, wall.y, wall.length, wall.thickness, wall.orientation, self.robot.x, self.robot.y)
             d = np.sqrt((self.robot.x - p_x)**2 + (self.robot.y - p_y)**2)
-            closest_obstacle_dist = min(
-                closest_obstacle_dist,
-                d
-            )
+            closest_obstacle_dist = min(closest_obstacle_dist, d)
             obstacle_dist_sum += d
             obstacle_count += 1
 
@@ -3131,53 +3133,40 @@ class SocNavEnv_v2(gym.Env):
         self.crowd_forming = False
 
     def _add_walls(self):
+        def random_rotate(walls):
+            n = random.randint(0, len(walls) - 1)
+            if n == 0:
+                return list(walls)
+            else:
+                rotated = walls[-n:] + walls[:-n]
+                return rotated
+
+        walls = []
+
         if self.shape == "L":
             # keep the direction of this as well
             self.location = np.random.randint(0,4)
-            self.L_X = (2 if (self.location == 0 or self.location == 3) else 1) * self.MAP_X/3
-            self.L_Y = (1 if (self.location == 0 or self.location == 3) else 2) * self.MAP_Y/3
-
-            # placing a rectangular object (laptop) to avoid sampling new objects in the (rectangular) portion left outside the L-shaped room
-            l = Laptop(
-                id=None,
-                x=(-1 if (self.location == 1 or self.location == 3) else 1)*self.MAP_X/2.0 + (-1 if (self.location == 0 or self.location == 2) else 1)*self.L_X/2.0,
-                y=(-1 if (self.location == 2 or self.location == 3) else 1)*self.MAP_Y/2.0 + (-1 if (self.location == 0 or self.location == 1) else 1)*self.L_Y/2.0,
-                width=self.L_Y,
-                length=self.L_X,
-                theta=0
-            )
-
             walls = self._get_walls_for_L_shaped_room(self.location)
-            if self.add_corridors:
-                self._add_corridors_to_L_shaped_room(self.location)
-
-            self.objects.append(l)
-            for w in walls:
-                self.walls.append(w)
-                self.objects.append(w)
-
-        # walls (hardcoded to be at the boundaries of the environment)
+            # self.objects.append(l)
         elif self.shape != "no-walls":
-            w1 = Wall(None, self.MAP_X/2-self.WALL_THICKNESS/2, 0, -np.pi/2, self.MAP_Y, self.WALL_THICKNESS)
-            w2 = Wall(None, 0, -self.MAP_Y/2+self.WALL_THICKNESS/2, -np.pi, self.MAP_X, self.WALL_THICKNESS)
-            w3 = Wall(None, -self.MAP_X/2+self.WALL_THICKNESS/2, 0, np.pi/2, self.MAP_Y, self.WALL_THICKNESS)
-            w4 = Wall(None, 0, self.MAP_Y/2-self.WALL_THICKNESS/2, 0, self.MAP_X, self.WALL_THICKNESS)
-            self.walls.append(w1)
-            self.walls.append(w2)
-            self.walls.append(w3)
-            self.walls.append(w4)
-            self.objects.append(w1)
-            self.objects.append(w2)
-            self.objects.append(w3)
-            self.objects.append(w4)
+            walls.append(Wall(None, self.MAP_X/2-self.WALL_THICKNESS/2, 0, -np.pi/2, self.MAP_Y, self.WALL_THICKNESS))
+            walls.append(Wall(None, 0, -self.MAP_Y/2+self.WALL_THICKNESS/2, -np.pi, self.MAP_X, self.WALL_THICKNESS))
+            walls.append(Wall(None, -self.MAP_X/2+self.WALL_THICKNESS/2, 0, np.pi/2, self.MAP_Y, self.WALL_THICKNESS))
+            walls.append(Wall(None, 0, self.MAP_Y/2-self.WALL_THICKNESS/2, 0, self.MAP_X, self.WALL_THICKNESS))
 
-        if self.add_corridors:  # corridors are hard coded to be at Y/3 and 2Y/3 where Y is the room's length along Y direction
 
-            if self.shape == "L":
-                pass
+        walls = random_rotate(walls)
+        for w in walls:
+            self.walls.append(w)
+            self.objects.append(w)
 
-            else:
-                self._add_corridors_to_rectangular_shaped_room()
+        ### If we want to add corridors (feature to be made obsolete)
+        # if self.add_corridors:
+        #     if self.shape == "L":
+        #         self._add_corridors_to_L_shaped_room(self.location)
+        #     if self.add_corridors:
+        #         self._add_corridors_to_rectangular_shaped_room()
+
 
     def _get_kwargs(self, object_type: SocNavGymObject, extra_info: dict = None):
         HALF_SIZE_X = self.MAP_X/2. - self.MARGIN
@@ -3730,6 +3719,9 @@ class SocNavEnv_v2(gym.Env):
             h = self.world_image.shape[1]
             cv2.line(self.world_image, (0,0), (w-1, h-1), (0,0,0), 1)
             cv2.line(self.world_image, (w-1,0), (0, h-1), (0,0,0), 1)
+
+        # Rows need to be flipped, apparently, to make the visualisation consistent.
+        self.world_image = np.array(self.world_image[::-1,:,:])
 
         return self.world_image
 

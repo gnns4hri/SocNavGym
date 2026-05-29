@@ -977,12 +977,14 @@ class SocNavEnv_v2(gym.Env):
         # initializing output array
         output = np.array([], dtype=np.float32)
 
-        # object's coordinates in the robot frame
+        # object's coordinates in the relative frame
         r_coords = self.get_relative_frame_coordinates(np.array([[object.x, object.y]])).flatten()
         output = np.concatenate((output, r_coords), dtype=np.float32)
 
+
+        rel_angle = object.orientation - self.relative_frame.orientation
         # sin and cos of the relative angle of the object
-        s_c = np.array([(np.sin(object.orientation - self.relative_frame.orientation)), np.cos(object.orientation - self.relative_frame.orientation)])
+        s_c = np.array([np.sin(rel_angle), np.cos(rel_angle)])
         output = np.concatenate((output, s_c), dtype=np.float32)
 
         # object's radius
@@ -1046,7 +1048,7 @@ class SocNavEnv_v2(gym.Env):
 
         def pad_and_shuffle(input_vector, big_size, small_size):
             """
-                Pads an input vector 
+                Pads an input vector
             """
             padded = np.pad(input_vector, (0, big_size-input_vector.shape[0]))
             reshaped = padded.reshape((-1, small_size))
@@ -3721,7 +3723,8 @@ class SocNavEnv_v2(gym.Env):
             cv2.line(self.world_image, (w-1,0), (0, h-1), (0,0,0), 1)
 
         # Rows need to be flipped, apparently, to make the visualisation consistent.
-        self.world_image = np.array(self.world_image[::-1,:,:])
+        ## self.world_image = np.array(self.world_image[::-1,:,:])
+        self.world_image = np.transpose(self.world_image, axes=(1,0,2))
 
         return self.world_image
 

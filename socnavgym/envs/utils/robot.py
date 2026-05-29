@@ -36,7 +36,7 @@ class Robot(Object):
 
         Args:
             time (float): Time passed.
-        """        
+        """
 
         self.debug_data = {}
         self.debug_data["init_vel_y"] = self.vel_y
@@ -74,9 +74,10 @@ class Robot(Object):
         self.y += self.vel_y * np.sin(np.pi/2 + self.orientation) * time
         self.debug_data["x 3"] = self.x
         self.debug_data["y 3"] = self.y
-        
+
+
     def draw(self, img, PIXEL_TO_WORLD_X, PIXEL_TO_WORLD_Y, MAP_SIZE_X, MAP_SIZE_Y):
-        black = (0,0,0) 
+        black = (0,0,0)
         assert self.radius != None, "Radius is None type."
         assert self.x != None and self.y != None, "Coordinates are None type"
 
@@ -87,7 +88,7 @@ class Robot(Object):
             print(f"{self.x=} {self.radius=} {PIXEL_TO_WORLD_X=} {MAP_SIZE_X=}")
             print(self.debug_data)
             sys.exit(-1)
-       
+
         cv2.circle(
             img,
             (
@@ -98,8 +99,8 @@ class Robot(Object):
             black,
             -1,
         )  # drawing a black circle for the robot
-        
-        
+
+
         left = (
             w2px(self.x + self.radius*0.3*np.cos(self.orientation + np.pi/2), PIXEL_TO_WORLD_X, MAP_SIZE_X),
             w2py(self.y + self.radius*0.3*np.sin(self.orientation + np.pi/2), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
@@ -134,7 +135,7 @@ class Robot(Object):
         radius = w2px(self.x + range, PIXEL_TO_WORLD_X, MAP_SIZE_X) - w2px(
             self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X
         )  # calculating no. of pixels corresponding to the radius
-       
+
         axesLength = (radius, radius)
         fov = fov * 180 / np.pi
         orientation = self.orientation * 180 / np.pi

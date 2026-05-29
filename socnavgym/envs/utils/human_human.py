@@ -58,12 +58,12 @@ class Human_Human_Interaction:
 
         for _ in range(numOfHumans):
             if self.type == "stationary":
-                self.add_human(Human(speed=0, width=human_width, goal_radius=self.goal_radius, policy=random.choice(["orca", "sfm"]), 
+                self.add_human(Human(speed=0, width=human_width, goal_radius=self.goal_radius, policy=random.choice(["orca", "sfm"]),
                                 type="static", pos_noise_std=pos_noise_std, angle_noise_std=angle_noise_std))
             else:
                 self.add_human(Human(speed=speed, width=human_width, goal_radius=self.goal_radius, policy=random.choice(["orca", "sfm"]),
                                 pos_noise_std=pos_noise_std, angle_noise_std=angle_noise_std))
-    
+
         # arranging all the humans around a circle
         self.arrange_humans()
 
@@ -79,7 +79,7 @@ class Human_Human_Interaction:
         Adding humans to the human list
         """
         self.humans.append(h)
-    
+
     def has_reached_goal(self, offset=None):
         reached = True
         for human in self.humans:
@@ -90,13 +90,13 @@ class Human_Human_Interaction:
 
     def arrange_humans(self):
         n = len(self.humans)
-        theta = 0       
+        theta = 0
         increment = 2*(np.pi)/n
 
         if self.type == "moving":
             # theta chosen randomly between -pi to pi
             orientation = (np.random.random()-0.5) * np.pi * 2
-    
+
         for i in range(n):
             h = self.humans[i]
             h.x = self.x + self.radius * np.cos(theta + (np.random.random()-0.5)*np.pi/7)

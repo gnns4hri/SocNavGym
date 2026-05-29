@@ -25,26 +25,18 @@ def get_coordinates_of_rotated_rectangle(x, y, orientation, length, width):
             x + length / 2 * np.cos(orientation)- width / 2 * np.sin(orientation),
             y + length / 2 * np.sin(orientation)+ width / 2 * np.cos(orientation)
         )
-    
-
     p2 = (
             x - length / 2 * np.cos(orientation)- width / 2 * np.sin(orientation),
             y - length / 2 * np.sin(orientation)+ width / 2 * np.cos(orientation)
         )
-    
-
-
     p3 = (
             x - length / 2 * np.cos(orientation)+ width / 2 * np.sin(orientation),
             y - length / 2 * np.sin(orientation)- width / 2 * np.cos(orientation)
         )
-    
-
     p4 = (
             x + length / 2 * np.cos(orientation)+ width / 2 * np.sin(orientation),
             y + length / 2 * np.sin(orientation)- width / 2 * np.cos(orientation)
         )
-    
 
     return [p1, p2, p3, p4]
 
@@ -82,8 +74,8 @@ def uniform_circular_sampler(center_x, center_y, radius):
     point = (center_x + u*np.cos(theta), center_y + u*np.sin(theta))
     return point
 
+
 def get_nearest_point_from_rectangle(center_x, center_y, length, width, orientation, point_x, point_y):
-    
     # transformation matrix for coordinate frame along the edges of the rectangle
     tm = np.zeros((3,3), dtype=np.float32)
     # filling values as described

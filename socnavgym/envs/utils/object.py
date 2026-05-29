@@ -29,9 +29,9 @@ class Object(object):
             True  # boolean variable denoting whether the object is static or dynamic
         )
         # color of the object for drawing purposes
-        self.color = None  
+        self.color = None
         # mass of the object
-        self.mass = 1.0  
+        self.mass = 1.0
         # one-hot encoding for the object.
         self.one_hot_encoding = None
 
@@ -40,16 +40,16 @@ class Object(object):
 
         elif self.name == "human":
             self.one_hot_encoding = np.array([0, 1, 0, 0, 0, 0], dtype=np.float32)
-        
+
         elif self.name == "table":
             self.one_hot_encoding = np.array([0, 0, 1, 0, 0, 0], dtype=np.float32)
-        
+
         elif self.name == "laptop":
             self.one_hot_encoding = np.array([0, 0, 0, 1, 0, 0], dtype=np.float32)
-        
+
         elif self.name == "plant":
             self.one_hot_encoding = np.array([0, 0, 0, 0, 1, 0], dtype=np.float32)
-        
+
         elif self.name == "wall":
             self.one_hot_encoding = np.array([0, 0, 0, 0, 0, 1], dtype=np.float32)
 
@@ -94,11 +94,11 @@ class Object(object):
         if self.name == "plant" or self.name == "robot":
             assert(self.x != None and self.y != None and self.radius != None), "Attributes are None type"
             curr_obj = Point((self.x, self.y)).buffer(self.radius)
-        
+
         elif self.name == "human":
             assert(self.x != None and self.y != None and self.width != None), "Attributes are None type"
             curr_obj = shapely.affinity.scale(shapely.geometry.Point((self.x, self.y)).buffer(1), self.width/6, self.width/2)
-        
+
         elif self.name == "laptop" or self.name == "table" or self.name == "chair":
             assert(self.x != None and self.y != None and self.width != None and self.length != None and self.orientation != None), "Attributes are None type"
             curr_obj = Polygon(get_coordinates_of_rotated_rectangle(self.x, self.y, self.orientation, self.length, self.width))
@@ -113,11 +113,11 @@ class Object(object):
         if obj.name == "plant" or obj.name == "robot":
             assert(obj.x != None and obj.y != None and obj.radius != None), "Attributes are None type"
             other_obj = Point((obj.x, obj.y)).buffer(obj.radius)
-        
+
         elif obj.name == "human":
             assert(obj.x != None and obj.y != None and obj.width != None), "Attributes are None type"
             other_obj = shapely.affinity.scale(shapely.geometry.Point((obj.x, obj.y)).buffer(1), obj.width/6, obj.width/2)
-        
+
         elif obj.name == "laptop" or obj.name == "table" or obj.name == "chair":
             assert(obj.x != None and obj.y != None and obj.width != None and obj.length != None and obj.orientation != None), "Attributes are None type"
             other_obj = Polygon(get_coordinates_of_rotated_rectangle(obj.x, obj.y, obj.orientation, obj.length, obj.width))
@@ -128,7 +128,7 @@ class Object(object):
 
         elif obj.name == "human-human-interaction":
             return obj.collides(self)
-        
+
         elif obj.name == "human-laptop-interaction":
             return obj.collides(self)
 

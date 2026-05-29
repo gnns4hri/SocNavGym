@@ -1,18 +1,15 @@
+import os
+from math import atan2
+
 import cv2
 import numpy as np
 from socnavgym.envs.utils.object import Object
 from socnavgym.envs.utils.utils import w2px, w2py
-from math import atan2
-### Hamna
-### Hamna
-### Hamna
+
 import time as pytime
 from collections import deque
 
 MAX_TIME_TO_REACH_GOAL = 50
-### Hamna
-### Hamna
-### Hamna
 
 class Human(Object):
     """
@@ -20,16 +17,16 @@ class Human(Object):
     """
 
     def __init__(
-        self, 
-        id=None, 
-        x=None, 
-        y=None, 
-        theta=None, 
-        width=None, 
-        speed=None, 
-        goal_x=None, 
-        goal_y=None, 
-        goal_radius=None, 
+        self,
+        id=None,
+        x=None,
+        y=None,
+        theta=None,
+        width=None,
+        speed=None,
+        goal_x=None,
+        goal_y=None,
+        goal_radius=None,
         policy=None,
         prob_to_avoid_robot=0.05,
         type="dynamic",
@@ -52,9 +49,6 @@ class Human(Object):
         self.pos_noise_std = pos_noise_std if pos_noise_std!=None else 0
         self.angle_noise_std = angle_noise_std if angle_noise_std!=None else 0
 
-### Hamna
-### Hamna
-### Hamna
         self.prev_x = None
         self.prev_y = None
         self.prev_orientation = None
@@ -84,31 +78,17 @@ class Human(Object):
         self.turn_bias = np.random.normal(0, 0.03)
         self.speed_scale = np.random.uniform(0.9, 1.1)
         self.speed_phase = np.random.uniform(0, 2 * np.pi)
-### Hamna
-### Hamna
-### Hamna
-        
         assert(self.type == "static" or self.type == "dynamic"), "type can be \"static\" or \"dynamic\" only."
         self.set(id, x, y, theta, width, speed, goal_x, goal_y, goal_radius, policy)
 
-### Hamna
-### Hamna
-### Hamna
         self.initial_time = pytime.time()
-### Hamna
-### Hamna
-### Hamna
+
 
     def set_goal(self, goal_x, goal_y):
         self.goal_x = goal_x
         self.goal_y = goal_y
-### Hamna
-### Hamna
-### Hamna
         self.initial_time = pytime.time()
-### Hamna
-### Hamna
-### Hamna
+
 
     def set(self, id, x, y, theta, width, speed, goal_x, goal_y, goal_radius, policy):
         super().set(id, x, y, theta)
@@ -125,9 +105,8 @@ class Human(Object):
         self.initial_x = x
         self.initial_y = y
         self.initial_orientation = theta
-### Hamna
-### Hamna
-### Hamna
+
+
         self.prev_x = x
         self.prev_y = y
         self.stuck_counter = 0
@@ -136,33 +115,27 @@ class Human(Object):
         self.delayed_orientation = theta if theta is not None else 0.0
         self.goal_direction_bias = np.random.normal(0, 0.18)
         self.turn_bias = np.random.normal(0, 0.03)
-                
         self.estimated_w = 0.0
 
 
         if x is not None and y is not None and theta is not None:
             self.position_history.clear()
             self.position_history.append((x, y, theta, pytime.time()))
-### Hamna
-### Hamna
-### Hamna
-    
+
 
     def has_reached_goal(self, offset=None):
-        if offset is None: offset = self.width/2
-        if self.type == "static": return False  # static humans do not have goals, so they would not reach their goal
-        # if self.width == None or self.goal_radius == None or self.goal_x==None or self.goal_y == None: return False
+        if offset is None:
+            offset = self.width/2
+        if self.type == "static":
+            return False  # static humans do not have goals, so they would not reach their goal
+        # if self.width == None or self.goal_radius == None or self.goal_x==None or self.goal_y == None:
+        #     return False
         distance_to_goal = np.sqrt((self.x-self.goal_x)**2 + (self.y-self.goal_y)**2)
-### Hamna
-### Hamna
-### Hamna
         if distance_to_goal < (offset + self.goal_radius) or pytime.time()-self.initial_time>MAX_TIME_TO_REACH_GOAL:
             return True
         else:
             return False
-### Hamna
-### Hamna
-### Hamna
+
 
     @property
     def avoids_robot(self):
@@ -171,7 +144,7 @@ class Human(Object):
             return True
         else:
             return False
-    
+
     def set_new_orientation_with_limits(self, orientation, max_rotation_speed, time):
         diffO = atan2(np.sin(orientation-self.orientation), np.cos(orientation-self.orientation))
         if abs(diffO)/time>max_rotation_speed:
@@ -189,12 +162,9 @@ class Human(Object):
     def update_orientation(self, theta):
         if self.type == "static": return  # static humans do not change their orientation
 
-### Hamna
-### Hamna
-### Hamna
-        angle_diff = atan2(np.sin(theta - self.orientation), np.cos(theta - self.orientation))
 
-        if angle_diff > self.max_rotation_speed:#_________
+        angle_diff = atan2(np.sin(theta - self.orientation), np.cos(theta - self.orientation))
+        if angle_diff > self.max_rotation_speed:
             angle_diff = self.max_rotation_speed
         elif angle_diff < -self.max_rotation_speed:
             angle_diff = -self.max_rotation_speed
@@ -203,9 +173,6 @@ class Human(Object):
             np.sin(self.orientation + angle_diff),
             np.cos(self.orientation + angle_diff)
         )
-### Hamna
-### Hamna
-### Hamna
 
 
     def update(self, time):
@@ -220,9 +187,7 @@ class Human(Object):
             self.x = self.initial_x
             self.y = self.initial_y
             self.orientation = self.initial_orientation
-### Hamna
-### Hamna
-### Hamna
+
             self.position_history.append((self.x, self.y, self.orientation, pytime.time()))
             return
 
@@ -236,33 +201,27 @@ class Human(Object):
             return
 
         r_moved = np.random.normal(0, self.pos_noise_std)
-        self.speed_phase += 0.15#______
+        self.speed_phase += 0.15
         rhythmic_scale = 1.0 + 0.06 * np.sin(self.speed_phase)#_____
         moved = time * (self.speed * self.speed_scale * rhythmic_scale) + r_moved
-### Hamna
-### Hamna
-### Hamna
+
         r_angle = np.random.normal(0, self.angle_noise_std)
         self.initial_x = self.x
         self.initial_y = self.y
         self.initial_orientation = self.orientation
 
 
-        
+
         self.orientation = self.orientation + r_angle
 
 
-### Hamna
-### Hamna
-### Hamna
         if len(self.position_history) > self.perception_delay_steps: #___
             delayed_state = self.position_history[-1 - self.perception_delay_steps]  #kalper
             delayed_theta = delayed_state[1]
         else:
             delayed_theta = self.orientation
 
-        self.delayed_orientation = delayed_theta #_______
-#________
+        self.delayed_orientation = delayed_theta
         new_wander = np.random.normal(0, self.wander_strength)
         self.wander_angle = self.wander_smooth * self.wander_angle + (1 - self.wander_smooth) * new_wander
 
@@ -270,15 +229,11 @@ class Human(Object):
         wandered_orientation = self.orientation + self.wander_angle + self.turn_bias
         self.x += moved * np.cos(wandered_orientation)
         self.y += moved * np.sin(wandered_orientation)
-#_________
 
         self.vx = self.speed * np.cos(self.orientation)
         self.vy = self.speed * np.sin(self.orientation)
 
         self.position_history.append((self.x, self.y, self.orientation, pytime.time()))
-### Hamna
-### Hamna
-### Hamna
 
 
     def draw(self, img, PIXEL_TO_WORLD_X, PIXEL_TO_WORLD_Y, MAP_SIZE_X, MAP_SIZE_Y):
@@ -417,7 +372,7 @@ class Human(Object):
         radius = w2px(self.x + np.sqrt(MAP_SIZE_X**2 + MAP_SIZE_Y**2), PIXEL_TO_WORLD_X, MAP_SIZE_X) - w2px(
             self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X
         )  # calculating no. of pixels corresponding to the radius
-       
+
         axesLength = (radius, radius)
         gaze_angle = gaze_angle * 180 / np.pi
         orientation = self.orientation * 180 / np.pi

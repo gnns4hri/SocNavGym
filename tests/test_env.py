@@ -61,11 +61,12 @@ plt.ion()
 dpi = 100
 fig, axs = plt.subplots(2, 1, figsize=(GRAPH_WIDTH/dpi, env.world_image.shape[0]/dpi), dpi=dpi)
 rotation = transforms.Affine2D().rotate_deg(90)
-axs[0].set_xlim(-10, 10)
-axs[0].set_ylim(-10, 10)
+axs[0].set_xlim(-7, 7)
+axs[0].set_ylim(-7, 7)
 axs[0].set_aspect('equal')
 axs[0].grid(True)
 axs[0].transData = rotation + axs[0].transData
+axs[1].set_ylim(-5,10.5)
 plt.tight_layout()
 
 
@@ -142,16 +143,19 @@ while True:
             else:
                 print(f"{MAX_EPISODES} episodes should be enough")
                 sys.exit(0)
+        else:
+            pass
+            # print(np.sum(np.array(rewards)))
     elif pause is False:
         obs, reward, terminated, truncated, info = env.step([vx, vy, va])
-        print(f"{obs['robot'].shape}")
-        print(f"{obs['humans'].shape}")
-        rewards.append(reward)
+        # print(f"{obs['robot'].shape}")
+        # print(f"{obs['humans'].shape}")
+        rewards.append(float(reward))
 
     # Clear the previous frame
     axs[0].clear()
-    axs[0].set_xlim(-10, 10)
-    axs[0].set_ylim(-10, 10)
+    axs[0].set_xlim(-7, 7)
+    axs[0].set_ylim(-7, 7)
     axs[0].grid(True)
 
     # Draw axis
@@ -216,8 +220,13 @@ while True:
         axs[0].plot([left_x, right_x], [left_y, right_y], 'b-', linewidth=2)
 
     axs[1].clear()
-    axs[1].plot([x for x in range(len(rewards))], rewards)
-
+    #axs[1].set_yscale("log")
+    axs[1].set_ylim(-11, 11)
+    x_plot_values = np.array([x for x in range(len(rewards))])
+    y_plot_values = np.array(rewards)
+    axs[1].plot([x_plot_values[0], x_plot_values[-1]], [0,0], "k-")
+    axs[1].plot(x_plot_values, y_plot_values)
+    #print(rewards)
     # Update the plot
     plt.tight_layout()
     fig.canvas.draw()

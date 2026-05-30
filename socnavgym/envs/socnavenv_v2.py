@@ -321,7 +321,7 @@ class SocNavEnv_v2(gym.Env):
         if "robot_radius_margin" in config["robot"].keys():
             self.ROBOT_RADIUS_MARGIN = config["robot"]["robot_radius_margin"]
         else:
-            self.ROBOT_RADIUS_MARGIN = 0
+            self.ROBOT_RADIUS_MARGIN = 0.01
         self.INITIAL_GOAL_RADIUS = config["robot"]["goal_radius"]
         self.GOAL_RADIUS = self.INITIAL_GOAL_RADIUS
         if "goal_radius_margin" in config["robot"].keys():
@@ -633,61 +633,42 @@ class SocNavEnv_v2(gym.Env):
         Returns:
         gym.spaces.Dict : the observation space of the environment
         """
+        d = {}
+
         biggest_side = max(self.MAX_MAP_X, self.MAX_MAP_Y)
         biggest_dist = biggest_side * np.sqrt(2)
-        d = {
-            "robot": spaces.Box(
-                low   = np.array([-biggest_dist, -biggest_dist,                                        0, -1, -1, self.MIN_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS-self.ROBOT_RADIUS_MARGIN], dtype=np.float32),
-                high  = np.array([+biggest_dist, +biggest_dist, self.GOAL_RADIUS+self.GOAL_RADIUS_MARGIN, +1, +1, self.MAX_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS+self.ROBOT_RADIUS_MARGIN], dtype=np.float32),
-                shape = ((7,)),
-                dtype = np.float32
 
-            )
-        }
+        low   = np.array([-biggest_dist, -biggest_dist,                                        0, -1, -1, self.MIN_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS-self.ROBOT_RADIUS_MARGIN], dtype=np.float32)
+        high  = np.array([+biggest_dist, +biggest_dist, self.GOAL_RADIUS+self.GOAL_RADIUS_MARGIN, +1, +1, self.MAX_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS+self.ROBOT_RADIUS_MARGIN], dtype=np.float32)
+        d["robot"] = spaces.Box(low=low, high=high, shape=((7,)), dtype=np.float32)
 
         MAX_HUMANS = self.MAX_HUMANS
-        MAX_H_SPEED = max(fabs(self.MIN_ADVANCE_HUMAN), fabs(self.MAX_ADVANCE_HUMAN))
-        MAX_R_SPEED = max(fabs(self.MIN_ADVANCE_HUMAN), fabs(self.MAX_ADVANCE_HUMAN))
+        MAX_H_SPEED = abs(self.MAX_ADVANCE_HUMAN)
+        MAX_R_SPEED = max(abs(self.MIN_ADVANCE_ROBOT), abs(self.MAX_ADVANCE_ROBOT))
         MAX_C_SPEED = MAX_H_SPEED + MAX_R_SPEED
-        d["humans"] =  spaces.Box(
-            low   = np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, -MAX_C_SPEED, -2*np.pi/self.TIMESTEP, 0]*MAX_HUMANS, dtype=np.float32),
-            high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, +MAX_C_SPEED, +2*np.pi/self.TIMESTEP, 1]*MAX_HUMANS, dtype=np.float32),
-            shape = ((8*MAX_HUMANS,)),
-            dtype = np.float32
-        )
+        low = np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, -MAX_C_SPEED, -2*np.pi/self.TIMESTEP, 0]*MAX_HUMANS, dtype=np.float32)
+        high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, +MAX_C_SPEED, +2*np.pi/self.TIMESTEP, 1]*MAX_HUMANS, dtype=np.float32)
+        d["humans"] =  spaces.Box(low=low, high=high, shape=((8*MAX_HUMANS,)), dtype=np.float32)
 
         MAX_LAPTOPS = self.MAX_LAPTOPS
-        d["laptops"] =  spaces.Box(
-            low=np.array([-biggest_dist, -biggest_dist, -1.0, -1.0, -self.LAPTOP_RADIUS, -MAX_C_SPEED, -self.MAX_ROTATION, 0]*MAX_LAPTOPS, dtype=np.float32),
-            high=np.array([+biggest_dist, +biggest_dist, 1.0,  1.0,  self.LAPTOP_RADIUS, +MAX_C_SPEED, +self.MAX_ROTATION, 1]*MAX_LAPTOPS, dtype=np.float32),
-            shape = ((8*MAX_LAPTOPS,)),
-            dtype=np.float32
-
-        )
+        low=np.array([-biggest_dist, -biggest_dist, -1.0, -1.0, -self.LAPTOP_RADIUS, -MAX_C_SPEED, -self.MAX_ROTATION, 0]*MAX_LAPTOPS, dtype=np.float32)
+        high=np.array([+biggest_dist, +biggest_dist, 1.0,  1.0,  self.LAPTOP_RADIUS, +MAX_C_SPEED, +self.MAX_ROTATION, 1]*MAX_LAPTOPS, dtype=np.float32)
+        d["laptops"] =  spaces.Box(low = low, high = high, shape=((8*MAX_LAPTOPS,)), dtype=np.float32)
 
         MAX_TABLES = self.MAX_TABLES
-        d["tables"] =  spaces.Box(
-            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.TABLE_RADIUS, -MAX_C_SPEED, -self.MAX_ROTATION, 0]*MAX_TABLES, dtype=np.float32),
-            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.TABLE_RADIUS, +MAX_C_SPEED, +self.MAX_ROTATION, 1]*MAX_TABLES, dtype=np.float32),
-            shape = ((8*MAX_TABLES,)),
-            dtype=np.float32
-        )
+        low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.TABLE_RADIUS, -MAX_C_SPEED, -self.MAX_ROTATION, 0]*MAX_TABLES, dtype=np.float32)
+        high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.TABLE_RADIUS, +MAX_C_SPEED, +self.MAX_ROTATION, 1]*MAX_TABLES, dtype=np.float32)
+        d["tables"] =  spaces.Box(low=low, high=high, shape=((8*MAX_TABLES,)), dtype=np.float32)
 
         MAX_PLANTS = self.MAX_PLANTS
-        d["plants"] =  spaces.Box(
-            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.PLANT_RADIUS, -MAX_C_SPEED, -self.MAX_ROTATION, 0]*MAX_PLANTS, dtype=np.float32),
-            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.PLANT_RADIUS, +MAX_C_SPEED, +self.MAX_ROTATION, 1]*MAX_PLANTS, dtype=np.float32),
-            shape = ((8*MAX_PLANTS,)),
-            dtype=np.float32
-        )
+        low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.PLANT_RADIUS, -MAX_C_SPEED, -self.MAX_ROTATION, 0]*MAX_PLANTS, dtype=np.float32)
+        high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.PLANT_RADIUS, +MAX_C_SPEED, +self.MAX_ROTATION, 1]*MAX_PLANTS, dtype=np.float32)
+        d["plants"] =  spaces.Box(low=low, high=high, shape=((8*MAX_PLANTS,)), dtype=np.float32)
 
         MAX_CHAIRS = self.MAX_CHAIRS
-        d["chairs"] =  spaces.Box(
-            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.CHAIR_RADIUS, -MAX_C_SPEED, -self.MAX_ROTATION, 0]*MAX_CHAIRS, dtype=np.float32),
-            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.CHAIR_RADIUS, +MAX_C_SPEED, +self.MAX_ROTATION, 1]*MAX_CHAIRS, dtype=np.float32),
-            shape = ((8*MAX_CHAIRS,)),
-            dtype=np.float32
-        )
+        low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.CHAIR_RADIUS, -MAX_C_SPEED, -self.MAX_ROTATION, 0]*MAX_CHAIRS, dtype=np.float32)
+        high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.CHAIR_RADIUS, +MAX_C_SPEED, +self.MAX_ROTATION, 1]*MAX_CHAIRS, dtype=np.float32)
+        d["chairs"] =  spaces.Box(low=low, high=high, shape=((8*MAX_CHAIRS,)),  dtype=np.float32)
 
 
         x_max_segs = (((self.MAX_MAP_X)//self.WALL_SEGMENT_SIZE)+1)*2
@@ -698,12 +679,9 @@ class SocNavEnv_v2(gym.Env):
         b = max(self.MAP_X, self.MAP_Y)
 
         max_segment_size = self.WALL_SEGMENTSIZE if self.WALL_SEGMENT_SIZE > 0 else 50
-        d["walls"] = spaces.Box(
-            low   = np.array([-(b*b), -(b*b), -1.0, -1.0,             0.01, -MAX_C_SPEED, -self.MAX_ROTATION, 0] * total_segments, dtype=np.float32),
-            high  = np.array([+(b*b), +(b*b),  1.0,  1.0, max_segment_size, +MAX_C_SPEED, +self.MAX_ROTATION, 1] * total_segments, dtype=np.float32),
-            shape = ((8*total_segments,)),
-            dtype = np.float32
-        )
+        low   = np.array([-(b*b), -(b*b), -1.0, -1.0,             0.01, -MAX_C_SPEED, -self.MAX_ROTATION, 0] * total_segments, dtype=np.float32)
+        high  = np.array([+(b*b), +(b*b),  1.0,  1.0, max_segment_size, +MAX_C_SPEED, +self.MAX_ROTATION, 1] * total_segments, dtype=np.float32)
+        d["walls"] = spaces.Box(low=low, high=high, shape=((8*total_segments,)), dtype = np.float32)
 
         return spaces.Dict(d)
 

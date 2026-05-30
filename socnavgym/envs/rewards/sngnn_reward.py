@@ -1,12 +1,12 @@
 import socnavgym
 from socnavgym.envs.rewards.reward_api import RewardAPI
-from socnavgym.envs.socnavenv_v1 import SocNavEnv_v1, EntityObs
+from socnavgym.envs.socnavenv_v2 import SocNavEnv_v2, EntityObs
 from socnavgym.envs.utils.utils import point_to_segment_dist
 import numpy as np
 
 
 class Reward(RewardAPI):
-    def __init__(self, env: SocNavEnv_v1) -> None:
+    def __init__(self, env: SocNavEnv_v2) -> None:
         super().__init__(env)
         self.use_sngnn = True
         self.sngnn_factor = 1.0

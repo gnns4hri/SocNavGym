@@ -558,8 +558,8 @@ class SocNavEnv_v2(gym.Env):
         self.GOAL_THRESHOLD = self.GOAL_RADIUS # + self.ROBOT_RADIUS
         self.GOAL_ORIENTATION_THRESHOLD = random.uniform(self.MIN_GOAL_ORIENTATION_THRESHOLD, self.MAX_GOAL_ORIENTATION_THRESHOLD)
 
-        self.RESOLUTION_X = int(1850 * self.MAP_X/(self.MAP_X + self.MAP_Y))
-        self.RESOLUTION_Y = int(1850 * self.MAP_Y/(self.MAP_X + self.MAP_Y))
+        self.RESOLUTION_X = int(self.RESOLUTION_X)# * self.MAP_X/(self.MAP_X + self.MAP_Y))
+        self.RESOLUTION_Y = int(self.RESOLUTION_Y)# * self.MAP_Y/(self.MAP_X + self.MAP_Y))
         self.NUMBER_OF_STATIC_HUMANS = random.randint(self.MIN_STATIC_HUMANS, self.MAX_STATIC_HUMANS)  # number of static humans in the env
         self.NUMBER_OF_DYNAMIC_HUMANS = random.randint(self.MIN_DYNAMIC_HUMANS, self.MAX_DYNAMIC_HUMANS)  # number of static humans in the env
         self.NUMBER_OF_PLANTS = random.randint(self.MIN_PLANTS, self.MAX_PLANTS)  # number of plants in the env
@@ -637,7 +637,7 @@ class SocNavEnv_v2(gym.Env):
         biggest_dist = biggest_side * np.sqrt(2)
         d = {
             "robot": spaces.Box(
-                low   = np.array([-biggest_dist, -biggest_dist, self.GOAL_RADIUS-self.GOAL_RADIUS_MARGIN, -1, -1, self.MIN_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS-self.ROBOT_RADIUS_MARGIN], dtype=np.float32),
+                low   = np.array([-biggest_dist, -biggest_dist,                                        0, -1, -1, self.MIN_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS-self.ROBOT_RADIUS_MARGIN], dtype=np.float32),
                 high  = np.array([+biggest_dist, +biggest_dist, self.GOAL_RADIUS+self.GOAL_RADIUS_MARGIN, +1, +1, self.MAX_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS+self.ROBOT_RADIUS_MARGIN], dtype=np.float32),
                 shape = ((7,)),
                 dtype = np.float32
@@ -646,17 +646,20 @@ class SocNavEnv_v2(gym.Env):
         }
 
         MAX_HUMANS = self.MAX_HUMANS
+        MAX_H_SPEED = max(fabs(self.MIN_ADVANCE_HUMAN), fabs(self.MAX_ADVANCE_HUMAN))
+        MAX_R_SPEED = max(fabs(self.MIN_ADVANCE_HUMAN), fabs(self.MAX_ADVANCE_HUMAN))
+        MAX_C_SPEED = MAX_H_SPEED + MAX_R_SPEED
         d["humans"] =  spaces.Box(
-            low   = np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, (-self.MAX_ADVANCE_HUMAN + self.MIN_ADVANCE_ROBOT)*np.sqrt(2), -2*np.pi/self.TIMESTEP, 0]*MAX_HUMANS, dtype=np.float32),
-            high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, ( self.MAX_ADVANCE_HUMAN + self.MAX_ADVANCE_ROBOT)*np.sqrt(2), +2*np.pi/self.TIMESTEP, 1]*MAX_HUMANS, dtype=np.float32),
+            low   = np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, -MAX_C_SPEED, -2*np.pi/self.TIMESTEP, 0]*MAX_HUMANS, dtype=np.float32),
+            high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, +MAX_C_SPEED, +2*np.pi/self.TIMESTEP, 1]*MAX_HUMANS, dtype=np.float32),
             shape = ((8*MAX_HUMANS,)),
             dtype = np.float32
         )
 
         MAX_LAPTOPS = self.MAX_LAPTOPS
         d["laptops"] =  spaces.Box(
-            low=np.array([-biggest_dist, -biggest_dist, -1.0, -1.0, -self.LAPTOP_RADIUS, self.MIN_ADVANCE_ROBOT*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_LAPTOPS, dtype=np.float32),
-            high=np.array([+biggest_dist, +biggest_dist, 1.0,  1.0,  self.LAPTOP_RADIUS, self.MAX_ADVANCE_ROBOT*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_LAPTOPS, dtype=np.float32),
+            low=np.array([-biggest_dist, -biggest_dist, -1.0, -1.0, -self.LAPTOP_RADIUS, -MAX_C_SPEED, -self.MAX_ROTATION, 0]*MAX_LAPTOPS, dtype=np.float32),
+            high=np.array([+biggest_dist, +biggest_dist, 1.0,  1.0,  self.LAPTOP_RADIUS, +MAX_C_SPEED, +self.MAX_ROTATION, 1]*MAX_LAPTOPS, dtype=np.float32),
             shape = ((8*MAX_LAPTOPS,)),
             dtype=np.float32
 
@@ -664,24 +667,24 @@ class SocNavEnv_v2(gym.Env):
 
         MAX_TABLES = self.MAX_TABLES
         d["tables"] =  spaces.Box(
-            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.TABLE_RADIUS, self.MIN_ADVANCE_ROBOT*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_TABLES, dtype=np.float32),
-            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.TABLE_RADIUS, self.MAX_ADVANCE_ROBOT*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_TABLES, dtype=np.float32),
+            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.TABLE_RADIUS, -MAX_C_SPEED, -self.MAX_ROTATION, 0]*MAX_TABLES, dtype=np.float32),
+            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.TABLE_RADIUS, +MAX_C_SPEED, +self.MAX_ROTATION, 1]*MAX_TABLES, dtype=np.float32),
             shape = ((8*MAX_TABLES,)),
             dtype=np.float32
         )
 
         MAX_PLANTS = self.MAX_PLANTS
         d["plants"] =  spaces.Box(
-            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.PLANT_RADIUS, self.MIN_ADVANCE_ROBOT*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_PLANTS, dtype=np.float32),
-            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.PLANT_RADIUS, self.MAX_ADVANCE_ROBOT*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_PLANTS, dtype=np.float32),
+            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.PLANT_RADIUS, -MAX_C_SPEED, -self.MAX_ROTATION, 0]*MAX_PLANTS, dtype=np.float32),
+            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.PLANT_RADIUS, +MAX_C_SPEED, +self.MAX_ROTATION, 1]*MAX_PLANTS, dtype=np.float32),
             shape = ((8*MAX_PLANTS,)),
             dtype=np.float32
         )
 
         MAX_CHAIRS = self.MAX_CHAIRS
         d["chairs"] =  spaces.Box(
-            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.CHAIR_RADIUS, self.MIN_ADVANCE_ROBOT*np.sqrt(2), -self.MAX_ROTATION, 0]*MAX_CHAIRS, dtype=np.float32),
-            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.CHAIR_RADIUS, self.MAX_ADVANCE_ROBOT*np.sqrt(2), +self.MAX_ROTATION, 1]*MAX_CHAIRS, dtype=np.float32),
+            low=np.array([ -biggest_dist, -biggest_dist, -1.0, -1.0, -self.CHAIR_RADIUS, -MAX_C_SPEED, -self.MAX_ROTATION, 0]*MAX_CHAIRS, dtype=np.float32),
+            high=np.array([+biggest_dist, +biggest_dist,  1.0,  1.0,  self.CHAIR_RADIUS, +MAX_C_SPEED, +self.MAX_ROTATION, 1]*MAX_CHAIRS, dtype=np.float32),
             shape = ((8*MAX_CHAIRS,)),
             dtype=np.float32
         )
@@ -696,8 +699,8 @@ class SocNavEnv_v2(gym.Env):
 
         max_segment_size = self.WALL_SEGMENTSIZE if self.WALL_SEGMENT_SIZE > 0 else 50
         d["walls"] = spaces.Box(
-            low   = np.array([-b*np.sqrt(2), -b*np.sqrt(2), -1.0, -1.0,             0.01, self.MIN_ADVANCE_ROBOT*np.sqrt(2), -self.MAX_ROTATION, 0] * total_segments, dtype=np.float32),
-            high  = np.array([+b*np.sqrt(2), +b*np.sqrt(2),  1.0,  1.0, max_segment_size, self.MAX_ADVANCE_ROBOT*np.sqrt(2), +self.MAX_ROTATION, 1] * total_segments, dtype=np.float32),
+            low   = np.array([-(b*b), -(b*b), -1.0, -1.0,             0.01, -MAX_C_SPEED, -self.MAX_ROTATION, 0] * total_segments, dtype=np.float32),
+            high  = np.array([+(b*b), +(b*b),  1.0,  1.0, max_segment_size, +MAX_C_SPEED, +self.MAX_ROTATION, 1] * total_segments, dtype=np.float32),
             shape = ((8*total_segments,)),
             dtype = np.float32
         )
@@ -3724,7 +3727,6 @@ class SocNavEnv_v2(gym.Env):
 
         # Rows need to be flipped, apparently, to make the visualisation consistent.
         ## self.world_image = np.array(self.world_image[::-1,:,:])
-        self.world_image = np.transpose(self.world_image, axes=(1,0,2))
 
         return self.world_image
 
@@ -3736,6 +3738,7 @@ class SocNavEnv_v2(gym.Env):
             pygame.display.set_caption("SocNavGym v0.2")
             self.window_initialised = True
         self.world_image = self.render_without_showing(self.render_mode_, draw_human_gaze, draw_human_goal)
+        self.world_image = np.transpose(self.world_image, axes=(1,0,2))
         surface = pygame.surfarray.make_surface(cv2.cvtColor(self.world_image, cv2.COLOR_BGR2RGB))
         surface_resized = pygame.transform.smoothscale(surface, (int(self.RESOLUTION_X), int(self.RESOLUTION_Y)))
         self.screen.blit(surface_resized, (0,0))

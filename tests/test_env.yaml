@@ -1,5 +1,5 @@
 rendering:
-    resolution_y: 1920  # size of the canvas in rows
+    resolution_y: 1080  # size of the canvas in rows
     resolution_x: 1080  # size of the canvas in columns
     milliseconds: 30  # delay parameter for waitKey()
 

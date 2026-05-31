@@ -155,6 +155,7 @@ class SocNavEnv_v2(gym.Env):
 
         self.RELATIVE_FRAME = 'ROBOT_FR' #'GOAL_FR'
 
+
         if config is None:
             try:
                 config = os.environ["SOCNAV_CONFIG_FILE"]
@@ -1042,15 +1043,17 @@ class SocNavEnv_v2(gym.Env):
 
         if self.RELATIVE_FRAME == 'ROBOT_FR':
             self.relative_transformation_matrix = self.transformation_matrix
-        elif self.RELATIVE_FRAME == 'GOAL_FR':
-            self.relative_transformation_matrix = self.goal_transformation_matrix
-            self.relative_frame.x, self.relative_frame.y, self.relative_frame.orientation = self.robot.goal_x, self.robot.goal_y, self.robot.goal_a
-            self.relative_frame.vel_x, self.relative_frame.vel_y, self.relative_frame.vel_a = 0., 0., 0.
-            robot_in_goal_frame = self.get_relative_frame_coordinates(np.array([[self.robot.x, self.robot.y]], dtype=np.float32)).flatten()
-            robot_angle_obs = np.array([np.sin(self.robot.orientation - self.relative_frame.orientation), np.cos(self.robot.orientation - self.relative_frame.orientation)]).flatten()
-            relative_vel_x = np.cos(self.relative_frame.orientation)*self.robot.vel_x  + np.sin(self.relative_frame.orientation)*self.robot.vel_y
-            relative_vel_y = -np.sin(self.relative_frame.orientation)*self.robot.vel_x + np.cos(self.relative_frame.orientation)*self.robot.vel_y
-            robot_vel = np.array([relative_vel_x, relative_vel_y, self.robot.vel_a])
+        else:
+            raise Exception("ONLY ROBOT FRAME OF REFERENCE SUPPORTED (AT LEAST FOR NOW)")
+        # elif self.RELATIVE_FRAME == 'GOAL_FR':
+        #     self.relative_transformation_matrix = self.goal_transformation_matrix
+        #     self.relative_frame.x, self.relative_frame.y, self.relative_frame.orientation = self.robot.goal_x, self.robot.goal_y, self.robot.goal_a
+        #     self.relative_frame.vel_x, self.relative_frame.vel_y, self.relative_frame.vel_a = 0., 0., 0.
+        #     robot_in_goal_frame = self.get_relative_frame_coordinates(np.array([[self.robot.x, self.robot.y]], dtype=np.float32)).flatten()
+        #     robot_angle_obs = np.array([np.sin(self.robot.orientation - self.relative_frame.orientation), np.cos(self.robot.orientation - self.relative_frame.orientation)]).flatten()
+        #     relative_vel_x = np.cos(self.relative_frame.orientation)*self.robot.vel_x  + np.sin(self.relative_frame.orientation)*self.robot.vel_y
+        #     relative_vel_y = -np.sin(self.relative_frame.orientation)*self.robot.vel_x + np.cos(self.relative_frame.orientation)*self.robot.vel_y
+        #     robot_vel = np.array([relative_vel_x, relative_vel_y, self.robot.vel_a])
 
 
         # the observations will go inside this dictionary
@@ -1063,9 +1066,11 @@ class SocNavEnv_v2(gym.Env):
             xxx, yyy = goal_in_relative_frame[0][0], goal_in_relative_frame[0][1]
             r_sin = np.sin(self.robot.goal_a - self.relative_frame.orientation)
             r_cos = np.cos(self.robot.goal_a - self.relative_frame.orientation)
-        elif self.RELATIVE_FRAME == 'GOAL_FR':
-            xxx, yyy = robot_in_goal_frame[0], robot_in_goal_frame[1]
-            r_sin, r_cos = robot_angle_obs[0], robot_angle_obs[1]
+        else:
+            raise Exception("ONLY ROBOT FRAME OF REFERENCE SUPPORTED (AT LEAST FOR NOW)")
+        # elif self.RELATIVE_FRAME == 'GOAL_FR':
+        #     xxx, yyy = robot_in_goal_frame[0], robot_in_goal_frame[1]
+        #     r_sin, r_cos = robot_angle_obs[0], robot_angle_obs[1]
         # placing it in a dictionary
         d["robot"] = np.array([
             xxx,

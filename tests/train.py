@@ -2,6 +2,7 @@ import os
 import sys
 import time
 from datetime import datetime
+from collections import namedtuple
 
 import yaml
 import numpy as np
@@ -14,9 +15,16 @@ from stable_baselines3 import SAC
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.monitor import Monitor
-from wandb.integration.sb3 import WandbCallback
 
-import wandb
+
+try:
+    WANDB_MODE = os.environ["WANDB_MODE"]
+except:
+    WANDB_MODE = "online"
+
+if WANDB_MODE != "offline":
+    from wandb.integration.sb3 import WandbCallback
+    import wandb
 
 from dict_subset_wrapper import DictToFlatWrapper
 
@@ -53,15 +61,17 @@ if config["wandb"]["name"] is None:
 # ---------------------------------------------------------------------------
 # Initialise wandb run
 # ---------------------------------------------------------------------------
-
-run = wandb.init(
-    project=config["wandb"]["project"],
-    name=config["wandb"]["name"],
-    config=config,
-    sync_tensorboard=True,
-    monitor_gym=True,
-    save_code=True,
-)
+if WANDB_MODE != "offline":
+    run = wandb.init(
+        project=config["wandb"]["project"],
+        name=config["wandb"]["name"],
+        config=config,
+        sync_tensorboard=True,
+        monitor_gym=True,
+        save_code=True,
+    )
+else:
+    run = namedtuple('rubbish', ["id", "run", "name"])("offline", "offline", config["wandb"]["name"])
 
 # Update config with wandb run ID for model saving
 config["wandb"]["run_id"] = run.id
@@ -117,15 +127,11 @@ eval_callback = EvalCallback(
     render=False,
 )
 
-wandb_callback = WandbCallback(
-    gradient_save_freq=1000,
-    model_save_path=f"models/{run.id}",
-    model_save_freq=config["eval_freq"],
-    verbose=2,
-)
-
-callbacks = CallbackList([checkpoint_callback, eval_callback, wandb_callback])
-
+if WANDB_MODE != "offline":
+    wandb_callback = WandbCallback(gradient_save_freq=1000, model_save_path=f"models/{run.id}", model_save_freq=config["eval_freq"], verbose=2)
+    callbacks = CallbackList([checkpoint_callback, eval_callback, wandb_callback])
+else:
+    callbacks = None
 
 # ---------------------------------------------------------------------------
 # Model
@@ -147,20 +153,25 @@ if config.get("her", {}).get("enabled", False):
     from her_wrapper import HERReplayBufferWrapper
     
     # Get the replay buffer from the model
+    # Unwrap the environment to get the HER wrapper
+    base_env = model.env.envs[0]
+    while hasattr(base_env, 'env') and not hasattr(base_env, 'sample_her_transitions'):
+        base_env = base_env.env
+    
     her_buffer = HERReplayBufferWrapper(
         model.replay_buffer,
-        model.env.envs[0].env,  # Get the base HER wrapper
+        base_env,  # Get the HER wrapper
         config["her"]
     )
     model.replay_buffer = her_buffer
-    print(f"✓ HER enabled with strategy: {config['her']['strategy']}")
+    print(f"✓ HER enabled with strategies: {config['her']['strategies']}")
 
 
 # ---------------------------------------------------------------------------
 # Train
 # ---------------------------------------------------------------------------
-
-try:
+if True:
+# try:
     model.learn(
         total_timesteps=config["total_steps"],
         callback=callbacks,
@@ -172,21 +183,24 @@ try:
     model.save(final_model_path)
     
     # Upload final model to wandb
-    artifact = wandb.Artifact(f"model_{run.name}", type="model")
-    artifact.add_file(final_model_path + ".zip")
-    run.log_artifact(artifact)
+    if WANDB_MODE != "offline":
+        artifact = wandb.Artifact(f"model_{run.name}", type="model")
+        artifact.add_file(final_model_path + ".zip")
+        run.log_artifact(artifact)
+        print(f"WANDB run name: {run.name}")
     
     print(f"Training complete. Final model saved to {final_model_path}.zip")
-    print(f"WANDB run name: {run.name}")
     print(f"You can recover this run using: wandb artifact get {run.path}/model_{run.name}:latest")
     
-except Exception as e:
-    print(f"Training failed: {e}")
-    run.finish()
-    raise
+# except Exception as e:
+#     print(f"Training failed: {e}")
+#     if WANDB_MODE != "offline":
+#         run.finish()
+#     raise
 
-finally:
-    run.finish()
+# finally:
+#     if WANDB_MODE != "offline":
+#         run.finish()
 
 
 # ---------------------------------------------------------------------------

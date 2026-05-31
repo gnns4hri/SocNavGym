@@ -302,16 +302,9 @@ class HERReplayBufferWrapper:
             # Sample fewer regular transitions
             regular_batch = self.base_buffer.sample(n_regular_samples, env=env)
             
-
             
-            # Debug: Print regular batch information
-            print(f"DEBUG: Regular batch observations shape: {regular_batch.observations.shape}")
-            print(f"DEBUG: Regular batch observations dtype: {regular_batch.observations.dtype}")
-            if regular_batch.observations.size()[0] > 0:
-                print(f"DEBUG: Regular batch first observation sample: {regular_batch.observations[0][:5]}..." if regular_batch.observations.ndim > 1 else f"DEBUG: Regular batch first observation: {regular_batch.observations[0]}")
-            
-            # Convert regular batch to numpy arrays to handle CUDA tensors
-            regular_batch = self._convert_batch_to_numpy(regular_batch)
+            # Note: We don't convert regular batch to numpy here to preserve tensor format
+            # The regular batch should already be in the correct format (tensors)
             
             # Convert HER transitions to ReplayBufferSamples format
             her_batch = self._convert_her_to_replay_buffer_samples(her_transitions, n_her_samples)
@@ -363,10 +356,6 @@ class HERReplayBufferWrapper:
             obs = transition['obs']
             next_obs = transition.get('next_obs', obs)  # Use same obs if next_obs not available
             
-            # Debug: Print HER transition information
-            print(f"DEBUG: HER transition obs type: {type(obs)}")
-            if isinstance(obs, dict):
-                print(f"DEBUG: HER transition obs keys: {list(obs.keys())}")
             
             # # The issue is that HER transitions store raw observations, but regular batch uses processed observations
             # # We need to add goal information to match the regular batch format
@@ -375,11 +364,6 @@ class HERReplayBufferWrapper:
             #     # The regular batch uses observations with goals added via _update_goal_in_observation
             #     goal_to_use = transition.get('robot_internal_state', transition['original_goal'])
             #     obs_with_goal = self.her_wrapper._update_goal_in_observation(obs, goal_to_use)
-                
-            #     # Debug: Print observation processing information
-            #     print(f"DEBUG: HER obs_with_goal type: {type(obs_with_goal)}")
-            #     if hasattr(obs_with_goal, 'shape'):
-            #         print(f"DEBUG: HER obs_with_goal shape: {obs_with_goal.shape}")
                 
             #     observations_list.append(to_numpy(obs_with_goal))
                 
@@ -394,21 +378,14 @@ class HERReplayBufferWrapper:
             observations_list.append(to_numpy(obs))
             next_observations_list.append(to_numpy(next_obs))
         
-        # Stack all arrays
-        observations = np.stack(observations_list)
-        next_observations = np.stack(next_observations_list)
-        actions = np.stack([to_numpy(t['action']) for t in her_transitions[:batch_size]])
-        rewards = np.stack([to_numpy(t['reward']) for t in her_transitions[:batch_size]])
-        dones = np.stack([to_numpy(t['done']) for t in her_transitions[:batch_size]])
+        # Stack all arrays and convert to tensors
+        import torch
+        observations = torch.stack([torch.tensor(obs, dtype=torch.float32) for obs in observations_list])
+        next_observations = torch.stack([torch.tensor(obs, dtype=torch.float32) for obs in next_observations_list])
+        actions = torch.stack([torch.tensor(t['action'], dtype=torch.float32) for t in her_transitions[:batch_size]])
+        rewards = torch.stack([torch.tensor(t['reward'], dtype=torch.float32) for t in her_transitions[:batch_size]])
+        dones = torch.stack([torch.tensor(t['done'], dtype=torch.float32) for t in her_transitions[:batch_size]])
         
-        # Debug: Print HER batch information
-        print(f"DEBUG: HER batch observations shape: {observations.shape}")
-        print(f"DEBUG: HER batch observations dtype: {observations.dtype}")
-        if observations.size > 0:
-            print(f"DEBUG: HER batch first observation sample: {observations[0][:5]}..." if observations.ndim > 1 else f"DEBUG: HER batch first observation: {observations[0]}")
-        print(f"DEBUG: HER batch actions shape: {actions.shape}")
-        print(f"DEBUG: HER batch rewards shape: {rewards.shape}")
-        print(f"DEBUG: HER batch dones shape: {dones.shape}")
         
         # Ensure observations have the same shape as expected by the regular batch
         # If observations are 1D but should be 2D, reshape them
@@ -430,81 +407,65 @@ class HERReplayBufferWrapper:
     def _combine_replay_buffer_samples(self, regular_batch, her_batch):
         """Combine two ReplayBufferSamples objects."""
         import torch
-
-
-        def to_numpy(array):
-            """Convert array to numpy, handling torch tensors."""
+        
+        def ensure_tensor(array):
+            """Ensure array is a torch tensor, convert if needed."""
             if isinstance(array, torch.Tensor):
-                return array.cpu().numpy()
-            return array
-        
-        # Convert all arrays to numpy (handling potential CUDA tensors)
-        regular_obs = to_numpy(regular_batch.observations)
-        her_obs = to_numpy(her_batch.observations)
-        regular_next_obs = to_numpy(regular_batch.next_observations)
-        her_next_obs = to_numpy(her_batch.next_observations)
-        regular_actions = to_numpy(regular_batch.actions)
-        her_actions = to_numpy(her_batch.actions)
-        regular_rewards = to_numpy(regular_batch.rewards)
-        her_rewards = to_numpy(her_batch.rewards)
-        regular_dones = to_numpy(regular_batch.dones)
-        her_dones = to_numpy(her_batch.dones)
-        
-        # Debug: Print shapes before concatenation
-        print(f"DEBUG: Before concatenation - regular_obs shape: {regular_obs.shape} {type(regular_obs)}")
-        print(f"DEBUG: Before concatenation - her_obs shape: {her_obs.shape} {type(her_obs)}")
-        print(f"DEBUG: Before concatenation - regular_actions shape: {regular_actions.shape}")
-        print(f"DEBUG: Before concatenation - her_actions shape: {her_actions.shape}")
-        print(f"DEBUG: Before concatenation - regular_dones shape: {regular_dones.shape}")
-        print(f"DEBUG: Before concatenation - her_dones shape: {her_dones.shape}")
-        
-        # Ensure both arrays have the same number of dimensions
-        if regular_obs.ndim != her_obs.ndim:
-            # Try to reshape the arrays to match dimensions
-            if regular_obs.ndim == 2 and her_obs.ndim == 1:
-                her_obs = her_obs.reshape(1, -1) if her_obs.size > 0 else her_obs.reshape(0, 0)
-            elif regular_obs.ndim == 1 and her_obs.ndim == 2:
-                regular_obs = regular_obs.reshape(1, -1) if regular_obs.size > 0 else regular_obs.reshape(0, 0)
+                return array
             else:
-                # More complex case - try to expand dimensions
-                if her_obs.ndim < regular_obs.ndim:
-                    her_obs = np.expand_dims(her_obs, axis=0)
-                else:
-                    regular_obs = np.expand_dims(regular_obs, axis=0)
+                return torch.tensor(array, dtype=torch.float32)
         
+        def concatenate_tensors(tensor1, tensor2):
+            """Concatenate two tensors, handling different devices."""
+            # Ensure both tensors are on the same device
+            if tensor1.device != tensor2.device:
+                tensor2 = tensor2.to(tensor1.device)
+            return torch.cat([tensor1, tensor2], dim=0)
+        
+        
+        # Ensure all arrays are tensors
+        regular_obs = ensure_tensor(regular_batch.observations)
+        her_obs = ensure_tensor(her_batch.observations)
+        regular_next_obs = ensure_tensor(regular_batch.next_observations)
+        her_next_obs = ensure_tensor(her_batch.next_observations)
+        regular_actions = ensure_tensor(regular_batch.actions)
+        her_actions = ensure_tensor(her_batch.actions)
+        regular_rewards = ensure_tensor(regular_batch.rewards)
+        her_rewards = ensure_tensor(her_batch.rewards)
+        regular_dones = ensure_tensor(regular_batch.dones)
+        her_dones = ensure_tensor(her_batch.dones)
+        
+        # Concatenate all arrays using torch operations
+        observations=concatenate_tensors(regular_obs, her_obs)
+        next_observations=concatenate_tensors(regular_next_obs, her_next_obs)
+        actions=concatenate_tensors(regular_actions, her_actions)
 
 
-        her_rewards = np.expand_dims(her_rewards, axis=0)
-        her_dones = np.expand_dims(her_dones, axis=0)
 
-        print(f"{regular_obs=}")
-        print(f"{her_obs=}")
-        print(f"{regular_obs.shape=}")
-        print(f"{her_obs.shape=}")
+        # print(f"{regular_rewards.shape=}")
+        # print(f"{type(regular_rewards)=}")
+        # print(f"{her_rewards.shape=}")
+        # print(f"{type(her_rewards)=}")
 
-        print(f"{regular_rewards.shape=}")
-        print(f"{her_rewards.shape=}")
 
-        # Concatenate all arrays
+        her_rewards = her_rewards.unsqueeze(dim=1)
+        her_dones = her_dones.unsqueeze(dim=1)
+        rewards=concatenate_tensors(regular_rewards, her_rewards)
+        dones=concatenate_tensors(regular_dones, her_dones)
+
         combined = ReplayBufferSamples(
-            observations=np.concatenate([regular_obs, her_obs], axis=0),
-            next_observations=np.concatenate([regular_next_obs, her_next_obs], axis=0),
-            actions=np.concatenate([regular_actions, her_actions], axis=0),
-            rewards=np.concatenate([regular_rewards, her_rewards], axis=0),
-            dones=np.concatenate([regular_dones, her_dones], axis=0),
-            discounts=to_numpy(regular_batch.discounts) if regular_batch.discounts is not None else None  # Keep discounts from regular batch
+            observations=concatenate_tensors(regular_obs, her_obs),
+            next_observations=concatenate_tensors(regular_next_obs, her_next_obs),
+            actions=concatenate_tensors(regular_actions, her_actions),
+            rewards=concatenate_tensors(regular_rewards, her_rewards),
+            dones=concatenate_tensors(regular_dones, her_dones),
+            discounts=regular_batch.discounts  # Keep discounts from regular batch (should already be tensor)
         )
-
-        # Debug: Print final combined batch information
-        print(f"DEBUG: Combined batch observations shape: {combined.observations.shape}")
-        print(f"DEBUG: Combined batch actions shape: {combined.actions.shape}")
-        print(f"DEBUG: Combined batch rewards shape: {combined.rewards.shape}")
-        print(f"DEBUG: Combined batch dones shape: {combined.dones.shape}")
 
         return combined
     
     def _convert_batch_to_numpy(self, batch):
-        """Convert a ReplayBufferSamples batch to numpy arrays."""
+        """Convert a ReplayBufferSamples batch to numpy arrays for processing."""
         import torch
         
         def to_numpy(array):

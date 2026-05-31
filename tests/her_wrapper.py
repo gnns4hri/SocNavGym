@@ -11,15 +11,9 @@ from typing import Dict, Any, Tuple, NamedTuple, Optional
 import copy
 import gymnasium as gym
 
-# Define ReplayBufferSamples to match stable-baselines3 format
-ReplayBufferSamples = NamedTuple('ReplayBufferSamples', [
-    ('observations', np.ndarray),
-    ('actions', np.ndarray),
-    ('next_observations', np.ndarray),
-    ('done', np.ndarray),
-    ('rewards', np.ndarray),
-    ('discounts', Optional[np.ndarray])
-])
+# Use ReplayBufferSamples from stable-baselines3
+from stable_baselines3.common.buffers import ReplayBufferSamples
+
 
 
 class HERGoalEnvWrapper(gym.Wrapper):
@@ -27,7 +21,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
     Wrapper that adds HER support to SocNavGym environment.
     
     This wrapper:
-    1. Stores original goals for each episode
+    1. Stores original goals for each episod
     2. Provides methods for goal relabeling
     3. Maintains compatibility with the original environment
     """
@@ -51,7 +45,12 @@ class HERGoalEnvWrapper(gym.Wrapper):
         
         # Episode tracking
         self.episode_transitions = []
-        
+
+        self.original_env = env
+        self.base_env = env
+        while hasattr(self.base_env, 'env'):
+            self.base_env = self.base_env.env
+
     def _extend_observation_space(self):
         """Extend observation space to include goal information."""
         # For SocNavGym, we'll add goal information to the robot observation
@@ -69,12 +68,6 @@ class HERGoalEnvWrapper(gym.Wrapper):
         # Reset the base environment
         obs, info = self.env.reset(**kwargs)
         
-        # Store the original goal for this episode
-        # Access robot through the unwraped environment
-        base_env = self.env
-        while hasattr(base_env, 'env'):
-            base_env = base_env.env
-
         # Clear episode transitions
         self.episode_transitions = []
         
@@ -112,12 +105,9 @@ class HERGoalEnvWrapper(gym.Wrapper):
         Returns:
             observation, reward, terminated, truncated, info
         """
-        # Step the base environment
-        obs, reward, terminated, truncated, info = self.env.step(action)
+        # Step the environment
+        obs, reward, terminated, truncated, info = self.original_env.step(action)
         
-        base_env = self.env
-        while hasattr(base_env, 'env'):
-            base_env = base_env.env
         
 
         # Store transition for potential HER relabeling
@@ -127,7 +117,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
             'reward': reward,
             'next_obs': None,  # Will be filled later
             'done': terminated or truncated,
-            'robot_internal_state': base_env.robot
+            'robot_internal_state': self.base_env.robot
         }
         self.episode_transitions.append(transition)
         
@@ -170,10 +160,10 @@ class HERGoalEnvWrapper(gym.Wrapper):
         # Create a copy of the transition
         relabeled = copy.deepcopy(transition)
 
-        relabeled['obs']['robot'][0] = new_goal_relative_coords[0]
-        relabeled['obs']['robot'][1] = new_goal_relative_coords[1]
-        relabeled['obs']['robot'][3] = s_c[0]
-        relabeled['obs']['robot'][4] = s_c[1]
+        relabeled['obs'][0] = new_goal_relative_coords[0]
+        relabeled['obs'][1] = new_goal_relative_coords[1]
+        relabeled['obs'][3] = s_c[0]
+        relabeled['obs'][4] = s_c[1]
 
         # Recalculate reward based on new goal
         # For navigation tasks, reward is typically distance-based
@@ -181,7 +171,6 @@ class HERGoalEnvWrapper(gym.Wrapper):
         
         # Mark as relabeled
         relabeled['relabeled'] = True
-        relabeled['x_y_a'] = robot
         
         return relabeled
     
@@ -200,7 +189,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
 
         # Extract robot data from observation
         # In SocNavGym v2, robot observation contains goal coordinates in robot frame
-        robot_obs = obs['robot']
+        robot_obs = obs[0:8]
         
         # The first 2 elements are goal coordinates in robot frame
         # For simple distance-based reward:
@@ -211,11 +200,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
         
         # Add bonus for reaching goal
         # Access GOAL_THRESHOLD through the base environment
-        base_env = self.env
-        while hasattr(base_env, 'env'):
-            base_env = base_env.env
-        
-        if distance_to_goal < base_env.GOAL_THRESHOLD:
+        if distance_to_goal < self.base_env.GOAL_THRESHOLD:
             reward += 10.0  # Bonus for reaching goal
             
         return reward
@@ -261,10 +246,10 @@ class HERGoalEnvWrapper(gym.Wrapper):
             episode_indices = list(range(len(self.episode_transitions)))
             for _ in range(n_samples):
                 sample_idx = np.random.choice(episode_indices)
-                xv = self.episode_transitions[sample_idx]['obs']['robot'][0]
-                yv = self.episode_transitions[sample_idx]['obs']['robot'][1]
-                sv = self.episode_transitions[sample_idx]['obs']['robot'][3]
-                cv = self.episode_transitions[sample_idx]['obs']['robot'][4]
+                xv = self.episode_transitions[sample_idx]['obs'][0]
+                yv = self.episode_transitions[sample_idx]['obs'][1]
+                sv = self.episode_transitions[sample_idx]['obs'][3]
+                cv = self.episode_transitions[sample_idx]['obs'][4]
                 av = np.atan2(sv, cv)
                 sample_goal = [xv, yv, av]  # Goal in robot frame
                 relabeled = self.relabel_goal(transition, sample_goal)
@@ -274,7 +259,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
     
     def __getattr__(self, name: str):
         """Delegate other attribute accesses to the base environment."""
-        return getattr(self.env, name)
+        return getattr(self.original_env, name)
 
 
 class HERReplayBufferWrapper:
@@ -349,17 +334,10 @@ class HERReplayBufferWrapper:
         # This is a simplified version - actual implementation would need
         # to match the exact format of your replay buffer
         batch = {}
-        for key in her_transitions[0]['obs'].keys():
-            if key == 'robot':
-                # Robot observation includes goal coordinates
-                batch[f'robot_{key}'] = np.stack([to_numpy(t['obs']['robot']) for t in her_transitions[:batch_size]])
-            else:
-                batch[key] = np.stack([to_numpy(t['obs'][key]) for t in her_transitions[:batch_size]])
-        
-        # Add actions, rewards, etc.
+        batch['observations'] = np.stack([to_numpy(t['obs']) for t in her_transitions[:batch_size]])
         batch['actions'] = np.stack([to_numpy(t['action']) for t in her_transitions[:batch_size]])
         batch['rewards'] = np.stack([to_numpy(t['reward']) for t in her_transitions[:batch_size]])
-        batch['dones'] = np.stack([to_numpy(t["done"]) for t in her_transitions[:batch_size]])
+        batch['done'] = np.stack([to_numpy(t["done"]) for t in her_transitions[:batch_size]])
         
         return batch
         
@@ -389,35 +367,32 @@ class HERReplayBufferWrapper:
             print(f"DEBUG: HER transition obs type: {type(obs)}")
             if isinstance(obs, dict):
                 print(f"DEBUG: HER transition obs keys: {list(obs.keys())}")
-                print(f"DEBUG: HER transition original_goal: {transition['original_goal']}")
-                if 'x_y_a' in transition:
-                    print(f"DEBUG: HER transition x_y_a: {transition['x_y_a']}")
             
-            # The issue is that HER transitions store raw observations, but regular batch uses processed observations
-            # We need to add goal information to match the regular batch format
-            if isinstance(obs, dict):
-                # Add goal information to match the format used by regular batch
-                # The regular batch uses observations with goals added via _update_goal_in_observation
-                goal_to_use = transition.get('x_y_a', transition['original_goal'])
-                obs_with_goal = self.her_wrapper._update_goal_in_observation(obs, goal_to_use)
+            # # The issue is that HER transitions store raw observations, but regular batch uses processed observations
+            # # We need to add goal information to match the regular batch format
+            # if isinstance(obs, dict):
+            #     # Add goal information to match the format used by regular batch
+            #     # The regular batch uses observations with goals added via _update_goal_in_observation
+            #     goal_to_use = transition.get('robot_internal_state', transition['original_goal'])
+            #     obs_with_goal = self.her_wrapper._update_goal_in_observation(obs, goal_to_use)
                 
-                # Debug: Print observation processing information
-                print(f"DEBUG: HER obs_with_goal type: {type(obs_with_goal)}")
-                if hasattr(obs_with_goal, 'shape'):
-                    print(f"DEBUG: HER obs_with_goal shape: {obs_with_goal.shape}")
+            #     # Debug: Print observation processing information
+            #     print(f"DEBUG: HER obs_with_goal type: {type(obs_with_goal)}")
+            #     if hasattr(obs_with_goal, 'shape'):
+            #         print(f"DEBUG: HER obs_with_goal shape: {obs_with_goal.shape}")
                 
-                observations_list.append(to_numpy(obs_with_goal))
+            #     observations_list.append(to_numpy(obs_with_goal))
                 
-                # Do the same for next_obs
-                if isinstance(next_obs, dict):
-                    next_obs_with_goal = self.her_wrapper._update_goal_in_observation(next_obs, goal_to_use)
-                    next_observations_list.append(to_numpy(next_obs_with_goal))
-                else:
-                    next_observations_list.append(to_numpy(next_obs))
-            else:
-                # For now, we'll assume observations are already in the right format
-                observations_list.append(to_numpy(obs))
-                next_observations_list.append(to_numpy(next_obs))
+            #     # Do the same for next_obs
+            #     if isinstance(next_obs, dict):
+            #         next_obs_with_goal = self.her_wrapper._update_goal_in_observation(next_obs, goal_to_use)
+            #         next_observations_list.append(to_numpy(next_obs_with_goal))
+            #     else:
+            #         next_observations_list.append(to_numpy(next_obs))
+            # else:
+            #     # For now, we'll assume observations are already in the right format
+            observations_list.append(to_numpy(obs))
+            next_observations_list.append(to_numpy(next_obs))
         
         # Stack all arrays
         observations = np.stack(observations_list)
@@ -433,7 +408,7 @@ class HERReplayBufferWrapper:
             print(f"DEBUG: HER batch first observation sample: {observations[0][:5]}..." if observations.ndim > 1 else f"DEBUG: HER batch first observation: {observations[0]}")
         print(f"DEBUG: HER batch actions shape: {actions.shape}")
         print(f"DEBUG: HER batch rewards shape: {rewards.shape}")
-        print(f"DEBUG: HER batch done shape: {dones.shape}")
+        print(f"DEBUG: HER batch dones shape: {dones.shape}")
         
         # Ensure observations have the same shape as expected by the regular batch
         # If observations are 1D but should be 2D, reshape them
@@ -455,7 +430,8 @@ class HERReplayBufferWrapper:
     def _combine_replay_buffer_samples(self, regular_batch, her_batch):
         """Combine two ReplayBufferSamples objects."""
         import torch
-        
+
+
         def to_numpy(array):
             """Convert array to numpy, handling torch tensors."""
             if isinstance(array, torch.Tensor):
@@ -479,6 +455,8 @@ class HERReplayBufferWrapper:
         print(f"DEBUG: Before concatenation - her_obs shape: {her_obs.shape} {type(her_obs)}")
         print(f"DEBUG: Before concatenation - regular_actions shape: {regular_actions.shape}")
         print(f"DEBUG: Before concatenation - her_actions shape: {her_actions.shape}")
+        print(f"DEBUG: Before concatenation - regular_dones shape: {regular_dones.shape}")
+        print(f"DEBUG: Before concatenation - her_dones shape: {her_dones.shape}")
         
         # Ensure both arrays have the same number of dimensions
         if regular_obs.ndim != her_obs.ndim:
@@ -494,6 +472,19 @@ class HERReplayBufferWrapper:
                 else:
                     regular_obs = np.expand_dims(regular_obs, axis=0)
         
+
+
+        her_rewards = np.expand_dims(her_rewards, axis=0)
+        her_dones = np.expand_dims(her_dones, axis=0)
+
+        print(f"{regular_obs=}")
+        print(f"{her_obs=}")
+        print(f"{regular_obs.shape=}")
+        print(f"{her_obs.shape=}")
+
+        print(f"{regular_rewards.shape=}")
+        print(f"{her_rewards.shape=}")
+
         # Concatenate all arrays
         combined = ReplayBufferSamples(
             observations=np.concatenate([regular_obs, her_obs], axis=0),
@@ -503,7 +494,7 @@ class HERReplayBufferWrapper:
             dones=np.concatenate([regular_dones, her_dones], axis=0),
             discounts=to_numpy(regular_batch.discounts) if regular_batch.discounts is not None else None  # Keep discounts from regular batch
         )
-        
+
         # Debug: Print final combined batch information
         print(f"DEBUG: Combined batch observations shape: {combined.observations.shape}")
         print(f"DEBUG: Combined batch actions shape: {combined.actions.shape}")

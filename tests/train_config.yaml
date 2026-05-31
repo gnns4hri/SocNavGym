@@ -28,7 +28,7 @@ wandb:
 sac_hyperparams:
   learning_rate: 0.0003           # Learning rate
   buffer_size: 5000000            # Replay buffer size
-  batch_size: 256                 # Batch size
+  batch_size: 2                 # Batch size     ###2 256
   tau: 0.005                      # Target network update rate
   gamma: 0.99                     # Discount factor
   train_freq: 1                   # Training frequency

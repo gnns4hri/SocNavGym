@@ -30,8 +30,8 @@ plant:
     plant_radius: 0.3  # radius of the plant
 
 table:
-    table_width: 1.  # width of the laptop
-    table_length: 1.5  # length of the laptop
+    table_width: 1.  # width of the tables
+    table_length: 1.5  # length of the tables
 
 chair:
     chair_width: 0.4  # width of the chair

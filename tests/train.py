@@ -84,13 +84,15 @@ def make_env():
     """Instantiate, wrap, and monitor a single environment."""
     config_path = os.path.join(os.path.dirname(__file__), config["env_config"])
     env = gym.make("SocNavGym-v2", config=config_path)
-    
+        
+    env = DictToFlatWrapper(env, keys=config["keys"])
+
     # Apply HER wrapper if enabled
     if config.get("her", {}).get("enabled", False):
         from her_wrapper import HERGoalEnvWrapper
         env = HERGoalEnvWrapper(env, config["her"])
-        
-    env = DictToFlatWrapper(env, keys=config["keys"])
+
+
     env = Monitor(env, filename=None)
     return env
 

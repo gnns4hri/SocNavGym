@@ -114,8 +114,8 @@ setup_directories(config)
 checkpoint_callback = CheckpointCallback(
     save_freq=config["eval_freq"],
     save_path=config["checkpoint_dir"],
-    name_prefix=f"sac_model_{run.name}",
-    save_replay_buffer=True,
+    name_prefix=f"sac_model_{run.name"],
+    save_replay_buffer=False,  # Disable replay buffer saving to avoid pickling errors with custom reward classes
     save_vecnormalize=True,
 )
 

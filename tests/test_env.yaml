@@ -54,8 +54,8 @@ env:
     max_advance_human: 0.3  # maximum speed for humans
     max_rotation_human: 1.57 # maximum rotation speed for humans
     min_advance_robot: -0.1  # minimum linear speed for the robot
-    max_advance_robot: +0.10  # maximum linear speed for the robot
-    max_rotation: 1.  # maximum rotational speed for robot
+    max_advance_robot: 1.0  # maximum linear speed for the robot
+    max_rotation: 2.141592653589793  # maximum rotational speed for robot
     speed_threshold: 0.05  # speed below which would be considered 0 (for humans)
     crowd_dispersal_probability: 0.0  # probability of crowd dispersal
     human_laptop_dispersal_probability: 0.0  # probability to disperse a human-laptop-interaction

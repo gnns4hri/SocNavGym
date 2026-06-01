@@ -6,7 +6,7 @@ keys: ["robot", "humans"]         # Keys to extract from Dict env
 
 # Training parameters
 total_steps: 5000000              # Total training steps
-n_envs: 10                        # Number of parallel environments
+n_envs: 1                        # Number of parallel environments
 eval_freq: 100000                 # Evaluation frequency (steps)
 eval_episodes:  50                # Number of evaluation episodes
 verbose: 1                        # Verbosity level (0=quiet, 1=normal, 2=verbose)
@@ -39,6 +39,6 @@ sac_hyperparams:
 
 # HER (Hindsight Experience Replay) configuration
 her:
-  enabled: true                   # Enable HER
+  enabled: false                   # Enable HER
   ratio: 0.2                      # Ratio of HER samples (0.8 = 80% HER, 20% normal)
 

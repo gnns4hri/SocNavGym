@@ -1847,20 +1847,8 @@ class SocNavEnv_v2(gym.Env):
             Returns:
                 np.ndarray: action with velocity values
             """
-
-
+            
             action = act.astype(np.float32)
-
-
-
-
-            action[0] = 0.1
-            action[1] = 0
-            action[2] = 0
-
-
-
-
             # action[0] = (float(action[0]+1.0)/2.0)*self.MAX_ADVANCE_ROBOT   # [-1, +1] --> [0, self.MAX_ADVANCE_ROBOT]
             if action[0]<0:
                 action[0] *= -self.MIN_ADVANCE_ROBOT

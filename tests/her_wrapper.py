@@ -80,16 +80,19 @@ class HERGoalEnvWrapper(gym.Wrapper):
     
     def step(self, action: np.ndarray) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
         # Step the environment
+        internal_state_in_step = self.base_env.robot
+        # print("wrapper step, internal state:", internal_state_in_step)
         obs, reward, terminated, truncated, info = self.original_env.step(action)
         
         # Store transition for potential HER relabeling
         transition = {
             "obs": copy.deepcopy(obs),
             'action': copy.deepcopy(action),
-            'reward': reward,
+            'reward': copy.deepcopy(reward),
             'next_obs': None,  # Will be filled later
             'done': terminated or truncated,
-            'robot_internal_state': self.base_env.robot
+            'robot_internal_state': copy.deepcopy(internal_state_in_step),
+            'info': copy.deepcopy(info)
         }
         self.episode_transitions.append(transition)
         return obs, reward, terminated, truncated, info
@@ -127,16 +130,14 @@ class HERGoalEnvWrapper(gym.Wrapper):
 
         assert(len(goal_absolute_x_y_a) == 3), f"goal_absolute_x_y_a's size must be 3 {len(goal_absolute_x_y_a)}"
         robot = transition["robot_internal_state"]
-
-        
         new_goal_relative_coords = get_relative_frame_coordinates(robot, goal_absolute_x_y_a)
         rel_angle = goal_absolute_x_y_a[2] - robot.orientation
 
         # Create a copy of the transition
         relabeled = copy.deepcopy(transition)
 
-        print("relabelling with", goal_absolute_x_y_a)
-        print_obs_transition(relabeled, "relabelling")
+        # print("relabelling with", goal_absolute_x_y_a)
+        # print_obs_transition(relabeled, "relabelling")
 
 
 
@@ -147,7 +148,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
 
         # Recalculate reward based on new goal
         relabeled['reward'] = self._calculate_her_reward(relabeled, last)
-        print("r", relabeled['reward'])
+        # print("r", relabeled['reward'])
         
         # Mark as relabeled
         relabeled['relabeled'] = True
@@ -184,14 +185,13 @@ class HERGoalEnvWrapper(gym.Wrapper):
         def _check_timeout():
             return self.base_env.ticks > self.base_env.EPISODE_LENGTH
 
-        if last:
-            print("LAST!!!")
+        # if last: print("LAST!!!")
         obs = relabeled["obs"]
         robot = relabeled["obs"][0:8]
         humans = relabeled["obs"][7:].reshape(-1,8)
         robot_int = relabeled["robot_internal_state"]
-        print(f"OBS_POSE: {obs[0]}, {obs[1]}, {np.atan2(obs[3],obs[4])}")
-        print(f"{robot_int=}", self.base_env.MAP_X, self.base_env.MAP_Y)
+        # print(f"OBS_POSE: {obs[0]}, {obs[1]}, {np.atan2(obs[3],obs[4])}")
+        # print(f"{robot_int=}", self.base_env.MAP_X, self.base_env.MAP_Y)
 
         if _check_out_of_map(relabeled["robot_internal_state"]):
             return -5.
@@ -205,9 +205,9 @@ class HERGoalEnvWrapper(gym.Wrapper):
         return 0
     
     
-    def __getattr__(self, name: str):
-        """Delegate other attribute accesses to the base environment."""
-        return getattr(self.original_env, name)
+    # def __getattr__(self, name: str):
+    #     """Delegate other attribute accesses to the base environment."""
+    #     return getattr(self.original_env, name)
 
     def do_the_trick(self):
         """
@@ -217,9 +217,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
             return
 
 
-        print("DOING THE TRICK")
-
-        her_transitions = []
+        # print("DOING THE TRICK")
 
         # Fill next observations
         for i, transition in enumerate(self.episode_transitions[:-1]): # Skip the last transition (no next state)
@@ -228,65 +226,37 @@ class HERGoalEnvWrapper(gym.Wrapper):
 
         # Sample from any state in the episode
         episode_indices = list(range(len(self.episode_transitions)))
-        print(f"{len(episode_indices)=}")
-        print(f"{len(self.episode_transitions)=}")
+        # print(f"{len(episode_indices)=}")
+        # print(f"{len(self.episode_transitions)=}")
 
         sample_idx = np.random.choice(episode_indices) + MINIMUM_TRANSITIONS
         sample_idx = min(len(episode_indices)-1, sample_idx)
-        print(f"{sample_idx=}")
-        xv = self.episode_transitions[sample_idx]["obs"][0]
-        yv = self.episode_transitions[sample_idx]["obs"][1]
-        sv = self.episode_transitions[sample_idx]["obs"][3]
-        cv = self.episode_transitions[sample_idx]["obs"][4]
-        av = np.atan2(sv, cv)
+        # print(f"{sample_idx=}")
+        xv = self.episode_transitions[sample_idx]["robot_internal_state"].x
+        yv = self.episode_transitions[sample_idx]["robot_internal_state"].y
+        av = self.episode_transitions[sample_idx]["robot_internal_state"].orientation
         sample_goal = [xv, yv, av]  # Goal in robot frame
 
 
-        for i in range(0, sample_idx):
-            print_obs_transition(self.episode_transitions[i], f"{i} before")
-            print("action", self.episode_transitions[i]["action"])
+        for i in range(0, sample_idx+1):
+            transition = self.episode_transitions[i]
+            internal = transition["robot_internal_state"]
+            # print_obs_transition(transition, f"{i} before")
+            # print("internal", internal.x, internal.y, internal.orientation)
 
-        for i in range(0, sample_idx):
-            relabeled = self.relabel_with_absolute_goal(self.episode_transitions[i], sample_goal)
-            print_obs_transition(relabeled, "{i} after")
-            her_transitions.append(relabeled)
-        relabeled = self.relabel_with_absolute_goal(self.episode_transitions[sample_idx], sample_goal, last=True)
-        her_transitions.append(relabeled)
+        for i in range(0, sample_idx+1):
+            relabeled = self.relabel_with_absolute_goal(self.episode_transitions[i], sample_goal, i==sample_idx)
+            # print_obs_transition(relabeled, f"{i} after")
+            #     her_transitions.append(relabeled)
 
-        sys.exit(0)
-
-        # Stack all arrays and convert to tensors
-        observations      = torch.stack([torch.tensor(t["obs"])      for t in her_transitions])
-        next_observations = torch.stack([torch.tensor(t["next_obs"]) for t in her_transitions])
-        actions           = torch.stack([torch.tensor(t['action'])   for t in her_transitions])
-        rewards           = torch.stack([torch.tensor(t['reward'])   for t in her_transitions])
-        dones             = torch.stack([torch.tensor(t['done'])     for t in her_transitions])
-
-        # # Create ReplayBufferSamples named tuple
-        # samples = ReplayBufferSamples(
-        #     observations=observations,
-        #     next_observations=next_observations,
-        #     actions=actions,
-        #     rewards=rewards,
-        #     dones=dones,
-        #     discounts=None
-        # )
-        # self.her_buffer.add(samples)
-
-        # Create ReplayBufferSamples named tuple
-
-        print(f"{observations.shape=}")
-        print(f"{next_observations.shape=}")
-        print(f"{actions.shape=}")
-        print(f"{rewards.shape=}")
-        print(f"{dones.shape=}")
-
-        self.her_buffer.add(
-            obs=observations,
-            next_obs=next_observations,
-            action=actions,
-            reward=rewards,
-            done=dones,
-            infos=None
-        )
+            # # Add transitions one at a time to the replay buffer
+            # for transition in her_transitions:
+            self.her_buffer.add(
+                obs=torch.tensor(relabeled["obs"]).unsqueeze(0),
+                next_obs=torch.tensor(relabeled["next_obs"]).unsqueeze(0),
+                action=torch.tensor(relabeled['action']).unsqueeze(0),
+                reward=torch.tensor([relabeled['reward']]),
+                done=torch.tensor([relabeled['done']]),
+                infos=[relabeled["info"]]
+            )
         

@@ -41,5 +41,5 @@ sac_hyperparams:
 # HER (Hindsight Experience Replay) configuration
 her:
   enabled: true                     # Enable HER
-  ratio: 0.3                        # Ratio of HER samples (0.8 = 80% HER, 20% normal)
+  ratio: 0.01                      # Ratio of HER samples (0.8 = 80% HER, 20% normal)
 

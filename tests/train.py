@@ -58,11 +58,13 @@ config = load_config()
 if config["wandb"]["name"] is None:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     do_her = config.get("her", {}).get("enabled", False)
-    her_magnitude = int(config.get("her", {}).get("ratio", 0)*1000)
     if do_her:
         her_value = "HER"
+        her_magnitude = int(config.get("her", {}).get("ratio", 0)*1000)
     else:
         her_value = "hor"
+        her_magnitude = 0
+
     config["wandb"]["name"] = f"sac_{timestamp}_{her_value}_{her_magnitude}‰"
 
 # ---------------------------------------------------------------------------
@@ -77,11 +79,30 @@ if WANDB_MODE != "offline":
         monitor_gym=True,
         save_code=True,
     )
+    # Update config with wandb run ID for model saving
+    config["wandb"]["run_id"] = run.id
+    config_artifact = wandb.Artifact('train_config', type='config')
+    config_artifact.add_file('train_config.yaml')
+    run.log_artifact(config_artifact)
+    # Upload test_env.yaml
+    env_config_artifact = wandb.Artifact('test_env_config', type='config')
+    env_config_artifact.add_file('test_env.yaml')
+    run.log_artifact(env_config_artifact)
+    # Upload her_wrapper.py
+    her_wrapper_artifact = wandb.Artifact('her_wrapper', type='code')
+    her_wrapper_artifact.add_file('her_wrapper.py')
+    run.log_artifact(her_wrapper_artifact)
+    # Upload train.py
+    train_script_artifact = wandb.Artifact('train_script', type='code')
+    train_script_artifact.add_file('train.py')
+    run.log_artifact(train_script_artifact)
+
+
 else:
     run = namedtuple('rubbish', ["id", "run", "name"])("offline", "offline", config["wandb"]["name"])
+    config["wandb"]["run_id"] = run.id
+    
 
-# Update config with wandb run ID for model saving
-config["wandb"]["run_id"] = run.id
 
 # ---------------------------------------------------------------------------
 # Environment factory

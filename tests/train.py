@@ -28,6 +28,7 @@ if WANDB_MODE != "offline":
 
 from dict_subset_wrapper import DictToFlatWrapper
 
+from her_wrapper import HERGoalEnvWrapper, HERReplayBufferWrapper
 
 def load_config(config_path="train_config.yaml"):
     """Load configuration from YAML file."""
@@ -56,7 +57,13 @@ config = load_config()
 # Generate a run name if not provided
 if config["wandb"]["name"] is None:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    config["wandb"]["name"] = f"sac_{timestamp}"
+    do_her = config.get("her", {}).get("enabled", False)
+    her_magnitude = int(config.get("her", {}).get("ratio", 0)*1000)
+    if do_her:
+        her_value = "HER"
+    else:
+        her_value = "hor"
+    config["wandb"]["name"] = f"sac_{timestamp}_{her_value}_{her_magnitude}‰"
 
 # ---------------------------------------------------------------------------
 # Initialise wandb run
@@ -84,14 +91,12 @@ def make_env():
     """Instantiate, wrap, and monitor a single environment."""
     config_path = os.path.join(os.path.dirname(__file__), config["env_config"])
     env = gym.make("SocNavGym-v2", config=config_path)
-        
+
+    # Convert the environment to dictionary
     env = DictToFlatWrapper(env, keys=config["keys"])
 
-    # Apply HER wrapper if enabled
-    if config.get("her", {}).get("enabled", False):
-        from her_wrapper import HERGoalEnvWrapper
-        env = HERGoalEnvWrapper(env, config["her"])
-
+    # Apply HER wrapper (even if disabled, for debugging purposes)
+    env = HERGoalEnvWrapper(env, config["her"])
 
     env = Monitor(env, filename=None)
     return env
@@ -114,7 +119,7 @@ setup_directories(config)
 checkpoint_callback = CheckpointCallback(
     save_freq=config["eval_freq"],
     save_path=config["checkpoint_dir"],
-    name_prefix=f"sac_model_{run.name"],
+    name_prefix=f"sac_model_{run.name}",
     save_replay_buffer=False,  # Disable replay buffer saving to avoid pickling errors with custom reward classes
     save_vecnormalize=True,
 )
@@ -142,43 +147,23 @@ else:
 # Extract SAC-specific hyperparameters from config
 sac_params = {k: v for k, v in config["sac_hyperparams"].items() if v is not None}
 
-model = SAC(
-    policy="MlpPolicy",
-    env=train_env,
-    verbose=config["verbose"],
-    tensorboard_log=f"runs/{run.id}",
-    **sac_params
-)
+model = SAC(policy="MlpPolicy", env=train_env, verbose=config["verbose"], tensorboard_log=f"runs/{run.id}", **sac_params)
 
-# Apply HER replay buffer wrapper if enabled
-if config.get("her", {}).get("enabled", False):
-    from her_wrapper import HERReplayBufferWrapper
-    
-    # Get the replay buffer from the model
-    # Unwrap the environment to get the HER wrapper
-    base_env = model.env.envs[0]
-    while hasattr(base_env, 'env') and not hasattr(base_env, 'sample_her_transitions'):
-        base_env = base_env.env
-    
-    her_buffer = HERReplayBufferWrapper(
-        model.replay_buffer,
-        base_env,  # Get the HER wrapper
-        config["her"]
-    )
-    model.replay_buffer = her_buffer
-    print(f"✓ HER enabled with strategies: {config['her']['strategies']}")
+# Apply HER replay buffer wrapper (even if disabled, for debugging purposes)
+# Unwrap the environment to get the HER wrapper
+her_env = model.env.envs[0]
+while hasattr(her_env, 'env') and not hasattr(her_env, 'THIS_IS_THE_HER_WRAPPER'):
+    her_env = her_env.env
+her_buffer = HERReplayBufferWrapper(model.replay_buffer, her_env, config["her"])
+model.replay_buffer = her_buffer
+print(f"✓ HER enabled")
 
 
 # ---------------------------------------------------------------------------
 # Train
 # ---------------------------------------------------------------------------
-if True:
-# try:
-    model.learn(
-        total_timesteps=config["total_steps"],
-        callback=callbacks,
-        progress_bar=True,
-    )
+try:
+    model.learn(total_timesteps=config["total_steps"], callback=callbacks, progress_bar=True)
     
     # Save final model with run name
     final_model_path = f"{run.name}_final"
@@ -194,21 +179,13 @@ if True:
     print(f"Training complete. Final model saved to {final_model_path}.zip")
     print(f"You can recover this run using: wandb artifact get {run.path}/model_{run.name}:latest")
     
-# except Exception as e:
-#     print(f"Training failed: {e}")
-#     if WANDB_MODE != "offline":
-#         run.finish()
-#     raise
+except Exception as e:
+    print(f"Training failed: {e}")
+    if WANDB_MODE != "offline":
+        run.finish()
+    raise
 
-# finally:
-#     if WANDB_MODE != "offline":
-#         run.finish()
+finally:
+    if WANDB_MODE != "offline":
+        run.finish()
 
-
-# ---------------------------------------------------------------------------
-# (Optional) Resume from checkpoint
-# ---------------------------------------------------------------------------
-
-# model = SAC.load("checkpoints/sac_model_200000_steps", env=train_env)
-# model.load_replay_buffer("checkpoints/sac_model_replay_buffer_200000_steps")
-# model.learn(total_timesteps=TOTAL_STEPS, callback=callbacks, reset_num_timesteps=False)

@@ -26,19 +26,17 @@ class RewardAPI:
 
     def check_collision(self):
         # check for object-robot collisions
-        collision = False
 
         for object in self.env.static_humans + self.env.dynamic_humans + self.env.plants + self.env.walls + self.env.tables + self.env.laptops:
-            if(self.env.robot.collides(object)):
-                collision = True
+            if self.env.robot.collides(object):
+                return True
 
         # interaction-robot collision
         for i in (self.env.moving_interactions + self.env.static_interactions + self.env.h_l_interactions):
             if i.collides(self.env.robot):
-                collision = True
-                break
+                return True
 
-        return collision
+        return False
 
     def check_out_of_map(self):
         return (self.env.MAP_X/2 < self.env.robot.x) or (self.env.robot.x < -self.env.MAP_X/2) or (self.env.MAP_Y/2 < self.env.robot.y) or (self.env.robot.y < -self.env.MAP_Y/2)

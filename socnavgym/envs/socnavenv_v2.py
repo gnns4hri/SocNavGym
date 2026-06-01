@@ -511,6 +511,8 @@ class SocNavEnv_v2(gym.Env):
         self.REWARD_PATH = config["env"]["reward_file"]
         if self.REWARD_PATH == "dsrnn":
             self.REWARD_PATH = os.path.dirname(os.path.abspath(__file__)) + "/rewards/" + "dsrnn_reward.py"
+        elif self.REWARD_PATH == "sparse_gotopoint":
+            self.REWARD_PATH = os.path.dirname(os.path.abspath(__file__)) + "/rewards/" + "sparse_gotopoint_reward.py"
         else:
             assert self.REWARD_PATH == "dsrnn", "No other option for now"
 
@@ -3122,6 +3124,8 @@ class SocNavEnv_v2(gym.Env):
 
     def _add_walls(self):
         def random_rotate(walls):
+            if len(walls) == 0:
+                return walls
             n = random.randint(0, len(walls) - 1)
             if n == 0:
                 return list(walls)

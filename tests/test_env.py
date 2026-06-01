@@ -217,7 +217,7 @@ while True:
         axs[0].plot([h_x, h_x2], [h_y, h_y2], '-', color="orange", linewidth=4)
         # Plot the human as a circle and a segment
         axs[0].add_patch(Ellipse((h_x, h_y), width=0.3, height=0.7, angle=np.atan2(human[2], human[3])*180/np.pi, fill=False, color='orange', linewidth=2))
-        axs[0].plot([left_x, right_x], [left_y, right_y], 'b-', linewidth=2)
+        # axs[0].plot([left_x, right_x], [left_y, right_y], 'b-', linewidth=2)
 
     axs[1].clear()
     #axs[1].set_yscale("log")

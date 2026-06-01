@@ -62,8 +62,8 @@ env:
     crowd_formation_probability: 0.0  # probability of crowd formation
     human_laptop_formation_probability: 0.0  # probability to form a human-laptop-interaction
 
-    reward_file: "dsrnn"  # Path to custom-reward file. If you want to use the in-built SNGNN reward function or the DSRNN reward function, set the value to "sngnn" or "dsrnn" respectively
-
+    # Path to custom-reward file: "dsrnn", "sparse_gotopoint"
+    reward_file: "sparse_gotopoint"
     cuda_device: 0  # cuda device to use (in case of multiple cuda devices). If cpu or only one cuda device, keep it as 0
 
     min_static_humans: 5  # minimum no. of static humans
@@ -107,7 +107,7 @@ env:
 
     get_padded_observations: False  # flag value that indicates whether you require padded observations or not. You can change it using env.set_padded_observations(True/False)
 
-    set_shape: "square"  # can be "random", "square", "rectangle", "L" or "no-walls"
+    set_shape: "no-walls"  # can be "random", "square", "rectangle", "L" or "no-walls"
     add_corridors: False  # True or False, whether there should be corridors in the environment. Corridors cannot be added for L shaped rooms
 
     min_map_x: 8  # minimum size of map along x direction

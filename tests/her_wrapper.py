@@ -6,15 +6,21 @@ It works by storing the original goals and allowing the replay buffer
 to sample alternative goals for past experiences.
 """
 
+import sys
 import numpy as np
 from typing import Dict, Any, Tuple, NamedTuple, Optional
 import copy
 import gymnasium as gym
 
 import torch
-# Use ReplayBufferSamples from stable-baselines3
 from stable_baselines3.common.buffers import ReplayBufferSamples
 
+MINIMUM_TRANSITIONS = 3
+
+
+def print_obs_transition(transition, text="transition_obs_pose"):
+    obs = transition["obs"]
+    print(f"{text}: {obs[0]}, {obs[1]}, {np.atan2(obs[3],obs[4])}  (a={np.atan2(obs[1], obs[0])} d={np.sqrt(obs[0]*obs[0] + obs[1]*obs[1])})")
 
 class HERGoalEnvWrapper(gym.Wrapper):
     """
@@ -63,6 +69,10 @@ class HERGoalEnvWrapper(gym.Wrapper):
         obs, info = self.env.reset(**kwargs)
         
         # Clear episode transitions
+
+        if self.her_config['enabled'] and len(self.episode_transitions) > 5:
+            self.do_the_trick()
+
         self.episode_transitions = []
         
         return obs, info
@@ -82,11 +92,13 @@ class HERGoalEnvWrapper(gym.Wrapper):
             'robot_internal_state': self.base_env.robot
         }
         self.episode_transitions.append(transition)
-
         return obs, reward, terminated, truncated, info
     
+    def set_buffer(self, her_buffer: HERReplayBufferWrapper):
+        self.her_buffer = her_buffer
 
-    def relabel_with_absolute_goal(self, transition: Dict[str, Any], goal_absolute_x_y_a: np.ndarray) -> Dict[str, Any]:
+
+    def relabel_with_absolute_goal(self, transition: Dict[str, Any], goal_absolute_x_y_a: np.ndarray, last=False) -> Dict[str, Any]:
         """
         Relabel a transition with a new goal.
         
@@ -115,11 +127,18 @@ class HERGoalEnvWrapper(gym.Wrapper):
 
         assert(len(goal_absolute_x_y_a) == 3), f"goal_absolute_x_y_a's size must be 3 {len(goal_absolute_x_y_a)}"
         robot = transition["robot_internal_state"]
+
+        
         new_goal_relative_coords = get_relative_frame_coordinates(robot, goal_absolute_x_y_a)
         rel_angle = goal_absolute_x_y_a[2] - robot.orientation
 
         # Create a copy of the transition
         relabeled = copy.deepcopy(transition)
+
+        print("relabelling with", goal_absolute_x_y_a)
+        print_obs_transition(relabeled, "relabelling")
+
+
 
         relabeled["obs"][0] = new_goal_relative_coords[0]
         relabeled["obs"][1] = new_goal_relative_coords[1]
@@ -127,14 +146,15 @@ class HERGoalEnvWrapper(gym.Wrapper):
         relabeled["obs"][4] = np.cos(rel_angle)
 
         # Recalculate reward based on new goal
-        relabeled['reward'] = self._calculate_her_reward(relabeled)
+        relabeled['reward'] = self._calculate_her_reward(relabeled, last)
+        print("r", relabeled['reward'])
         
         # Mark as relabeled
         relabeled['relabeled'] = True
         
         return relabeled
     
-    def _calculate_her_reward(self, relabeled: Dict[str, Any]) -> float:
+    def _calculate_her_reward(self, relabeled: Dict[str, Any], last=False) -> float:
         """
         Calculate reward for HER relabeled goal.
         
@@ -147,7 +167,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
         """
         def _check_out_of_map(env_robot):
             env = self.base_env
-            return (env.MAP_X/2 < env_robot.x) or (env_robot.x < -env.MAP_X/2) or (env.MAP_Y/2 < env_robot.y) or (env_robot.y < -env.MAP_Y/2)
+            return (env_robot.x > env.MAP_X) or (env_robot.x < -env.MAP_X) or (env_robot.y > env.MAP_Y) or (env_robot.y < -env.MAP_Y)
 
         def _check_reached_goal(robot):
             distance_to_goal = np.sqrt( (robot[0]**2) + (robot[1]**2) )
@@ -164,10 +184,14 @@ class HERGoalEnvWrapper(gym.Wrapper):
         def _check_timeout():
             return self.base_env.ticks > self.base_env.EPISODE_LENGTH
 
-
+        if last:
+            print("LAST!!!")
         obs = relabeled["obs"]
         robot = relabeled["obs"][0:8]
         humans = relabeled["obs"][7:].reshape(-1,8)
+        robot_int = relabeled["robot_internal_state"]
+        print(f"OBS_POSE: {obs[0]}, {obs[1]}, {np.atan2(obs[3],obs[4])}")
+        print(f"{robot_int=}", self.base_env.MAP_X, self.base_env.MAP_Y)
 
         if _check_out_of_map(relabeled["robot_internal_state"]):
             return -5.
@@ -185,197 +209,84 @@ class HERGoalEnvWrapper(gym.Wrapper):
         """Delegate other attribute accesses to the base environment."""
         return getattr(self.original_env, name)
 
-
-class HERReplayBufferWrapper:
-    """
-    Wrapper for replay buffer that adds HER sampling.
-    """
-
-    def __init__(self, base_buffer, her_wrapper: HERGoalEnvWrapper, her_config: Dict[str, Any]):
-        self.base_buffer = base_buffer
-        self.her_wrapper = her_wrapper
-        self.her_config = her_config
-        
-        
-    def add(self, *args, **kwargs):
-        return self.base_buffer.add(*args, **kwargs)
-
-
-    def __getattr__(self, name: str):
-        """Delegate other attribute accesses to the base buffer."""
-        return getattr(self.base_buffer, name)
-
-
-    def sample(self, batch_size: int, env):
+    def do_the_trick(self):
         """
         Sample batch with HER transitions mixed in.
         """
-        def sample_her_transitions(n_samples: int) -> list:
-            """
-            Sample relabeled transitions using HER
-
-            Args:
-                n_samples: Number of samples to generate per transition
-                
-            Returns:
-                List of relabeled transitions
-            """
-            if not self.her_wrapper.episode_transitions or len(self.her_wrapper.episode_transitions) < 2:
-                return None
-            her_transitions = []
-            
-            # Fill next observations
-            for i, transition in enumerate(self.her_wrapper.episode_transitions[:-1]): # Skip the last transition (no next state)
-                self.her_wrapper.episode_transitions[i]['next_obs'] = self.her_wrapper.episode_transitions[i + 1]["obs"]
-
-            # Sample from any state in the episode
-            episode_indices = list(range(len(self.her_wrapper.episode_transitions)))
-            # print("sample_her_transitions", n_samples)
-            for _ in range(n_samples):
-                sample_idx = np.random.choice(episode_indices)
-                xv = self.her_wrapper.episode_transitions[sample_idx]["obs"][0]
-                yv = self.her_wrapper.episode_transitions[sample_idx]["obs"][1]
-                sv = self.her_wrapper.episode_transitions[sample_idx]["obs"][3]
-                cv = self.her_wrapper.episode_transitions[sample_idx]["obs"][4]
-                av = np.atan2(sv, cv)
-                sample_goal = [xv, yv, av]  # Goal in robot frame
-                relabeled = self.her_wrapper.relabel_with_absolute_goal(transition, sample_goal)
-                her_transitions.append(relabeled)
-                        
-            return her_transitions
-
-        def _convert_her_to_replay_buffer_samples(her_transitions):
-            """Convert HER transitions to ReplayBufferSamples format."""
-            
-            # Build observations by stacking all observation components
-            observations_list = []
-            next_observations_list = []
-            
-            for transition in her_transitions:
-                obs = transition["obs"]
-                next_obs = transition.get('next_obs', obs)  # Use same obs if next_obs not available
-
-                observations_list.append(obs)
-                next_observations_list.append(next_obs)
-            
-            # Stack all arrays and convert to tensors
-            observations = torch.stack([torch.tensor(obs) for obs in observations_list])
-            next_observations = torch.stack([torch.tensor(obs) for obs in next_observations_list])
-            actions = torch.stack([torch.tensor(t['action'], dtype=torch.float32) for t in her_transitions[:batch_size]])
-            rewards = torch.stack([torch.tensor(t['reward'], dtype=torch.float32) for t in her_transitions[:batch_size]])
-            dones = torch.stack([torch.tensor(t['done'], dtype=torch.float32) for t in her_transitions[:batch_size]])
-            
-            
-            # Ensure observations have the same shape as expected by the regular batch
-            # If observations are 1D but should be 2D, reshape them
-            if observations.ndim == 1:
-                observations = observations.reshape(-1, 1)
-            if next_observations.ndim == 1:
-                next_observations = next_observations.reshape(-1, 1)
-            
-            # Create ReplayBufferSamples named tuple
-            return ReplayBufferSamples(
-                observations=observations,
-                actions=actions,
-                next_observations=next_observations,
-                rewards=rewards,
-                dones=dones,
-                discounts=None
-            )
-
-        def _combine_replay_buffer_samples(regular_batch, her_batch):
-            """
-                Combine two ReplayBufferSamples objects.
-
-                This function is supposed to concatenate them, making sure they
-                are correct in the target replay buffer format.
-            """
-
-            
-            def ensure_tensor(array):
-                """Ensure array is a torch tensor, convert if needed."""
-                if isinstance(array, torch.Tensor):
-                    return array
-                else:
-                    return torch.tensor(array, dtype=torch.float32)
-            
-            def concatenate_tensors(tensor1, tensor2):
-                """Concatenate two tensors, handling different devices."""
-                # Ensure both tensors are on the same device
-                if tensor1.device != tensor2.device:
-                    tensor2 = tensor2.to(tensor1.device)
-                
-                return torch.cat([tensor1, tensor2], dim=0)
-            
-            
-            # Ensure all arrays are tensors
-            regular_obs = ensure_tensor(regular_batch.observations)
-            her_obs = ensure_tensor(her_batch.observations)
-            regular_next_obs = ensure_tensor(regular_batch.next_observations)
-            her_next_obs = ensure_tensor(her_batch.next_observations)
-            regular_actions = ensure_tensor(regular_batch.actions)
-            her_actions = ensure_tensor(her_batch.actions)
-            regular_rewards = ensure_tensor(regular_batch.rewards)
-            her_rewards = ensure_tensor(her_batch.rewards)
-            regular_dones = ensure_tensor(regular_batch.dones)
-            her_dones = ensure_tensor(her_batch.dones)
-            
-            # Concatenate all arrays using torch operations
-            observations=concatenate_tensors(regular_obs, her_obs)
-            next_observations=concatenate_tensors(regular_next_obs, her_next_obs)
-            actions=concatenate_tensors(regular_actions, her_actions)
+        if not self.episode_transitions or len(self.episode_transitions) < 2:
+            return
 
 
+        print("DOING THE TRICK")
 
-            her_rewards = her_rewards.unsqueeze(dim=1)
-            her_dones = her_dones.unsqueeze(dim=1)
-            rewards=concatenate_tensors(regular_rewards, her_rewards)
-            dones=concatenate_tensors(regular_dones, her_dones)
+        her_transitions = []
 
-            combined = ReplayBufferSamples(
-                observations=concatenate_tensors(regular_obs, her_obs),
-                next_observations=concatenate_tensors(regular_next_obs, her_next_obs),
-                actions=concatenate_tensors(regular_actions, her_actions),
-                rewards=concatenate_tensors(regular_rewards, her_rewards),
-                dones=concatenate_tensors(regular_dones, her_dones),
-                discounts=regular_batch.discounts  # Keep discounts from regular batch (should already be tensor)
-            )
+        # Fill next observations
+        for i, transition in enumerate(self.episode_transitions[:-1]): # Skip the last transition (no next state)
+            self.episode_transitions[i]['next_obs'] = self.episode_transitions[i + 1]["obs"]
+        self.episode_transitions[-1]['next_obs'] = self.episode_transitions[-1]["obs"]
 
-            return combined
+        # Sample from any state in the episode
+        episode_indices = list(range(len(self.episode_transitions)))
+        print(f"{len(episode_indices)=}")
+        print(f"{len(self.episode_transitions)=}")
+
+        sample_idx = np.random.choice(episode_indices) + MINIMUM_TRANSITIONS
+        sample_idx = min(len(episode_indices)-1, sample_idx)
+        print(f"{sample_idx=}")
+        xv = self.episode_transitions[sample_idx]["obs"][0]
+        yv = self.episode_transitions[sample_idx]["obs"][1]
+        sv = self.episode_transitions[sample_idx]["obs"][3]
+        cv = self.episode_transitions[sample_idx]["obs"][4]
+        av = np.atan2(sv, cv)
+        sample_goal = [xv, yv, av]  # Goal in robot frame
 
 
-        # print(f"SAMPLE\n{batch_size=}")
-        # If HER is not enabled, delegate the task to the base_buffer instance
-        if not self.her_config.get('enabled', False):
-            regular_batch = self.base_buffer.sample(batch_size, env=env)
-            # print(regular_batch)
-            # print(type(regular_batch))
-            # print("HER disabled, returning", len(regular_batch[0]), "samples directly from the environment")
-            return regular_batch
+        for i in range(0, sample_idx):
+            print_obs_transition(self.episode_transitions[i], f"{i} before")
+            print("action", self.episode_transitions[i]["action"])
 
-        # Sample HER transitions
-        her_ratio = self.her_config.get('ratio', 0.25)
-        n_her_samples = int(batch_size * her_ratio)
-        n_regular_samples = batch_size - n_her_samples
-        her_transitions = sample_her_transitions(n_samples=n_her_samples)
+        for i in range(0, sample_idx):
+            relabeled = self.relabel_with_absolute_goal(self.episode_transitions[i], sample_goal)
+            print_obs_transition(relabeled, "{i} after")
+            her_transitions.append(relabeled)
+        relabeled = self.relabel_with_absolute_goal(self.episode_transitions[sample_idx], sample_goal, last=True)
+        her_transitions.append(relabeled)
 
-        # If we don't have HER transitions, return the original, otherwise mix them with regular samples
-        if her_transitions is None or not her_transitions or n_her_samples <= 0:
-            regular_batch = self.base_buffer.sample(batch_size, env=env)
-            # print("We don't yet have transitions, returning", len(regular_batch[0]), "samples directly from the environment")
-            return regular_batch
-        else:
-            # print("transitions", len(her_transitions[0]), her_transitions[0].keys())
-            # Sample fewer regular transitions
-            regular_batch = self.base_buffer.sample(n_regular_samples, env=env)
-          
-            # Convert HER transitions to ReplayBufferSamples format
-            her_batch = _convert_her_to_replay_buffer_samples(her_transitions)
+        sys.exit(0)
 
-            # print(f"{len(regular_batch[0])=}, {len(her_batch[0])=}")
+        # Stack all arrays and convert to tensors
+        observations      = torch.stack([torch.tensor(t["obs"])      for t in her_transitions])
+        next_observations = torch.stack([torch.tensor(t["next_obs"]) for t in her_transitions])
+        actions           = torch.stack([torch.tensor(t['action'])   for t in her_transitions])
+        rewards           = torch.stack([torch.tensor(t['reward'])   for t in her_transitions])
+        dones             = torch.stack([torch.tensor(t['done'])     for t in her_transitions])
 
-            # Combine batches
-            ret = _combine_replay_buffer_samples(regular_batch, her_batch)
-            # print("ret:", len(ret[0]))
-            return ret
+        # # Create ReplayBufferSamples named tuple
+        # samples = ReplayBufferSamples(
+        #     observations=observations,
+        #     next_observations=next_observations,
+        #     actions=actions,
+        #     rewards=rewards,
+        #     dones=dones,
+        #     discounts=None
+        # )
+        # self.her_buffer.add(samples)
+
+        # Create ReplayBufferSamples named tuple
+
+        print(f"{observations.shape=}")
+        print(f"{next_observations.shape=}")
+        print(f"{actions.shape=}")
+        print(f"{rewards.shape=}")
+        print(f"{dones.shape=}")
+
+        self.her_buffer.add(
+            obs=observations,
+            next_obs=next_observations,
+            action=actions,
+            reward=rewards,
+            done=dones,
+            infos=None
+        )
         

@@ -31,6 +31,11 @@ class Robot(Object):
         self.goal_a = goal_a
         self.type = type
 
+    def __str__(self):
+        return f"Robot[{float(self.x)}, {float(self.y)}, @ {float(self.orientation)}]"
+    def __repr__(self):
+        return str(self)
+
     def update(self, time):
         """For updating the coordinates of the robot
 

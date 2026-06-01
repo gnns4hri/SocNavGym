@@ -1798,36 +1798,6 @@ class SocNavEnv_v2(gym.Env):
         """
         Function to return a continuous space action for a given discrete action
         """
-        # Linear vel --> [-1,1]: -1: Stop; 1: Move forward with max velocity
-        # Rotational vel --> [-1,1]: -1: Max clockwise rotation; 1: Max anti-clockwise rotation
-        # Move forward with max_vel/2 and rotate anti-clockwise with max_rotation/4
-        # if action == 0:
-        #     return np.array([0, 0.25], dtype=np.float32)
-        # Move forward with max_vel/2 and rotate clockwise with max_rotation/4
-        # elif action == 1:
-        #     return np.array([0, -0.25], dtype=np.float32)
-        # Move forward with max_vel and rotate anti-clockwise with max_rotation/8
-        # elif action == 2:
-        #     return np.array([1, 0.125], dtype=np.float32)
-        # Move forward with max_vel and rotate clockwise with max_rotation/8
-        # elif action == 3:
-        #     return np.array([1, -0.125], dtype=np.float32)
-        # Move forward with max_vel
-        # elif action == 4:
-        #     return np.array([1, 0], dtype=np.float32)
-        # Stop
-        # elif action == 5:
-        #     return np.array([-1, 0], dtype=np.float32)
-        # Move forward with max_vel/10 and rotate anti-clockwise with max_rotation/2.5
-        # elif action == 6:
-        #     return np.array([-0.8, +0.4], dtype=np.float32)
-        # Move forward with max_vel/10 and rotate clockwise with max_rotation/2.5
-        # elif action == 7:
-        #     return np.array([-0.8, -0.4], dtype=np.float32)
-
-        # else:
-        #     raise NotImplementedError
-
 
         # Turning anti-clockwise
         if action == 0:
@@ -1877,7 +1847,20 @@ class SocNavEnv_v2(gym.Env):
             Returns:
                 np.ndarray: action with velocity values
             """
+
+
             action = act.astype(np.float32)
+
+
+
+
+            action[0] = 0.1
+            action[1] = 0
+            action[2] = 0
+
+
+
+
             # action[0] = (float(action[0]+1.0)/2.0)*self.MAX_ADVANCE_ROBOT   # [-1, +1] --> [0, self.MAX_ADVANCE_ROBOT]
             if action[0]<0:
                 action[0] *= -self.MIN_ADVANCE_ROBOT

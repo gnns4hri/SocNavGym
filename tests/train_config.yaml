@@ -1,15 +1,14 @@
 # SocNavGym Training Configuration
-# This file contains all hyperparameters and settings for training
 
 # Environment configuration
-keys: ["robot", "humans"]          # Keys to extract from Dict env
-env_config: "test_env.yaml"      # Environment configuration file
+env_config: "test_env.yaml"       # Environment configuration file
+keys: ["robot", "humans"]         # Keys to extract from Dict env
 
 # Training parameters
-total_steps: 5000000             # Total training steps
-n_envs: 1                        # Number of parallel environments
+total_steps: 5000000              # Total training steps
+n_envs: 10                        # Number of parallel environments
 eval_freq: 100000                 # Evaluation frequency (steps)
-eval_episodes: 50                # Number of evaluation episodes
+eval_episodes:  50                # Number of evaluation episodes
 verbose: 1                        # Verbosity level (0=quiet, 1=normal, 2=verbose)
 
 # Directories
@@ -21,7 +20,7 @@ best_model_dir: "best_model"      # Best model directory
 wandb:
   project: "my-rl-project"        # WANDB project name
   name: null                      # Run name (auto-generated if null)
-  entity: null                     # WANDB entity (team/user)
+  entity: null                    # WANDB entity (team/user)
 
 # SAC hyperparameters
 # Set values to null to use Stable Baselines3 defaults
@@ -33,13 +32,13 @@ sac_hyperparams:
   gamma: 0.99                     # Discount factor
   train_freq: 1                   # Training frequency
   gradient_steps: 1               # Gradient steps per update
-  ent_coef: "auto"               # Entropy coefficient
+  ent_coef: "auto"                # Entropy coefficient
   use_sde: False                  # Use State Dependent Exploration
   sde_sample_freq: -1             # SDE sample frequency
   use_sde_at_warmup: False        # Use SDE at warmup
 
 # HER (Hindsight Experience Replay) configuration
 her:
-  enabled: true                     # Enable HER
-  ratio: 0.01                      # Ratio of HER samples (0.8 = 80% HER, 20% normal)
+  enabled: true                   # Enable HER
+  ratio: 0.2                      # Ratio of HER samples (0.8 = 80% HER, 20% normal)
 

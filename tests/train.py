@@ -18,7 +18,7 @@ from stable_baselines3.common.monitor import Monitor
 
 
 try:
-    WANDB_MODE = os.environ["WANDB_MODE"]
+    WANDB_MODE = os.getenv("WANDB_MODE", "online").lower()
 except:
     WANDB_MODE = "online"
 
@@ -28,7 +28,7 @@ if WANDB_MODE != "offline":
 
 from dict_subset_wrapper import DictToFlatWrapper
 
-from her_wrapper import HERGoalEnvWrapper, HERReplayBufferWrapper
+from her_wrapper import HERGoalEnvWrapper # , HERReplayBufferWrapper
 
 def load_config(config_path="train_config.yaml"):
     """Load configuration from YAML file."""
@@ -81,23 +81,24 @@ if WANDB_MODE != "offline":
     )
     # Update config with wandb run ID for model saving
     config["wandb"]["run_id"] = run.id
-    config_artifact = wandb.Artifact('train_config', type='config')
-    config_artifact.add_file('train_config.yaml')
-    run.log_artifact(config_artifact)
-    # Upload test_env.yaml
-    env_config_artifact = wandb.Artifact('test_env_config', type='config')
-    env_config_artifact.add_file('test_env.yaml')
-    run.log_artifact(env_config_artifact)
-    # Upload her_wrapper.py
-    her_wrapper_artifact = wandb.Artifact('her_wrapper', type='code')
-    her_wrapper_artifact.add_file('her_wrapper.py')
-    run.log_artifact(her_wrapper_artifact)
-    # Upload train.py
-    train_script_artifact = wandb.Artifact('train_script', type='code')
-    train_script_artifact.add_file('train.py')
-    run.log_artifact(train_script_artifact)
-
-
+    script_dir = os.path.dirname(os.path.abspath(__file__))
+    files_to_upload = [
+        ('train_config', 'train_config.yaml', 'config'),
+        ('test_env_config', 'test_env.yaml', 'config'),
+        ('her_wrapper', 'her_wrapper.py', 'code'),
+        ('train_script', 'train.py', 'code')
+    ]
+    for artifact_name, filename, artifact_type in files_to_upload:
+        filepath = os.path.join(script_dir, filename)
+        try:
+            if os.path.exists(filepath):
+                artifact = wandb.Artifact(artifact_name, type=artifact_type)
+                artifact.add_file(filepath)
+                run.log_artifact(artifact)
+            else:
+                print(f"Warning: File {filename} not found at {filepath}")
+        except Exception as e:
+            print(f"Failed to upload {filename} as artifact: {e}")
 else:
     run = namedtuple('rubbish', ["id", "run", "name"])("offline", "offline", config["wandb"]["name"])
     config["wandb"]["run_id"] = run.id
@@ -172,11 +173,10 @@ model = SAC(policy="MlpPolicy", env=train_env, verbose=config["verbose"], tensor
 
 # Apply HER replay buffer wrapper (even if disabled, for debugging purposes)
 # Unwrap the environment to get the HER wrapper
-her_env = model.env.envs[0]
-while hasattr(her_env, 'env') and not hasattr(her_env, 'THIS_IS_THE_HER_WRAPPER'):
-    her_env = her_env.env
-her_buffer = HERReplayBufferWrapper(model.replay_buffer, her_env, config["her"])
-model.replay_buffer = her_buffer
+for her_env in model.env.envs:
+    while hasattr(her_env, 'env') and not hasattr(her_env, 'THIS_IS_THE_HER_WRAPPER'):
+        her_env = her_env.env
+    her_env.set_buffer(model.replay_buffer)
 print(f"✓ HER enabled")
 
 
@@ -184,7 +184,7 @@ print(f"✓ HER enabled")
 # Train
 # ---------------------------------------------------------------------------
 try:
-    model.learn(total_timesteps=config["total_steps"], callback=callbacks, progress_bar=True)
+    model.learn(total_timesteps=config["total_steps"], callback=callbacks, progress_bar=(WANDB_MODE != "offline"))
     
     # Save final model with run name
     final_model_path = f"{run.name}_final"

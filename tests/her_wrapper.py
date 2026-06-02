@@ -68,11 +68,10 @@ class HERGoalEnvWrapper(gym.Wrapper):
         # Reset the base environment
         obs, info = self.env.reset(**kwargs)
         
-        # Clear episode transitions
-
         if self.her_config['enabled'] and len(self.episode_transitions) > 5:
             self.do_the_trick()
 
+        # Clear episode transitions
         self.episode_transitions = []
         
         return obs, info
@@ -136,11 +135,6 @@ class HERGoalEnvWrapper(gym.Wrapper):
         # Create a copy of the transition
         relabeled = copy.deepcopy(transition)
 
-        # print("relabelling with", goal_absolute_x_y_a)
-        # print_obs_transition(relabeled, "relabelling")
-
-
-
         relabeled["obs"][0] = new_goal_relative_coords[0]
         relabeled["obs"][1] = new_goal_relative_coords[1]
         relabeled["obs"][3] = np.sin(rel_angle)
@@ -185,13 +179,10 @@ class HERGoalEnvWrapper(gym.Wrapper):
         def _check_timeout():
             return self.base_env.ticks > self.base_env.EPISODE_LENGTH
 
-        # if last: print("LAST!!!")
         obs = relabeled["obs"]
         robot = relabeled["obs"][0:8]
         humans = relabeled["obs"][7:].reshape(-1,8)
         robot_int = relabeled["robot_internal_state"]
-        # print(f"OBS_POSE: {obs[0]}, {obs[1]}, {np.atan2(obs[3],obs[4])}")
-        # print(f"{robot_int=}", self.base_env.MAP_X, self.base_env.MAP_Y)
 
         if _check_out_of_map(relabeled["robot_internal_state"]):
             return -5.
@@ -205,21 +196,6 @@ class HERGoalEnvWrapper(gym.Wrapper):
         return 0
     
     
-    # def __getattr__(self, name: str):
-    #     """Delegate other attribute accesses to the base environment."""
-    #     try:
-    #         ret = getattr(self.original_env, name)
-    #     except Exception as e:
-    #         print("FAIL", self)
-    #         print("FAIL", self)
-    #         print("FAIL", self)
-    #         print("FAIL", self)
-    #         print("FAIL", self)
-    #         try:
-    #             return socnavgym.BUFFER
-    #         except:
-    #             raise e
-
 
     def do_the_trick(self):
         """
@@ -229,8 +205,6 @@ class HERGoalEnvWrapper(gym.Wrapper):
             return
 
 
-        # print("DOING THE TRICK")
-
         # Fill next observations
         for i, transition in enumerate(self.episode_transitions[:-1]): # Skip the last transition (no next state)
             self.episode_transitions[i]['next_obs'] = self.episode_transitions[i + 1]["obs"]
@@ -238,12 +212,9 @@ class HERGoalEnvWrapper(gym.Wrapper):
 
         # Sample from any state in the episode
         episode_indices = list(range(len(self.episode_transitions)))
-        # print(f"{len(episode_indices)=}")
-        # print(f"{len(self.episode_transitions)=}")
 
         sample_idx = np.random.choice(episode_indices) + MINIMUM_TRANSITIONS
         sample_idx = min(len(episode_indices)-1, sample_idx)
-        # print(f"{sample_idx=}")
         xv = self.episode_transitions[sample_idx]["robot_internal_state"].x
         yv = self.episode_transitions[sample_idx]["robot_internal_state"].y
         av = self.episode_transitions[sample_idx]["robot_internal_state"].orientation
@@ -253,16 +224,9 @@ class HERGoalEnvWrapper(gym.Wrapper):
         for i in range(0, sample_idx+1):
             transition = self.episode_transitions[i]
             internal = transition["robot_internal_state"]
-            # print_obs_transition(transition, f"{i} before")
-            # print("internal", internal.x, internal.y, internal.orientation)
 
         for i in range(0, sample_idx+1):
             relabeled = self.relabel_with_absolute_goal(self.episode_transitions[i], sample_goal, i==sample_idx)
-            # print_obs_transition(relabeled, f"{i} after")
-            #     her_transitions.append(relabeled)
-
-            # # Add transitions one at a time to the replay buffer
-            # for transition in her_transitions:
             self.her_buffer.add(
                 obs=torch.tensor(relabeled["obs"]).unsqueeze(0),
                 next_obs=torch.tensor(relabeled["next_obs"]).unsqueeze(0),

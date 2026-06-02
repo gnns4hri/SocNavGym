@@ -14,7 +14,7 @@ import gymnasium as gym
 
 import torch
 from stable_baselines3.common.buffers import ReplayBufferSamples
-
+import socnavgym
 MINIMUM_TRANSITIONS = 3
 
 
@@ -205,9 +205,21 @@ class HERGoalEnvWrapper(gym.Wrapper):
         return 0
     
     
-    # def __getattr__(self, name: str):
-    #     """Delegate other attribute accesses to the base environment."""
-    #     return getattr(self.original_env, name)
+    def __getattr__(self, name: str):
+        """Delegate other attribute accesses to the base environment."""
+        try:
+            ret = getattr(self.original_env, name)
+        except Exception as e:
+            print("FAIL", self)
+            print("FAIL", self)
+            print("FAIL", self)
+            print("FAIL", self)
+            print("FAIL", self)
+            try:
+                return socnavgym.BUFFER
+            except:
+                raise e
+
 
     def do_the_trick(self):
         """

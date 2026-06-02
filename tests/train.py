@@ -59,13 +59,11 @@ if config["wandb"]["name"] is None:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     do_her = config.get("her", {}).get("enabled", False)
     if do_her:
-        her_value = "HER"
-        her_magnitude = int(config.get("her", {}).get("ratio", 0)*1000)
+        her_value = "_HER"
     else:
-        her_value = "hor"
-        her_magnitude = 0
+        her_value = ""
 
-    config["wandb"]["name"] = f"sac_{timestamp}_{her_value}_{her_magnitude}‰"
+    config["wandb"]["name"] = f"sac_{timestamp}{her_value}"
 
 # ---------------------------------------------------------------------------
 # Initialise wandb run
@@ -129,8 +127,15 @@ def make_env():
 # ---------------------------------------------------------------------------
 
 train_env = make_vec_env(make_env, n_envs=config["n_envs"])
-eval_env  = make_vec_env(make_env, n_envs=1)
+ee = train_env
+while hasattr(ee, 'env') and not hasattr(ee, 'THIS_IS_THE_HER_WRAPPER'):
+    print("ee", type(ee), ee, "going down")
+    ee = ee.env
+print("USING in training.py", type(ee), ee, "trainig env")
 
+
+eval_env  = make_vec_env(make_env, n_envs=1)
+print("EVAL ENV", eval_env)
 
 # ---------------------------------------------------------------------------
 # Callbacks
@@ -171,14 +176,18 @@ sac_params = {k: v for k, v in config["sac_hyperparams"].items() if v is not Non
 
 model = SAC(policy="MlpPolicy", env=train_env, verbose=config["verbose"], tensorboard_log=f"runs/{run.id}", **sac_params)
 
+
 # Apply HER replay buffer wrapper (even if disabled, for debugging purposes)
 # Unwrap the environment to get the HER wrapper
 for her_env in model.env.envs:
     while hasattr(her_env, 'env') and not hasattr(her_env, 'THIS_IS_THE_HER_WRAPPER'):
+        print("her_env", type(her_env), her_env, "going down")
         her_env = her_env.env
+    print("USING", type(her_env), her_env, "going down")
     her_env.set_buffer(model.replay_buffer)
 print(f"✓ HER enabled")
 
+socnavgym.BUFFER = model.replay_buffer
 
 # ---------------------------------------------------------------------------
 # Train

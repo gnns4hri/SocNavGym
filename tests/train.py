@@ -178,16 +178,20 @@ model = SAC(policy="MlpPolicy", env=train_env, verbose=config["verbose"], tensor
 
 
 # Apply HER replay buffer wrapper (even if disabled, for debugging purposes)
-# Unwrap the environment to get the HER wrapper
 for her_env in model.env.envs:
+    # Unwrap the environment to get the HER wrapper
     while hasattr(her_env, 'env') and not hasattr(her_env, 'THIS_IS_THE_HER_WRAPPER'):
         print("her_env", type(her_env), her_env, "going down")
+        her_env.her_buffer = model.replay_buffer
         her_env = her_env.env
+    # Keep unwapping just to store the buffer
+    lower_env = her_env
+    while hasattr(lower_env, 'env'):
+        lower_env.her_buffer = model.replay_buffer
+        lower_env = lower_env.env
     print("USING", type(her_env), her_env, "going down")
     her_env.set_buffer(model.replay_buffer)
 print(f"✓ HER enabled")
-
-socnavgym.BUFFER = model.replay_buffer
 
 # ---------------------------------------------------------------------------
 # Train

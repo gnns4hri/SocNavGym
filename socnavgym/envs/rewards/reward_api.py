@@ -43,8 +43,10 @@ class RewardAPI:
 
     def check_reached_goal(self):
         distance_to_goal = np.sqrt((self.env.robot.goal_x - self.env.robot.x)**2 + (self.env.robot.goal_y - self.env.robot.y)**2)
-        angular_distance_to_goal = np.abs(self.env.robot.goal_a - self.env.robot.orientation)
+        angular_distance_to_goal = np.abs((self.env.robot.goal_a - self.env.robot.orientation + np.pi) % (2 * np.pi) - np.pi)
         return distance_to_goal < self.env.GOAL_THRESHOLD and angular_distance_to_goal < self.env.GOAL_ORIENTATION_THRESHOLD
+
+
 
     def check_timeout(self):
         return self.env.ticks > self.env.EPISODE_LENGTH

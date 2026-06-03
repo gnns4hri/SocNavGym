@@ -211,14 +211,25 @@ class HERGoalEnvWrapper(gym.Wrapper):
             self.episode_transitions[i]['next_obs'] = self.episode_transitions[i + 1]["obs"]
         self.episode_transitions[-1]['next_obs'] = self.episode_transitions[-1]["obs"]
 
-        # Sample from any state in the episode
+        # Sample from any state in the episode and take it as the fake goal
         episode_indices = list(range(len(self.episode_transitions)))
-
         sample_idx = np.random.choice(episode_indices) + MINIMUM_TRANSITIONS
         sample_idx = min(len(episode_indices)-1, sample_idx)
         xv = self.episode_transitions[sample_idx]["robot_internal_state"].x
         yv = self.episode_transitions[sample_idx]["robot_internal_state"].y
         av = self.episode_transitions[sample_idx]["robot_internal_state"].orientation
+
+        # Draw noise for the fake goal, so that it is not suspiciously perfect
+        offset_in_range = (np.random.random()-0.5)*2 * self.base_env.GOAL_THRESHOLD
+        angle_wrt_goal  = (np.random.random()-0.5)*2 * np.pi
+        x_offset = offset_in_range*np.cos(angle_wrt_goal)
+        y_offset = offset_in_range*np.sin(angle_wrt_goal)
+        a_offset = (np.random.random()-0.5)*2 * self.base_env.GOAL_ORIENTATION_THRESHOLD
+
+        # Add the noise to the fake goal
+        xv += x_offset
+        yv += y_offset
+        av += a_offset
         sample_goal = [xv, yv, av]  # Goal in robot frame
 
 

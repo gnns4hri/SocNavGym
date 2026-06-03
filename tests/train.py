@@ -167,6 +167,19 @@ eval_callback = EvalCallback(
 )
 
 
+class HERStatusCallback(BaseCallback):
+    """Callback to log HER status to wandb during evaluation."""
+
+    def __init__(self, verbose=0):
+        super(HERStatusCallback, self).__init__(verbose)
+
+    def _on_step(self) -> bool:
+        # Log HER status during evaluation
+        wandb.log({"her_active": float(HERGoalEnvWrapper.active)}, commit=False)
+        return True
+her_status_callback = HERStatusCallback()
+
+
 class RewardThresholdCallback(BaseCallback):
     def __init__(self, threshold, verbose=0):
         super(RewardThresholdCallback, self).__init__(verbose)
@@ -192,7 +205,7 @@ reward_threshold_callback = RewardThresholdCallback(threshold=HER_THRESHOLD)
 
 if WANDB_MODE != "offline":
     wandb_callback = WandbCallback(gradient_save_freq=1000, model_save_path=f"models/{run.id}", model_save_freq=config["eval_freq"], verbose=2)
-    callbacks = CallbackList([checkpoint_callback, eval_callback, wandb_callback, reward_threshold_callback])
+    callbacks = CallbackList([checkpoint_callback, eval_callback, wandb_callback, reward_threshold_callback, her_status_callback])
 else:
     callbacks = None
 

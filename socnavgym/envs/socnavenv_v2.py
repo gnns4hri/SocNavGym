@@ -343,8 +343,14 @@ class SocNavEnv_v2(gym.Env):
         else:
             self.MAX_GOAL_ORIENTATION_THRESHOLD = self.MIN_GOAL_ORIENTATION_THRESHOLD
         assert(self.MAX_GOAL_ORIENTATION_THRESHOLD >=  self.MIN_GOAL_ORIENTATION_THRESHOLD), "the maximum goal orientation threshold should be greater or equal than the minimum goal orientation threshold"
-
+        self.MAX_ADVANCE_ROBOT = config["robot"]["max_advance_robot"]
+        assert(self.MAX_ADVANCE_ROBOT > 0.), "max_advance_robot must be > 0"
+        self.MIN_ADVANCE_ROBOT = config["robot"]["min_advance_robot"]
+        assert(self.MIN_ADVANCE_ROBOT <= 0.), "min_advance_robot must be <= 0"
+        self.MAX_ROTATION = config["robot"]["max_rotation"]
         self.GOAL_ORIENTATION_THRESHOLD = np.pi
+
+
         # human
         self.HUMAN_DIAMETER = config["human"]["human_diameter"]
         self.HUMAN_GOAL_RADIUS = config["human"]["human_goal_radius"]
@@ -357,6 +363,9 @@ class SocNavEnv_v2(gym.Env):
             self.HUMAN_POS_NOISE_STD = config["human"]["pos_noise_std"]
         if "angle_noise_std" in config["human"].keys():
             self.HUMAN_ANGLE_NOISE_STD = config["human"]["angle_noise_std"]
+        self.MAX_ADVANCE_HUMAN = config["human"]["max_advance_human"]
+        self.MAX_ROTATION_HUMAN = config["human"]["max_rotation_human"]
+        self.SPEED_THRESHOLD = config["human"]["speed_threshold"]
 
         # laptop
         self.LAPTOP_WIDTH = config["laptop"]["laptop_width"]
@@ -412,15 +421,6 @@ class SocNavEnv_v2(gym.Env):
 
         # env
         self.MARGIN = config["env"]["margin"]
-        self.MAX_ADVANCE_HUMAN = config["env"]["max_advance_human"]
-        self.MAX_ROTATION_HUMAN = config["env"]["max_rotation_human"]
-        self.MAX_ADVANCE_ROBOT = config["env"]["max_advance_robot"]
-        assert(self.MAX_ADVANCE_ROBOT > 0.), "max_advance_robot must be > 0"
-        self.MIN_ADVANCE_ROBOT = config["env"]["min_advance_robot"]
-        assert(self.MIN_ADVANCE_ROBOT <= 0.), "min_advance_robot must be <= 0"
-        self.MAX_ROTATION = config["env"]["max_rotation"]
-        self.SPEED_THRESHOLD = config["env"]["speed_threshold"]
-
         self.MIN_STATIC_HUMANS = config["env"]["min_static_humans"]
         self.MAX_STATIC_HUMANS = config["env"]["max_static_humans"]
         assert(self.MIN_STATIC_HUMANS <= self.MAX_STATIC_HUMANS), "min_static_humans should be less than or equal to max_static_humans"
@@ -1933,7 +1933,8 @@ class SocNavEnv_v2(gym.Env):
             orientation = atan2(velocity[1], velocity[0])
             if human.set_new_orientation_with_limits(orientation, MAX_ORIENTATION_CHANGE, self.TIMESTEP):
                 human.speed = np.linalg.norm(velocity)
-                if human.speed < self.SPEED_THRESHOLD and not(self.crowd_forming and human.id in self.humans_forming_crowd.keys()): human.speed = 0
+                if human.speed < self.SPEED_THRESHOLD and not(self.crowd_forming and human.id in self.humans_forming_crowd.keys()):
+                    human.speed = 0
             else:
                 human.speed = 0
             # human.update(self.TIMESTEP)

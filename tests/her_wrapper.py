@@ -31,6 +31,9 @@ class HERGoalEnvWrapper(gym.Wrapper):
     2. Provides methods for goal relabeling
     3. Maintains compatibility with the original environment
     """
+
+    replay_buffer = None
+    active = True
     
     def __init__(self, env, her_config: Dict[str, Any]):
         """
@@ -68,7 +71,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
         # Reset the base environment
         obs, info = self.env.reset(**kwargs)
         
-        if self.her_config['enabled'] and len(self.episode_transitions) > 5:
+        if self.her_config['enabled'] and HERGoalEnvWrapper.active is True:
             self.do_the_trick()
 
         # Clear episode transitions
@@ -96,8 +99,6 @@ class HERGoalEnvWrapper(gym.Wrapper):
         self.episode_transitions.append(transition)
         return obs, reward, terminated, truncated, info
     
-    def set_buffer(self, her_buffer: HERReplayBufferWrapper):
-        self.her_buffer = her_buffer
 
 
     def relabel_with_absolute_goal(self, transition: Dict[str, Any], goal_absolute_x_y_a: np.ndarray, last=False) -> Dict[str, Any]:
@@ -201,7 +202,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
         """
         Sample batch with HER transitions mixed in.
         """
-        if not self.episode_transitions or len(self.episode_transitions) < 2:
+        if not self.episode_transitions or len(self.episode_transitions) <= 2:
             return
 
 
@@ -227,7 +228,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
 
         for i in range(0, sample_idx+1):
             relabeled = self.relabel_with_absolute_goal(self.episode_transitions[i], sample_goal, i==sample_idx)
-            self.her_buffer.add(
+            HERGoalEnvWrapper.replay_buffer.add(
                 obs=torch.tensor(relabeled["obs"]).unsqueeze(0),
                 next_obs=torch.tensor(relabeled["next_obs"]).unsqueeze(0),
                 action=torch.tensor(relabeled['action']).unsqueeze(0),

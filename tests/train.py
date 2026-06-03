@@ -12,9 +12,14 @@ import gymnasium as gym
 
 
 from stable_baselines3 import SAC
-from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback
+from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback, BaseCallback
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.monitor import Monitor
+
+
+
+
+HER_THRESHOLD = float(os.getenv("HER_THRESHOLD"))
 
 
 try:
@@ -28,7 +33,7 @@ if WANDB_MODE != "offline":
 
 from dict_subset_wrapper import DictToFlatWrapper
 
-from her_wrapper import HERGoalEnvWrapper # , HERReplayBufferWrapper
+from her_wrapper import HERGoalEnvWrapper
 
 def load_config(config_path="train_config.yaml"):
     """Load configuration from YAML file."""
@@ -59,7 +64,7 @@ if config["wandb"]["name"] is None:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     do_her = config.get("her", {}).get("enabled", False)
     if do_her:
-        her_value = "_HER"
+        her_value = f"_HER({HER_THRESHOLD})"
     else:
         her_value = ""
 
@@ -161,9 +166,33 @@ eval_callback = EvalCallback(
     render=False,
 )
 
+
+class RewardThresholdCallback(BaseCallback):
+    def __init__(self, threshold, verbose=0):
+        super(RewardThresholdCallback, self).__init__(verbose)
+
+        HER_THRESHOLD = os.getenv("HER_THRESHOLD")
+        if HER_THRESHOLD is None:
+            self.threshold = threshold
+            print("HER thredhold set by parameter as: ", threshold)
+        else:
+            self.threshold = float(HER_THRESHOLD)
+            print("HER thredhold set by environment variable as:", self.threshold)
+
+
+    def _on_step(self) -> bool:
+        # Retrieve the average reward from the evaluation
+        if self.parent is not None and hasattr(self.parent, 'eval_mean_reward'):
+            avg_reward = self.parent.eval_mean_reward
+            if avg_reward > self.threshold:
+                HERGoalEnvWrapper.active = False
+        return True
+reward_threshold_callback = RewardThresholdCallback(threshold=HER_THRESHOLD)
+
+
 if WANDB_MODE != "offline":
     wandb_callback = WandbCallback(gradient_save_freq=1000, model_save_path=f"models/{run.id}", model_save_freq=config["eval_freq"], verbose=2)
-    callbacks = CallbackList([checkpoint_callback, eval_callback, wandb_callback])
+    callbacks = CallbackList([checkpoint_callback, eval_callback, wandb_callback, reward_threshold_callback])
 else:
     callbacks = None
 
@@ -177,20 +206,14 @@ sac_params = {k: v for k, v in config["sac_hyperparams"].items() if v is not Non
 model = SAC(policy="MlpPolicy", env=train_env, verbose=config["verbose"], tensorboard_log=f"runs/{run.id}", **sac_params)
 
 
-# Apply HER replay buffer wrapper (even if disabled, for debugging purposes)
+# Get HER wrapper environment
 for her_env in model.env.envs:
     # Unwrap the environment to get the HER wrapper
     while hasattr(her_env, 'env') and not hasattr(her_env, 'THIS_IS_THE_HER_WRAPPER'):
         print("her_env", type(her_env), her_env, "going down")
-        her_env.her_buffer = model.replay_buffer
         her_env = her_env.env
-    # Keep unwapping just to store the buffer
-    lower_env = her_env
-    while hasattr(lower_env, 'env'):
-        lower_env.her_buffer = model.replay_buffer
-        lower_env = lower_env.env
     print("USING", type(her_env), her_env, "going down")
-    her_env.set_buffer(model.replay_buffer)
+HERGoalEnvWrapper.replay_buffer = model.replay_buffer
 print(f"✓ HER enabled")
 
 # ---------------------------------------------------------------------------

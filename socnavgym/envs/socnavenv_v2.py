@@ -1,4 +1,3 @@
-
 import os
 import sys
 import time
@@ -1851,34 +1850,41 @@ class SocNavEnv_v2(gym.Env):
             action = act.astype(np.float32)
             # action[0] = (float(action[0]+1.0)/2.0)*self.MAX_ADVANCE_ROBOT   # [-1, +1] --> [0, self.MAX_ADVANCE_ROBOT]
             if action[0]<0:
-                action[0] *= -self.MIN_ADVANCE_ROBOT
+                action[0] *= self.MIN_ADVANCE_ROBOT
             else:
                 action[0] *= self.MAX_ADVANCE_ROBOT
+
+
             if self.robot.type == "diff-drive":
                 action[1] = 0.0
-            action[1] = ((action[1]+0.0)/1.0)*self.MAX_ADVANCE_ROBOT  # [-1, +1] --> [-MAX_ADVANCE, +MAX_ADVANCE]
+            else:
+                action[1] = action[1]*self.MAX_ADVANCE_ROBOT  # [-1, +1] --> [-MAX_ADVANCE, +MAX_ADVANCE]
+
+
             action[2] = (float(action[2]+0.0)/1.0)*self.MAX_ROTATION  # [-1, +1] --> [-self.MAX_ROTATION, +self.MAX_ROTATION]
-            # if action[0] < 0:               # Advance must be positive
-            #     action[0] *= -1
+
             if action[0] > self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
                 action[0] = self.MAX_ADVANCE_ROBOT
             if action[0] < self.MIN_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
                 action[0] = self.MIN_ADVANCE_ROBOT
+
             if action[1] > self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
                 action[1] = self.MAX_ADVANCE_ROBOT
             if action[1] < -self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
                 action[1] = -self.MAX_ADVANCE_ROBOT
-            if action[2]   < -self.MAX_ROTATION:   # Rotation must be higher than -self.MAX_ROTATION
+
+            if action[2] < -self.MAX_ROTATION:   # Rotation must be higher than -self.MAX_ROTATION
                 action[2] =  -self.MAX_ROTATION
-            elif action[2] > +self.MAX_ROTATION:  # Rotation must be lower than +self.MAX_ROTATION
-                action[2] =  +self.MAX_ROTATION
+            elif action[2] > self.MAX_ROTATION:  # Rotation must be lower than +self.MAX_ROTATION
+                action[2] =  self.MAX_ROTATION
+
             return action
 
         # if action is a list, converting it to numpy.ndarray
-        if(type(action_pre) == list):
+        if type(action_pre) == list:
             action_pre = np.array(action_pre, dtype=np.float32)
 
-        # call error if the environment wasn't reset after the episode ended
+        # Raise an exception if the environment wasn't reset after the episode ended
         if self._is_truncated or self._is_terminated:
             raise Exception('step call within a finished episode!')
 

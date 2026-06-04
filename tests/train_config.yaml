@@ -40,6 +40,6 @@ sac_hyperparams:
 # HER (Hindsight Experience Replay) configuration
 her:
   enabled: true                  # Enable HER
-  threshold: 0
+  threshold: -3
 
 

@@ -1,11 +1,11 @@
 rendering:
     resolution_y: 1080  # size of the canvas in rows
     resolution_x: 1080  # size of the canvas in columns
-    milliseconds: 30  # delay parameter for waitKey()
+    milliseconds: 30  # delay parameter for rendering
 
 episode:
     episode_length: 500  # maximum steps in an episode
-    time_step: 1  # number of seconds that one step corresponds to
+    time_step: 0.1  # number of seconds that one step corresponds to
     end_with_collision: True # episode end with collision
 
 robot:
@@ -71,11 +71,11 @@ env:
     reward_file: "sparse_gotopoint"
     cuda_device: 0  # cuda device to use (in case of multiple cuda devices). If cpu or only one cuda device, keep it as 0
 
-    min_static_humans: 0  # minimum no. of static humans
-    max_static_humans: 0  # maximum no. of static humans
+    min_static_humans: 2  # minimum no. of static humans
+    max_static_humans: 2  # maximum no. of static humans
 
-    min_dynamic_humans: 5  # minimum no. of dynamic humans
-    max_dynamic_humans: 5  # maximum no. of dynamic humans
+    min_dynamic_humans: 3  # minimum no. of dynamic humans
+    max_dynamic_humans: 3  # maximum no. of dynamic humans
 
     min_tables: 0  # minimum no. of tables
     max_tables: 0  # maximum no. of tables
@@ -89,7 +89,7 @@ env:
     min_chairs: 0  # minimum no. of chairs
     max_chairs: 0  # maximum no. of chairs
 
-    min_h_h_dynamic_interactions: 1 ## 2  # minimum no. of dynamic human-human interactions in the env. Note that these crowds can disperse if the parameter crowd_dispersal_probability is greater than 0
+    min_h_h_dynamic_interactions: 1  ## 2  # minimum no. of dynamic human-human interactions in the env. Note that these crowds can disperse if the parameter crowd_dispersal_probability is greater than 0
     max_h_h_dynamic_interactions: 1 ## 2  # maximum no. of dynamic human-human interactions in the env. Note that these crowds can disperse if the parameter crowd_dispersal_probability is greater than 0
 
     min_h_h_dynamic_interactions_non_dispersing: 0  # minimum no. of dynamic human-human interactions in the env. Note that these crowds never disperse, even if the parameter crowd_dispersal_probability is greater than 0

@@ -72,7 +72,8 @@ class HERGoalEnvWrapper(gym.Wrapper):
         obs, info = self.env.reset(**kwargs)
         
         if self.her_config['enabled'] and HERGoalEnvWrapper.active is True:
-            self.do_the_trick()
+            if np.random.random() < 0.1:
+                self.do_the_trick()
 
         # Clear episode transitions
         self.episode_transitions = []

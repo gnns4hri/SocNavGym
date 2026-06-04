@@ -57,6 +57,8 @@ class HERGoalEnvWrapper(gym.Wrapper):
         while hasattr(self.base_env, 'env'):
             self.base_env = self.base_env.env
 
+        self.ratio = her_config["ratio"]
+
         self.THIS_IS_THE_HER_WRAPPER = True
 
 
@@ -72,7 +74,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
         obs, info = self.env.reset(**kwargs)
         
         if self.her_config['enabled'] and HERGoalEnvWrapper.active is True:
-            if np.random.random() < 0.1:
+            if np.random.random() < self.ratio:
                 self.do_the_trick()
 
         # Clear episode transitions

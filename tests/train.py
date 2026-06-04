@@ -15,12 +15,14 @@ from stable_baselines3 import SAC
 from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback, EvalCallback, BaseCallback
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.monitor import Monitor
+from wandb.integration.sb3 import WandbCallback
 
 
 
-
-HER_THRESHOLD = float(os.getenv("HER_THRESHOLD"))
-
+try:
+    HER_THRESHOLD = float(os.getenv("HER_THRESHOLD"))
+except:
+    HER_THRESHOLD = float("nan")
 
 try:
     WANDB_MODE = os.getenv("WANDB_MODE", "online").lower()
@@ -31,8 +33,8 @@ if WANDB_MODE != "offline":
     from wandb.integration.sb3 import WandbCallback
     import wandb
 
-from dict_subset_wrapper import DictToFlatWrapper
 
+from dict_subset_wrapper import DictToFlatWrapper
 from her_wrapper import HERGoalEnvWrapper
 
 def load_config(config_path="train_config.yaml"):
@@ -58,12 +60,14 @@ def setup_directories(config):
 # ---------------------------------------------------------------------------
 
 config = load_config()
-
+    
 # Generate a run name if not provided
 if config["wandb"]["name"] is None:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     do_her = config.get("her", {}).get("enabled", False)
     if do_her:
+        if np.isnan(HER_THRESHOLD):
+            HER_THRESHOLD = config["her"]["threshold"]
         her_value = f"_HER({HER_THRESHOLD})"
     else:
         her_value = ""
@@ -148,26 +152,8 @@ print("EVAL ENV", eval_env)
 
 setup_directories(config)
 
-checkpoint_callback = CheckpointCallback(
-    save_freq=config["eval_freq"],
-    save_path=config["checkpoint_dir"],
-    name_prefix=f"sac_model_{run.name}",
-    save_replay_buffer=False,  # Disable replay buffer saving to avoid pickling errors with custom reward classes
-    save_vecnormalize=True,
-)
 
-eval_callback = EvalCallback(
-    eval_env,
-    best_model_save_path=config["best_model_dir"],
-    log_path=config["best_model_dir"],
-    eval_freq=config["eval_freq"],
-    n_eval_episodes=config["eval_episodes"],
-    deterministic=True,
-    render=False,
-)
-
-
-class HERStatusCallback(BaseCallback):
+class HERStatusCallback(WandbCallback):
     """Callback to log HER status to wandb during evaluation."""
 
     def __init__(self, verbose=0):
@@ -177,34 +163,48 @@ class HERStatusCallback(BaseCallback):
         # Log HER status during evaluation
         wandb.log({"her_active": float(HERGoalEnvWrapper.active)}, commit=False)
         return True
-her_status_callback = HERStatusCallback()
 
 
-class RewardThresholdCallback(BaseCallback):
-    def __init__(self, threshold, verbose=0):
-        super(RewardThresholdCallback, self).__init__(verbose)
 
-        HER_THRESHOLD = os.getenv("HER_THRESHOLD")
-        if HER_THRESHOLD is None:
-            self.threshold = threshold
-            print("HER thredhold set by parameter as: ", threshold)
-        else:
-            self.threshold = float(HER_THRESHOLD)
-            print("HER thredhold set by environment variable as:", self.threshold)
 
+
+class RewardThresholdCallback(EvalCallback):
+    def __init__(self, threshold: float, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.threshold = threshold
+        self.threshold_reached = False
 
     def _on_step(self) -> bool:
-        # Retrieve the average reward from the evaluation
-        if self.parent is not None and hasattr(self.parent, 'eval_mean_reward'):
-            avg_reward = self.parent.eval_mean_reward
-            if avg_reward > self.threshold:
-                HERGoalEnvWrapper.active = False
-        return True
-reward_threshold_callback = RewardThresholdCallback(threshold=HER_THRESHOLD)
+        # Run the parent eval logic (handles periodic evaluation internally)
+        continue_training = super()._on_step()
+
+        # last_mean_reward is set by EvalCallback after each evaluation
+        if self.last_mean_reward >= self.threshold and not self.threshold_reached:
+            self.threshold_reached = True
+            self._on_threshold_reached(self.last_mean_reward)
+        return continue_training
+
+    def _on_threshold_reached(self, reward: float):
+        print("Mean reward threshold reached!")
+        HERGoalEnvWrapper.active = False
+
+
 
 
 if WANDB_MODE != "offline":
-    wandb_callback = WandbCallback(gradient_save_freq=1000, model_save_path=f"models/{run.id}", model_save_freq=config["eval_freq"], verbose=2)
+    checkpoint_callback = CheckpointCallback(
+        save_freq=config["eval_freq"], save_path=config["checkpoint_dir"], name_prefix=f"sac_model_{run.name}",
+        save_replay_buffer=False, save_vecnormalize=True)
+
+    eval_callback = EvalCallback(
+        eval_env, best_model_save_path=config["best_model_dir"], log_path=config["best_model_dir"],
+        eval_freq=config["eval_freq"], n_eval_episodes=config["eval_episodes"],
+        deterministic=True, render=False)
+
+    wandb_callback = WandbCallback(gradient_save_freq=config["eval_freq"], model_save_path=f"models/{run.id}", model_save_freq=config["eval_freq"], verbose=2)
+    her_status_callback = HERStatusCallback()
+    reward_threshold_callback = RewardThresholdCallback(threshold=config["her"]["threshold"], eval_env=eval_env, eval_freq=config["eval_freq"],
+        n_eval_episodes=30, deterministic=True, verbose=1)
     callbacks = CallbackList([checkpoint_callback, eval_callback, wandb_callback, reward_threshold_callback, her_status_callback])
 else:
     callbacks = None

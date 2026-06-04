@@ -28,10 +28,12 @@ config = load_train_config("train_config.yaml")
 
 
 # Create environment
-env = gym.make("SocNavGym-v2", config=config["env_config"])
+base_env = gym.make("SocNavGym-v2", config=config["env_config"])
 # Convert the environment to dictionary
-env = DictToFlatWrapper(env, keys=config["keys"])
+env = DictToFlatWrapper(base_env, keys=config["keys"])
 
+while not hasattr(base_env, "MILLISECONDS"):
+    base_env = base_env.env
 
 
 # Load the trained model
@@ -45,5 +47,5 @@ while True:
     if terminated or truncated:
         obs, _ = env.reset()
     env.render()
-    time.sleep(0.2)
+    time.sleep(0.001*base_env.MILLISECONDS)
 env.close()

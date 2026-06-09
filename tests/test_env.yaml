@@ -13,7 +13,7 @@ robot:
     goal_radius: 0.5  # radius of the goal
     goal_radius_margin: 0.3
     robot_type: "holonomic"  # there are two types, diff-drive or holonomic
-    min_advance_robot: -0.1  # minimum linear speed for the robot
+    min_advance_robot: -0.5  # minimum linear speed for the robot
     max_advance_robot: 1.0  # maximum linear speed for the robot
     max_rotation: 2.141592653589793  # maximum rotational speed for robot
     min_goal_orientation_threshold: 0.20
@@ -67,8 +67,8 @@ env:
     crowd_formation_probability: 0.0  # probability of crowd formation
     human_laptop_formation_probability: 0.0  # probability to form a human-laptop-interaction
 
-    # Path to custom-reward file: "dsrnn", "sparse_gotopoint"
-    reward_file: "sparse_gotopoint"
+    # Path to custom-reward file: "dsrnn", "sparse_gotopoint", "sn26"
+    reward_file: "sn26"
     cuda_device: 0  # cuda device to use (in case of multiple cuda devices). If cpu or only one cuda device, keep it as 0
 
     min_static_humans: 2  # minimum no. of static humans

@@ -21,8 +21,7 @@ import gymnasium as gym
 GRAPH_WIDTH=800
 
 
-terminated = False
-truncated = False
+done = False
 MAX_EPISODES = 25
 MAX_PATIENCE = 100
 patience = MAX_PATIENCE
@@ -86,8 +85,8 @@ print(f"Initialized joystick: {joystick.get_name()}")
 def get_joy_values():
     if joystick_count > 0:
         vx = -joystick.get_axis(1)
-        vy = -joystick.get_axis(0)*0.1
-        va = -joystick.get_axis(2)*0.1
+        vy = -joystick.get_axis(0)*0.5
+        va = -joystick.get_axis(2)*0.5
         return np.array([vx, vy, va])
     else:
         print("no joy")
@@ -128,8 +127,7 @@ while True:
         vy = 0
         va = 0
 
-
-    if terminated or truncated:
+    if done:
         patience -= 1
         if patience < 0:
             print(f"Episode {episode} finished.")
@@ -137,7 +135,9 @@ while True:
                 print(f"Generating next expisode...")
                 episode += 1
                 obs, _ = env.reset()
+                done = False
                 patience = MAX_PATIENCE
+                pause = False
                 rewards = []
                 print(f"Episode {episode} started.")
             else:
@@ -148,9 +148,12 @@ while True:
             # print(np.sum(np.array(rewards)))
     elif pause is False:
         obs, reward, terminated, truncated, info = env.step([vx, vy, va])
+        done = terminated or truncated
         # print(f"{obs['robot'].shape}")
         # print(f"{obs['humans'].shape}")
         rewards.append(float(reward))
+    else:
+        print("paused")
 
     # Clear the previous frame
     axs[0].clear()
@@ -222,10 +225,11 @@ while True:
     axs[1].clear()
     #axs[1].set_yscale("log")
     axs[1].set_ylim(-11, 11)
-    x_plot_values = np.array([x for x in range(len(rewards))])
-    y_plot_values = np.array(rewards)
-    axs[1].plot([x_plot_values[0], x_plot_values[-1]], [0,0], "k-")
-    axs[1].plot(x_plot_values, y_plot_values)
+    if len(rewards) > 0:
+        x_plot_values = np.array([x for x in range(len(rewards))])
+        y_plot_values = np.array(rewards)
+        axs[1].plot([x_plot_values[0], x_plot_values[-1]], [0,0], "k-")
+        axs[1].plot(x_plot_values, y_plot_values)
     #print(rewards)
     # Update the plot
     plt.tight_layout()

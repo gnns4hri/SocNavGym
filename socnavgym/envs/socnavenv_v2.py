@@ -512,8 +512,10 @@ class SocNavEnv_v2(gym.Env):
             self.REWARD_PATH = os.path.dirname(os.path.abspath(__file__)) + "/rewards/" + "dsrnn_reward.py"
         elif self.REWARD_PATH == "sparse_gotopoint":
             self.REWARD_PATH = os.path.dirname(os.path.abspath(__file__)) + "/rewards/" + "sparse_gotopoint_reward.py"
+        elif self.REWARD_PATH == "sn26":
+            self.REWARD_PATH = os.path.dirname(os.path.abspath(__file__)) + "/rewards/" + "sn26.py"
         else:
-            assert self.REWARD_PATH == "dsrnn", "No other option for now"
+            print("The reward must be one of the following: dsrnn, sparse_gotopoint, sn26")
 
         module, self.REWARD_PATH = self.process_reward_path(self.REWARD_PATH)
         reward_module = SourceFileLoader(module, self.REWARD_PATH).load_module()
@@ -1850,7 +1852,7 @@ class SocNavEnv_v2(gym.Env):
             action = act.astype(np.float32)
             # action[0] = (float(action[0]+1.0)/2.0)*self.MAX_ADVANCE_ROBOT   # [-1, +1] --> [0, self.MAX_ADVANCE_ROBOT]
             if action[0]<0:
-                action[0] *= self.MIN_ADVANCE_ROBOT
+                action[0] *= -self.MIN_ADVANCE_ROBOT
             else:
                 action[0] *= self.MAX_ADVANCE_ROBOT
 

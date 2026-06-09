@@ -224,7 +224,7 @@ while True:
 
     axs[1].clear()
     #axs[1].set_yscale("log")
-    axs[1].set_ylim(-11, 11)
+    axs[1].set_ylim(-1.1, 1.1)
     if len(rewards) > 0:
         x_plot_values = np.array([x for x in range(len(rewards))])
         y_plot_values = np.array(rewards)

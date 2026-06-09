@@ -88,16 +88,15 @@ class TrajectoryDataset(Dataset):
                 loaded = torch.load(self.reload_fname)
                 self.data = loaded['data']
                 self.labels = loaded['labels']
-                print("number of trajectories for ", self.data_file, len(self.data))
                 return
 
 
         if type(self.data_file) is str and self.data_file.endswith('.txt'):
-            print(self.data_file)
             with open(self.data_file) as set_file:
                 ds_files = set_file.read().splitlines()
 
-            print("number of files for ", self.data_file, len(ds_files))
+            if len(ds_files)>1:
+                print("number of files for ", self.data_file, len(ds_files))
         elif type(self.data_file) is str and self.data_file.endswith('.json'):
             ds_files = [self.data_file]
         elif type(self.data_file) is list:
@@ -113,11 +112,11 @@ class TrajectoryDataset(Dataset):
                     except:
                         print("FileName :", file_path)
 
-
                     if 'context_description' in t_data.keys(): #not self.overwrite_contexts:
                         context_desc = t_data['context_description']
                     else:
                         context_desc = self.overwrite_contexts
+
                     context = self.context_df.loc[context_desc.rstrip()].to_dict()
 
                     tensor_dict = sequence_to_tensor(t_data, self.frame_threshold, context)
@@ -136,7 +135,7 @@ class TrajectoryDataset(Dataset):
                         self.labels.append(rating)
 
                     
-            if i%1000 == 0:
+            if i%1000 == 0 and i>0:
                 print(i)
             if i + 1 >= self.limit and self.limit > 0:
                 print('Stop including more samples to speed up dataset loading')

@@ -29,20 +29,12 @@ from socnavgym.envs.rewards.RNNBaseline.dataset_rnn import TrajectoryDataset, co
 
 from datetime import datetime
 
-ARCHIVE_FOLDER = "json_storage"
-ARCHIVE_SIZE = 1000
-MAX_ENV_PATH = np.sqrt(10*10 + 10*10)
-MAX_EP_LENGTH = 500
-
 class Reward(RewardAPI):
     def __init__(self, env: SocNavEnv_v2) -> None:
         super().__init__(env)
         self.checkpoint_directory = os.path.dirname(__file__)
         checkpoint_path = os.path.join(self.checkpoint_directory, "RNNBaseline", "checkpoints", "baseline.pytorch")
         self.current_working_directory = os.getcwd()
-        self.archive_directory = os.path.join(self.current_working_directory, ARCHIVE_FOLDER)
-        if not os.path.isdir(self.archive_directory):
-            os.mkdir(self.archive_directory)
         self.json_directory = os.path.join(self.current_working_directory, "experimental_JSONs")
         if not os.path.isdir(self.json_directory):
             os.mkdir(self.json_directory)
@@ -106,23 +98,6 @@ class Reward(RewardAPI):
         self.total_distance_reward = 0.0
         self.min_dist = float('inf')
 
-    def archive_check(self):
-        if len(os.listdir(self.json_directory))>=ARCHIVE_SIZE:
-            jsons = [j for j in os.listdir(self.json_directory) if j.endswith(".json")]
-            self.archive_jsons(jsons)
-
-
-    def archive_jsons(self, jsons):
-        archstamp = datetime.now().strftime("%Y%m%d-%H%M%S")
-        new_archname = f"Archive-{archstamp}-{uuid.uuid4().hex}.zip"
-        arch_path = os.path.join(self.archive_directory, new_archname)
-        print("Archiving in progress")
-        with zipfile.ZipFile(arch_path, 'w', zipfile.ZIP_DEFLATED) as zf:
-            for json in jsons:
-                json_path = os.path.join(self.json_directory, json)
-                zf.write(json_path, arcname=os.path.basename(json))
-                os.remove(json_path)
-        print(f"Archived at {arch_path}")
 
     def remove_JSON(self):
         os.remove(self.new_filepath)
@@ -281,17 +256,16 @@ class Reward(RewardAPI):
         if len(self.data.get("sequence", [])) == 0:
             return self.collision_reward
         try:
-            dataset = TrajectoryDataset(self.new_filepath, label_exists=False, frame_threshold=self.FRAME_THRESHOLD, overwrite_context=True)
+            dataset = TrajectoryDataset(self.new_filepath, os.path.dirname(__file__)+"/RNNBaseline/anthropic_claude_context.csv", label_exists=False, frame_threshold=self.FRAME_THRESHOLD, overwrite_context="A robot is performing routine tasks in a home.")
         except (json.JSONDecodeError, FileNotFoundError) as e:
             print(f"Error occured in creating dataset for trajectory: {self.new_filepath}, returing collision reward. Error: {e}")
             return self.collision_reward
         data_loader = DataLoader(dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
         prediction = []
         with torch.no_grad():
-            # print(f"======================\n{filename=}")
-            for trajectories, _ in data_loader:
+            for trajectories, _, slengths in data_loader:
                 # Pass the whole batched graph sequence to the model at once
-                preds = model(trajectories)
+                preds = model(trajectories, slengths)
                 prediction += preds.tolist() 
         if len(prediction)==0:
             print(f"Prediction error for dataset formed by trajectory: {self.new_filepath}, returning collision reward")
@@ -300,9 +274,7 @@ class Reward(RewardAPI):
 
     def compute_reward(self, action, prev_obs: EntityObs, curr_obs: EntityObs):
         if self.check_out_of_map() or self.check_collision() or self.check_reached_goal() or self.check_timeout() or self.env._is_truncated:
-            print("Checking RNN")
             predicted_reward = self.predict(self.model)
-            print("Got", predicted_reward)
             self.remove_JSON()
             return predicted_reward
         else:

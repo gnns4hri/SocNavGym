@@ -241,6 +241,7 @@ class SocNavEnv_v2(gym.Env):
         self.MAX_MAP_X = None
         self.MIN_MAP_Y = None
         self.MIN_MAP_Y = None
+        self.MIN_AREA = None
         self.CROWD_DISPERSAL_PROBABILITY = None
         self.HUMAN_LAPTOP_DISPERSAL_PROBABILITY = None
         self.CROWD_FORMATION_PROBABILITY = None
@@ -490,6 +491,7 @@ class SocNavEnv_v2(gym.Env):
         self.MAX_MAP_X = config["env"]["max_map_x"]
         self.MIN_MAP_Y = config["env"]["min_map_y"]
         self.MAX_MAP_Y = config["env"]["max_map_y"]
+        self.MIN_AREA  = config["env"]["min_area"]
 
         self.CROWD_DISPERSAL_PROBABILITY = config["env"]["crowd_dispersal_probability"]
         assert(self.CROWD_DISPERSAL_PROBABILITY >= 0 and self.CROWD_DISPERSAL_PROBABILITY <= 1.0), "Probability should be within [0, 1]"
@@ -550,12 +552,17 @@ class SocNavEnv_v2(gym.Env):
         """
         To randomly initialize the number of entities of each type. Specifically, this function would initialize the MAP_SIZE, NUMBER_OF_HUMANS, NUMBER_OF_PLANTS, NUMBER_OF_LAPTOPS and NUMBER_OF_TABLES
         """
-        self.MAP_X = random.uniform(self.MIN_MAP_X, self.MAX_MAP_X)
-
-        if self.shape == "square" or self.shape == "L":
-            self.MAP_Y = self.MAP_X
-        else :
-            self.MAP_Y = random.uniform(self.MIN_MAP_Y, self.MAX_MAP_Y)
+        area_ok = False
+        while area_ok is False:
+            self.MAP_X = random.uniform(self.MIN_MAP_X, self.MAX_MAP_X)
+            if self.shape == "square" or self.shape == "L":
+                self.MAP_Y = self.MAP_X
+            else :
+                self.MAP_Y = random.uniform(self.MIN_MAP_Y, self.MAX_MAP_Y)
+            if self.MAP_X * self.MAP_Y > self.MIN_AREA:  # TODO: This won't work well for odd shaped rooms.
+                area_ok = True
+            else:
+                print("Not enough area. Trying again.")
 
         self.ROBOT_RADIUS = self.INITIAL_ROBOT_RADIUS + random.uniform(-self.ROBOT_RADIUS_MARGIN, self.ROBOT_RADIUS_MARGIN)
         self.GOAL_RADIUS = self.INITIAL_GOAL_RADIUS + random.uniform(-self.GOAL_RADIUS_MARGIN, self.GOAL_RADIUS_MARGIN)

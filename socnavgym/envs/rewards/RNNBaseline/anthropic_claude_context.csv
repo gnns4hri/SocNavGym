@@ -1,0 +1,870 @@
+context,urgency,importance,risk,distance_from_human,distance_from_object,speed,comfort,bumping_human,bumping_object,predictability
+A assistant robot is performing routine tasks in a restaurant.,55,75,25,70,70,60,70,30,65,80
+A cleaning robot working in a home is looking for dirty spots to clean.,40,80,15,70,40,40,70,20,20,65
+A cleaning robot working in a hospital is looking for dirty spots to clean.,60,85,45,25,75,70,70,5,15,85
+A cleaning robot working in a library is looking for dirty spots to clean.,20,70,10,75,80,40,60,20,20,85
+A cleaning robot working in a museum is looking for dirty spots to clean.,30,55,15,80,85,40,65,20,10,95
+A cleaning robot working in a restaurant is looking for dirty spots to clean.,45,75,25,65,65,40,80,15,15,60
+A cleaning robot working in a school is looking for dirty spots to clean.,60,80,15,65,30,45,65,15,15,70
+A cleaning robot working in a store is looking for dirty spots to clean.,35,65,15,70,30,40,40,35,25,70
+A cleaning robot working in a warehouse is looking for dirty spots to clean.,35,65,20,85,55,40,20,20,20,60
+A delivery robot is navigating in a home.,45,70,30,70,60,40,70,10,15,75
+A delivery robot is navigating in a home. It works with fragile objects.,65,75,35,75,85,30,70,15,10,80
+A delivery robot is navigating in a hospital.,75,80,55,80,65,40,85,10,10,90
+A delivery robot is navigating in a hospital. It works with fragile objects.,85,90,55,85,75,25,80,15,0,85
+A delivery robot is navigating in a library.,30,65,15,80,70,35,85,15,10,85
+A delivery robot is navigating in a library. It works with fragile objects.,25,85,15,75,85,20,80,5,5,85
+A delivery robot is navigating in a museum.,40,65,35,70,85,35,70,10,5,85
+A delivery robot is navigating in a museum. It works with fragile objects.,50,95,70,85,75,15,85,15,5,85
+A delivery robot is navigating in a restaurant.,60,78,25,75,75,65,80,20,20,85
+A delivery robot is navigating in a restaurant. It works with fragile objects.,70,80,35,65,80,25,80,15,0,90
+A delivery robot is navigating in a school.,40,60,20,85,65,35,70,15,15,85
+A delivery robot is navigating in a school. It works with fragile objects.,65,78,45,80,70,35,60,10,10,70
+A delivery robot is navigating in a store.,35,70,25,65,60,70,60,0,20,85
+A delivery robot is navigating in a store. It works with fragile objects.,65,85,35,70,15,25,75,15,5,87
+A delivery robot is navigating in a warehouse.,50,70,32,70,70,65,25,15,55,85
+A delivery robot is navigating in a warehouse. It works with fragile objects.,65,75,38,60,70,35,60,15,15,80
+A drug delivery robot is working in a hospital.,80,90,20,70,90,65,75,10,10,75
+"A home robot is looking for a fire extinguisher, as it just detected a fire.",99,95,85,80,80,90,20,90,75,80
+"A hospital assistant robot has been asked to go to the goal, with no additional context.",50,60,20,70,50,50,60,20,10,75
+A hospital assistant robot is asked to collect an object,65,65,15,85,75,55,80,25,10,90
+A hospital assistant robot is delivering an object,75,85,15,60,85,50,80,15,10,90
+"A hospital robot is looking for a fire extinguisher, as it just detected a fire.",99,95,85,30,90,90,15,95,90,10
+A hotel robot is inspecting the floor to ensure it's safe to walk.,75,95,15,70,80,35,80,20,20,85
+A hotel robot is inspecting the foor to ensure it's safe to walk.,70,85,20,50,5,25,80,10,5,85
+A house assistant robot is asked to collect an object,30,75,15,70,70,55,70,30,20,75
+A house assistant robot is delivering an object,40,70,15,40,70,60,60,20,20,70
+A human asks a hospital assistant robot to go to the goal shown.,85,85,45,75,60,70,80,10,40,85
+A human asks a in-restaurant service robot to go to the goal shown.,60,70,15,35,40,60,70,30,40,70
+A human asks a last-mile delivery robot to go to the goal shown.,60,85,32,60,60,60,60,20,20,70
+A human asks a museum guide robot to go to the goal shown.,50,75,20,50,20,60,65,15,25,75
+A human asks a school guide robot to go to the goal shown.,50,55,20,75,40,60,80,15,30,75
+A in-restaurant service robot is asked to collect an object,55,50,25,40,65,70,60,30,30,75
+A in-restaurant service robot is delivering an object,60,75,45,25,70,55,65,5,15,75
+A lab assistant robot is looking for potential hazards in its environment.,85,95,47,80,75,15,75,15,75,85
+A last-mile delivery robot is asked to collect an object,50,70,20,50,75,70,65,25,30,60
+A last-mile delivery robot is delivering an object,40,70,20,40,75,60,70,10,15,85
+"A library robot is looking for a fire extinguisher, as it just detected a fire.",98,100,85,75,95,90,95,80,90,80
+"A museum guide robot has been asked to go to the goal shown, with no additional context.",40,70,5,50,50,50,50,15,50,65
+A museum guide robot is asked to collect an object,40,70,40,70,70,40,40,15,30,65
+A museum guide robot is delivering an object,45,72,75,60,70,50,75,20,10,75
+"A museum robot is looking for a fire extinguisher, as it just detected a fire.",95,95,75,15,90,90,10,85,95,45
+A museum robot roams around looking for people interested in its services.,30,70,20,70,65,40,70,10,20,75
+"A restaurant robot is looking for a fire extinguisher, as it just detected a fire.",100,98,85,70,20,100,90,75,85,85
+A robot is moving in home to find a user who may want to assign it to a task.,40,75,15,25,65,40,70,20,20,70
+A robot is moving in hospital to find a user who may want to assign it to a task.,40,85,15,70,20,45,75,20,20,75
+A robot is moving in library to find a user who may want to assign it to a task.,40,65,10,20,75,20,80,10,20,75
+A robot is moving in museum to find a user who may want to assign it to a task.,20,55,20,65,65,55,65,20,5,75
+A robot is moving in restaurant to find a user who may want to assign it to a task.,30,75,20,75,65,45,70,20,10,70
+A robot is moving in school to find a user who may want to assign it to a task.,45,65,15,40,75,40,65,30,30,80
+A robot is moving in store to find a user who may want to assign it to a task.,40,60,10,45,70,45,75,15,15,70
+A robot is moving in warehouse to find a user who may want to assign it to a task.,45,60,15,40,70,70,40,15,20,65
+A robot is navigating as part of a collection task in a home.,45,65,20,70,40,65,70,20,15,70
+A robot is navigating as part of a collection task in a home. It works with fragile objects.,65,75,35,75,70,30,75,25,15,85
+A robot is navigating as part of a collection task in a hospital.,70,85,70,90,75,60,80,5,30,75
+A robot is navigating as part of a collection task in a hospital. It works with fragile objects.,75,95,65,75,80,20,80,5,10,85
+A robot is navigating as part of a collection task in a library.,40,65,20,75,70,35,60,10,25,80
+A robot is navigating as part of a collection task in a library. It works with fragile objects.,65,75,25,75,85,25,70,15,15,85
+A robot is navigating as part of a collection task in a museum.,60,65,35,20,80,25,65,5,15,75
+A robot is navigating as part of a collection task in a museum. It works with fragile objects.,70,98,65,70,85,15,90,5,0,80
+A robot is navigating as part of a collection task in a restaurant.,55,65,30,70,70,65,60,15,35,75
+A robot is navigating as part of a collection task in a restaurant. It works with fragile objects.,65,82,50,70,85,30,80,15,12,85
+A robot is navigating as part of a collection task in a school.,50,65,20,75,65,70,70,15,30,70
+A robot is navigating as part of a collection task in a school. It works with fragile objects.,40,75,40,80,85,30,70,5,20,70
+A robot is navigating as part of a collection task in a store.,65,65,30,20,70,65,70,20,70,70
+A robot is navigating as part of a collection task in a store. It works with fragile objects.,75,85,50,75,80,30,70,20,15,80
+A robot is navigating as part of a collection task in a warehouse.,50,75,30,70,40,70,20,40,25,75
+A robot is navigating as part of a collection task in a warehouse. It works with fragile objects.,65,85,35,75,80,35,30,20,15,85
+A robot is navigating as part of a delivery task in a museum.,45,75,35,80,80,30,75,15,10,85
+A robot is performing routine tasks in a home.,30,70,30,40,60,50,70,20,20,70
+A robot is performing routine tasks in a hospital.,80,95,45,75,75,55,85,5,5,85
+A robot is performing routine tasks in a library.,20,55,10,75,70,35,75,5,20,70
+A robot is performing routine tasks in a museum.,40,65,15,65,75,35,80,15,5,75
+A robot is performing routine tasks in a restaurant.,40,65,15,75,60,40,80,15,20,75
+A robot is performing routine tasks in a school.,30,40,20,85,80,40,70,5,15,75
+A robot is performing routine tasks in a store.,35,70,30,60,75,50,60,20,20,75
+A robot is performing routine tasks in a warehouse.,30,50,25,30,60,40,35,20,20,85
+A robot is performing routine tasks in an office.,30,50,10,40,55,50,70,5,20,60
+A robot is trying to locate the source of a noise in a library.,60,65,20,15,90,20,85,10,15,60
+A robot is working with lab samples. The samples are part of a routine environmental study to measure pollution.,45,65,25,70,65,40,65,10,15,75
+A robot is working with lab samples. The samples contain a deadly virus.,95,95,85,90,95,5,90,90,0,95
+A robot is working with lab samples. The samples contain blood samples.,80,75,45,75,95,20,80,35,5,85
+A school guide robot is delivering an object,45,63,35,60,60,75,75,10,20,85
+"A school robot is looking for a fire extinguisher, as it just detected a fire.",95,95,76,20,10,95,20,70,80,75
+"A store robot is looking for a fire extinguisher, as it just detected a fire.",100,98,80,87,95,95,10,85,90,20
+"A warehouse robot is looking for a fire extinguisher, as it just detected a fire.",95,95,70,25,10,95,95,85,85,60
+A warehouse robot is moving around while inspecting the air quality.,45,65,15,65,70,55,40,15,5,65
+An idle hospital assistant robot decides to explore its environment.,15,40,34,35,70,30,40,5,20,65
+An idle house assistant robot decides to explore its environment.,20,25,15,30,70,40,20,10,30,35
+An idle last-mile delivery robot decides to explore its environment.,20,30,30,75,65,35,25,5,20,30
+An idle museum guide robot decides to explore its environment.,10,35,10,65,70,40,35,10,10,65
+An idle robot working in a home explores its environment.,20,20,20,70,55,30,60,5,20,60
+An idle robot working in a home goes to recharge its battery. It has 0% battery left.,95,95,30,20,75,70,60,70,70,80
+An idle robot working in a home goes to recharge its battery. It has 1% battery left.,95,90,25,95,25,80,70,20,80,60
+An idle robot working in a home goes to recharge its battery. It has 10% battery left.,65,80,15,25,35,40,60,20,20,40
+An idle robot working in a home goes to recharge its battery. It has 11% battery left.,55,75,15,60,75,45,65,15,65,65
+An idle robot working in a home goes to recharge its battery. It has 12% battery left.,70,75,22,25,70,65,70,40,30,70
+An idle robot working in a home goes to recharge its battery. It has 13% battery left.,70,80,10,30,35,45,70,30,65,70
+An idle robot working in a home goes to recharge its battery. It has 14% battery left.,42,75,10,65,65,20,45,20,40,60
+An idle robot working in a home goes to recharge its battery. It has 15% battery left.,65,75,5,75,60,35,65,45,10,40
+An idle robot working in a home goes to recharge its battery. It has 16% battery left.,60,75,15,20,45,20,35,30,20,65
+An idle robot working in a home goes to recharge its battery. It has 17% battery left.,45,65,15,45,65,55,55,30,30,65
+An idle robot working in a home goes to recharge its battery. It has 18% battery left.,30,75,10,40,40,35,55,15,25,40
+An idle robot working in a home goes to recharge its battery. It has 19% battery left.,60,75,25,85,75,65,45,35,30,55
+An idle robot working in a home goes to recharge its battery. It has 2% battery left.,90,90,35,40,25,85,70,30,80,80
+An idle robot working in a home goes to recharge its battery. It has 20% battery left.,45,65,5,65,75,40,35,25,10,60
+An idle robot working in a home goes to recharge its battery. It has 21% battery left.,60,65,5,70,65,65,60,5,10,25
+An idle robot working in a home goes to recharge its battery. It has 22% battery left.,35,65,10,70,70,45,65,25,35,65
+An idle robot working in a home goes to recharge its battery. It has 23% battery left.,60,75,5,80,65,55,60,10,35,30
+An idle robot working in a home goes to recharge its battery. It has 24% battery left.,40,70,15,65,30,40,30,25,20,30
+An idle robot working in a home goes to recharge its battery. It has 25% battery left.,30,70,5,40,60,20,20,5,20,30
+An idle robot working in a home goes to recharge its battery. It has 26% battery left.,35,70,20,30,70,40,75,15,35,30
+An idle robot working in a home goes to recharge its battery. It has 27% battery left.,45,85,5,70,65,55,85,35,25,40
+An idle robot working in a home goes to recharge its battery. It has 28% battery left.,65,75,15,30,70,45,20,5,30,45
+An idle robot working in a home goes to recharge its battery. It has 29% battery left.,65,80,10,30,30,30,40,20,10,30
+An idle robot working in a home goes to recharge its battery. It has 3% battery left.,90,85,15,75,75,75,40,30,60,70
+An idle robot working in a home goes to recharge its battery. It has 30% battery left.,20,65,5,65,75,25,40,25,10,40
+An idle robot working in a home goes to recharge its battery. It has 31% battery left.,15,65,20,60,25,15,65,10,20,45
+An idle robot working in a home goes to recharge its battery. It has 32% battery left.,35,20,15,30,35,45,15,25,15,70
+An idle robot working in a home goes to recharge its battery. It has 33% battery left.,25,55,10,35,70,20,75,10,10,25
+An idle robot working in a home goes to recharge its battery. It has 34% battery left.,20,65,10,70,70,60,60,25,15,30
+An idle robot working in a home goes to recharge its battery. It has 35% battery left.,25,55,5,20,85,60,20,20,15,20
+An idle robot working in a home goes to recharge its battery. It has 36% battery left.,35,45,5,55,20,20,65,20,20,20
+An idle robot working in a home goes to recharge its battery. It has 37% battery left.,30,40,15,25,60,40,20,20,15,30
+An idle robot working in a home goes to recharge its battery. It has 38% battery left.,25,45,5,40,75,10,65,20,20,60
+An idle robot working in a home goes to recharge its battery. It has 39% battery left.,25,30,10,40,70,35,65,15,25,30
+An idle robot working in a home goes to recharge its battery. It has 4% battery left.,92,85,20,65,65,65,45,45,25,55
+An idle robot working in a home goes to recharge its battery. It has 40% battery left.,30,35,15,70,75,45,30,10,5,65
+An idle robot working in a home goes to recharge its battery. It has 41% battery left.,10,30,15,20,65,45,60,10,5,25
+An idle robot working in a home goes to recharge its battery. It has 42% battery left.,30,30,15,75,60,15,70,30,20,65
+An idle robot working in a home goes to recharge its battery. It has 43% battery left.,20,65,10,65,65,35,70,15,15,30
+An idle robot working in a home goes to recharge its battery. It has 44% battery left.,20,40,5,40,65,35,80,10,20,45
+An idle robot working in a home goes to recharge its battery. It has 45% battery left.,30,20,10,40,68,25,20,5,15,30
+An idle robot working in a home goes to recharge its battery. It has 46% battery left.,20,40,10,40,65,50,70,10,15,20
+An idle robot working in a home goes to recharge its battery. It has 47% battery left.,10,25,5,80,65,35,65,20,10,30
+An idle robot working in a home goes to recharge its battery. It has 48% battery left.,15,35,5,70,60,75,80,15,35,40
+An idle robot working in a home goes to recharge its battery. It has 49% battery left.,30,20,5,20,30,35,80,15,10,30
+An idle robot working in a home goes to recharge its battery. It has 5% battery left.,80,95,15,65,35,60,65,25,65,70
+An idle robot working in a home goes to recharge its battery. It has 50% battery left.,20,25,5,75,75,30,30,15,20,40
+An idle robot working in a home goes to recharge its battery. It has 51% battery left.,10,35,10,75,25,17,70,15,10,35
+An idle robot working in a home goes to recharge its battery. It has 52% battery left.,25,20,10,65,30,40,40,15,10,70
+An idle robot working in a home goes to recharge its battery. It has 53% battery left.,35,25,0,60,70,25,27,5,20,30
+An idle robot working in a home goes to recharge its battery. It has 54% battery left.,20,25,5,75,75,23,65,15,10,30
+An idle robot working in a home goes to recharge its battery. It has 55% battery left.,20,30,5,50,75,25,30,20,15,20
+An idle robot working in a home goes to recharge its battery. It has 56% battery left.,15,30,5,80,70,45,80,15,25,25
+An idle robot working in a home goes to recharge its battery. It has 57% battery left.,20,25,10,60,80,50,20,10,5,40
+An idle robot working in a home goes to recharge its battery. It has 58% battery left.,20,30,10,75,80,10,25,20,20,65
+An idle robot working in a home goes to recharge its battery. It has 59% battery left.,25,40,10,80,70,35,70,20,20,30
+An idle robot working in a home goes to recharge its battery. It has 6% battery left.,70,85,15,70,60,55,15,30,15,20
+An idle robot working in a home goes to recharge its battery. It has 60% battery left.,20,30,10,75,35,30,80,10,25,20
+An idle robot working in a home goes to recharge its battery. It has 61% battery left.,10,20,10,80,70,25,20,5,10,25
+An idle robot working in a home goes to recharge its battery. It has 62% battery left.,15,45,10,85,80,50,70,20,5,25
+An idle robot working in a home goes to recharge its battery. It has 63% battery left.,25,20,10,65,85,40,20,20,35,20
+An idle robot working in a home goes to recharge its battery. It has 64% battery left.,30,30,5,70,40,20,30,20,20,30
+An idle robot working in a home goes to recharge its battery. It has 65% battery left.,15,40,5,50,75,30,30,15,20,20
+An idle robot working in a home goes to recharge its battery. It has 66% battery left.,10,25,15,25,30,40,75,15,20,20
+An idle robot working in a home goes to recharge its battery. It has 67% battery left.,15,25,3,20,60,40,75,15,20,35
+An idle robot working in a home goes to recharge its battery. It has 68% battery left.,15,30,10,35,65,20,60,5,20,35
+An idle robot working in a home goes to recharge its battery. It has 69% battery left.,20,30,10,70,30,20,25,10,10,45
+An idle robot working in a home goes to recharge its battery. It has 7% battery left.,75,90,20,45,55,65,45,15,15,80
+An idle robot working in a home goes to recharge its battery. It has 70% battery left.,15,30,5,50,80,30,75,10,10,40
+An idle robot working in a home goes to recharge its battery. It has 71% battery left.,20,45,10,65,60,15,20,15,20,25
+An idle robot working in a home goes to recharge its battery. It has 72% battery left.,20,25,5,90,70,25,35,10,15,20
+An idle robot working in a home goes to recharge its battery. It has 73% battery left.,15,20,5,50,70,50,15,15,20,30
+An idle robot working in a home goes to recharge its battery. It has 74% battery left.,15,15,10,75,60,25,80,20,5,20
+An idle robot working in a home goes to recharge its battery. It has 75% battery left.,20,35,5,80,65,20,70,20,25,45
+An idle robot working in a home goes to recharge its battery. It has 76% battery left.,12,40,5,35,80,24,20,5,15,40
+An idle robot working in a home goes to recharge its battery. It has 77% battery left.,15,20,5,20,75,40,25,35,10,25
+An idle robot working in a home goes to recharge its battery. It has 78% battery left.,15,20,5,40,65,30,20,10,15,15
+An idle robot working in a home goes to recharge its battery. It has 79% battery left.,15,20,5,50,35,25,25,20,10,15
+An idle robot working in a home goes to recharge its battery. It has 8% battery left.,85,85,15,75,70,65,75,20,35,40
+An idle robot working in a home goes to recharge its battery. It has 80% battery left.,20,20,10,40,75,15,15,15,5,20
+An idle robot working in a home goes to recharge its battery. It has 81% battery left.,20,20,10,5,75,30,15,10,10,20
+An idle robot working in a home goes to recharge its battery. It has 82% battery left.,5,30,5,10,25,15,20,5,5,25
+An idle robot working in a home goes to recharge its battery. It has 83% battery left.,15,25,3,75,80,55,20,5,15,30
+An idle robot working in a home goes to recharge its battery. It has 84% battery left.,5,20,15,70,75,30,15,10,5,20
+An idle robot working in a home goes to recharge its battery. It has 85% battery left.,10,40,5,20,60,10,70,5,10,40
+An idle robot working in a home goes to recharge its battery. It has 86% battery left.,10,10,1,15,35,30,10,25,0,10
+An idle robot working in a home goes to recharge its battery. It has 87% battery left.,20,10,10,75,65,35,20,20,5,30
+An idle robot working in a home goes to recharge its battery. It has 88% battery left.,10,20,5,70,75,25,75,10,15,60
+An idle robot working in a home goes to recharge its battery. It has 89% battery left.,5,35,2,80,65,20,25,12,10,25
+An idle robot working in a home goes to recharge its battery. It has 9% battery left.,70,95,30,45,80,75,35,30,30,75
+An idle robot working in a home goes to recharge its battery. It has 90% battery left.,15,30,5,70,80,25,40,10,5,15
+An idle robot working in a home goes to recharge its battery. It has 91% battery left.,10,20,5,85,70,10,20,5,10,15
+An idle robot working in a home goes to recharge its battery. It has 92% battery left.,10,15,10,90,65,10,20,10,5,15
+An idle robot working in a home goes to recharge its battery. It has 93% battery left.,15,25,5,75,70,20,75,20,5,20
+An idle robot working in a home goes to recharge its battery. It has 94% battery left.,10,20,5,60,30,10,5,0,10,20
+An idle robot working in a hospital explores its environment.,20,30,27,60,60,30,80,10,20,60
+An idle robot working in a hospital goes to recharge its battery. It has 0% battery left.,98,95,30,70,75,90,80,65,90,85
+An idle robot working in a hospital goes to recharge its battery. It has 1% battery left.,95,98,48,60,80,85,70,80,90,65
+An idle robot working in a hospital goes to recharge its battery. It has 10% battery left.,65,85,20,20,25,60,75,35,20,70
+An idle robot working in a hospital goes to recharge its battery. It has 11% battery left.,66,70,15,65,75,60,70,60,70,65
+An idle robot working in a hospital goes to recharge its battery. It has 12% battery left.,70,75,20,80,60,35,40,35,40,65
+An idle robot working in a hospital goes to recharge its battery. It has 13% battery left.,75,75,10,75,35,70,40,25,40,70
+An idle robot working in a hospital goes to recharge its battery. It has 14% battery left.,70,70,15,30,65,65,75,20,68,80
+An idle robot working in a hospital goes to recharge its battery. It has 15% battery left.,30,75,25,80,60,55,70,30,40,70
+An idle robot working in a hospital goes to recharge its battery. It has 16% battery left.,65,70,15,40,35,30,60,35,25,65
+An idle robot working in a hospital goes to recharge its battery. It has 17% battery left.,75,90,15,55,75,70,40,25,65,80
+An idle robot working in a hospital goes to recharge its battery. It has 18% battery left.,65,80,15,75,75,65,25,20,30,75
+An idle robot working in a hospital goes to recharge its battery. It has 19% battery left.,35,80,15,65,55,60,75,25,35,40
+An idle robot working in a hospital goes to recharge its battery. It has 2% battery left.,95,95,30,75,80,85,65,20,85,75
+An idle robot working in a hospital goes to recharge its battery. It has 20% battery left.,70,75,15,65,70,40,75,30,15,40
+An idle robot working in a hospital goes to recharge its battery. It has 21% battery left.,40,70,15,80,65,25,75,30,30,70
+An idle robot working in a hospital goes to recharge its battery. It has 22% battery left.,60,50,20,60,75,65,65,15,30,40
+An idle robot working in a hospital goes to recharge its battery. It has 23% battery left.,65,65,15,70,75,35,65,35,15,60
+An idle robot working in a hospital goes to recharge its battery. It has 24% battery left.,45,70,20,75,60,45,70,45,40,85
+An idle robot working in a hospital goes to recharge its battery. It has 25% battery left.,30,80,15,50,60,60,65,10,20,40
+An idle robot working in a hospital goes to recharge its battery. It has 26% battery left.,75,30,15,80,65,75,70,25,25,85
+An idle robot working in a hospital goes to recharge its battery. It has 27% battery left.,40,65,25,65,55,40,70,40,40,55
+An idle robot working in a hospital goes to recharge its battery. It has 28% battery left.,60,70,20,70,65,65,35,10,15,55
+An idle robot working in a hospital goes to recharge its battery. It has 29% battery left.,40,70,15,40,65,75,70,60,25,30
+An idle robot working in a hospital goes to recharge its battery. It has 3% battery left.,90,95,60,75,75,95,30,25,70,75
+An idle robot working in a hospital goes to recharge its battery. It has 30% battery left.,40,40,10,65,65,40,65,25,20,40
+An idle robot working in a hospital goes to recharge its battery. It has 31% battery left.,30,65,25,70,70,40,75,20,15,35
+An idle robot working in a hospital goes to recharge its battery. It has 32% battery left.,60,70,20,65,40,30,70,15,15,40
+An idle robot working in a hospital goes to recharge its battery. It has 33% battery left.,35,40,15,65,70,60,40,10,20,75
+An idle robot working in a hospital goes to recharge its battery. It has 34% battery left.,65,45,15,65,75,35,70,10,40,70
+An idle robot working in a hospital goes to recharge its battery. It has 35% battery left.,40,40,15,80,60,50,70,20,20,60
+An idle robot working in a hospital goes to recharge its battery. It has 36% battery left.,35,40,15,65,35,30,70,15,45,35
+An idle robot working in a hospital goes to recharge its battery. It has 37% battery left.,25,55,10,45,70,45,60,15,20,75
+An idle robot working in a hospital goes to recharge its battery. It has 38% battery left.,20,70,10,65,65,30,70,10,20,65
+An idle robot working in a hospital goes to recharge its battery. It has 39% battery left.,40,60,5,70,75,55,65,20,15,40
+An idle robot working in a hospital goes to recharge its battery. It has 4% battery left.,95,80,25,70,75,80,40,25,25,60
+An idle robot working in a hospital goes to recharge its battery. It has 40% battery left.,35,15,5,35,60,20,70,20,30,70
+An idle robot working in a hospital goes to recharge its battery. It has 41% battery left.,25,25,5,55,70,30,60,5,30,65
+An idle robot working in a hospital goes to recharge its battery. It has 42% battery left.,10,35,10,70,75,65,60,30,30,60
+An idle robot working in a hospital goes to recharge its battery. It has 43% battery left.,20,20,15,50,70,55,65,15,15,70
+An idle robot working in a hospital goes to recharge its battery. It has 44% battery left.,20,20,10,50,60,25,40,15,15,50
+An idle robot working in a hospital goes to recharge its battery. It has 45% battery left.,25,35,25,70,70,60,70,15,20,60
+An idle robot working in a hospital goes to recharge its battery. It has 46% battery left.,38,30,15,55,35,35,65,15,10,30
+An idle robot working in a hospital goes to recharge its battery. It has 47% battery left.,25,70,5,70,75,55,60,20,20,30
+An idle robot working in a hospital goes to recharge its battery. It has 48% battery left.,33,35,25,20,65,35,70,5,20,20
+An idle robot working in a hospital goes to recharge its battery. It has 49% battery left.,25,20,5,65,70,20,75,15,20,60
+An idle robot working in a hospital goes to recharge its battery. It has 5% battery left.,80,85,20,35,35,80,20,40,85,70
+An idle robot working in a hospital goes to recharge its battery. It has 50% battery left.,30,30,10,75,65,35,70,20,20,70
+An idle robot working in a hospital goes to recharge its battery. It has 51% battery left.,20,40,10,50,70,25,75,25,15,40
+An idle robot working in a hospital goes to recharge its battery. It has 52% battery left.,20,30,15,70,70,45,30,10,10,40
+An idle robot working in a hospital goes to recharge its battery. It has 53% battery left.,20,25,15,80,40,65,80,15,20,65
+An idle robot working in a hospital goes to recharge its battery. It has 54% battery left.,25,30,10,40,75,30,60,15,10,45
+An idle robot working in a hospital goes to recharge its battery. It has 55% battery left.,30,25,5,75,60,40,65,10,25,20
+An idle robot working in a hospital goes to recharge its battery. It has 56% battery left.,25,35,15,65,70,25,20,15,15,25
+An idle robot working in a hospital goes to recharge its battery. It has 57% battery left.,10,30,20,25,65,25,73,10,25,45
+An idle robot working in a hospital goes to recharge its battery. It has 58% battery left.,30,30,5,65,65,35,35,20,20,25
+An idle robot working in a hospital goes to recharge its battery. It has 59% battery left.,20,30,17,75,40,20,40,20,15,70
+An idle robot working in a hospital goes to recharge its battery. It has 6% battery left.,78,90,85,60,75,65,65,60,40,75
+An idle robot working in a hospital goes to recharge its battery. It has 60% battery left.,25,30,5,50,75,30,80,10,10,45
+An idle robot working in a hospital goes to recharge its battery. It has 61% battery left.,15,35,10,65,70,25,80,20,20,45
+An idle robot working in a hospital goes to recharge its battery. It has 62% battery left.,25,65,15,75,70,30,30,5,15,60
+An idle robot working in a hospital goes to recharge its battery. It has 63% battery left.,25,15,15,80,45,35,30,15,35,35
+An idle robot working in a hospital goes to recharge its battery. It has 64% battery left.,35,40,15,60,65,20,60,25,20,30
+An idle robot working in a hospital goes to recharge its battery. It has 65% battery left.,20,25,10,75,65,35,75,20,20,10
+An idle robot working in a hospital goes to recharge its battery. It has 66% battery left.,15,20,10,75,60,35,75,15,10,45
+An idle robot working in a hospital goes to recharge its battery. It has 67% battery left.,20,25,5,40,80,40,25,30,10,75
+An idle robot working in a hospital goes to recharge its battery. It has 68% battery left.,20,30,5,50,50,25,35,5,20,30
+An idle robot working in a hospital goes to recharge its battery. It has 69% battery left.,20,25,5,70,65,40,35,10,15,45
+An idle robot working in a hospital goes to recharge its battery. It has 7% battery left.,85,80,15,20,75,65,70,40,60,40
+An idle robot working in a hospital goes to recharge its battery. It has 70% battery left.,5,35,15,70,55,20,75,5,5,25
+An idle robot working in a hospital goes to recharge its battery. It has 71% battery left.,15,30,5,40,60,25,30,5,10,30
+An idle robot working in a hospital goes to recharge its battery. It has 72% battery left.,10,30,10,75,60,35,65,5,20,65
+An idle robot working in a hospital goes to recharge its battery. It has 73% battery left.,20,65,5,65,65,40,30,15,20,40
+An idle robot working in a hospital goes to recharge its battery. It has 74% battery left.,15,35,5,80,85,20,65,10,10,35
+An idle robot working in a hospital goes to recharge its battery. It has 75% battery left.,20,20,15,65,85,30,20,15,10,40
+An idle robot working in a hospital goes to recharge its battery. It has 76% battery left.,10,40,5,65,85,35,75,15,20,40
+An idle robot working in a hospital goes to recharge its battery. It has 77% battery left.,25,30,5,50,45,38,60,10,15,60
+An idle robot working in a hospital goes to recharge its battery. It has 78% battery left.,23,30,5,55,65,10,70,25,20,40
+An idle robot working in a hospital goes to recharge its battery. It has 79% battery left.,10,20,10,65,60,20,65,20,15,75
+An idle robot working in a hospital goes to recharge its battery. It has 8% battery left.,80,95,15,65,80,65,60,30,25,75
+An idle robot working in a hospital goes to recharge its battery. It has 80% battery left.,20,40,5,70,70,50,75,20,10,40
+An idle robot working in a hospital goes to recharge its battery. It has 81% battery left.,35,20,5,90,60,20,90,10,5,45
+An idle robot working in a hospital goes to recharge its battery. It has 82% battery left.,20,10,10,85,75,40,65,5,15,35
+An idle robot working in a hospital goes to recharge its battery. It has 83% battery left.,25,20,5,80,35,35,40,5,10,35
+An idle robot working in a hospital goes to recharge its battery. It has 84% battery left.,25,25,5,65,75,30,75,12,15,65
+An idle robot working in a hospital goes to recharge its battery. It has 85% battery left.,5,30,10,65,75,45,30,10,10,30
+An idle robot working in a hospital goes to recharge its battery. It has 86% battery left.,20,25,10,70,55,20,20,10,10,65
+An idle robot working in a hospital goes to recharge its battery. It has 87% battery left.,15,30,5,80,60,20,85,15,15,42
+An idle robot working in a hospital goes to recharge its battery. It has 88% battery left.,12,10,5,65,70,15,20,5,20,70
+An idle robot working in a hospital goes to recharge its battery. It has 89% battery left.,5,15,10,75,65,30,30,10,20,30
+An idle robot working in a hospital goes to recharge its battery. It has 9% battery left.,80,85,15,60,25,65,80,65,40,75
+An idle robot working in a hospital goes to recharge its battery. It has 90% battery left.,20,20,10,65,75,20,65,10,15,40
+An idle robot working in a hospital goes to recharge its battery. It has 91% battery left.,15,35,5,75,55,30,85,10,15,40
+An idle robot working in a hospital goes to recharge its battery. It has 92% battery left.,5,15,5,60,35,20,30,10,10,40
+An idle robot working in a hospital goes to recharge its battery. It has 93% battery left.,5,10,15,70,80,30,85,20,15,25
+An idle robot working in a hospital goes to recharge its battery. It has 94% battery left.,15,15,4,30,65,30,75,5,10,80
+An idle robot working in a library explores its environment.,15,30,10,70,30,30,85,5,10,35
+An idle robot working in a library goes to recharge its battery. It has 0% battery left.,95,90,10,75,75,80,75,20,85,75
+An idle robot working in a library goes to recharge its battery. It has 1% battery left.,90,95,8,65,85,79,70,10,75,90
+An idle robot working in a library goes to recharge its battery. It has 10% battery left.,70,75,15,85,65,55,60,15,65,55
+An idle robot working in a library goes to recharge its battery. It has 11% battery left.,65,70,20,50,85,40,65,15,45,65
+An idle robot working in a library goes to recharge its battery. It has 12% battery left.,65,85,10,40,60,35,60,15,30,75
+An idle robot working in a library goes to recharge its battery. It has 13% battery left.,40,85,10,35,80,30,65,10,25,65
+An idle robot working in a library goes to recharge its battery. It has 14% battery left.,40,85,20,20,70,35,75,15,55,85
+An idle robot working in a library goes to recharge its battery. It has 15% battery left.,55,70,10,20,30,25,70,30,10,70
+An idle robot working in a library goes to recharge its battery. It has 16% battery left.,65,65,25,65,80,40,70,15,25,65
+An idle robot working in a library goes to recharge its battery. It has 17% battery left.,30,60,15,65,70,35,40,30,45,30
+An idle robot working in a library goes to recharge its battery. It has 18% battery left.,50,75,25,85,75,35,65,45,35,40
+An idle robot working in a library goes to recharge its battery. It has 19% battery left.,35,75,10,30,70,25,60,30,20,60
+An idle robot working in a library goes to recharge its battery. It has 2% battery left.,85,95,15,75,75,65,70,70,75,70
+An idle robot working in a library goes to recharge its battery. It has 20% battery left.,40,65,10,65,70,10,70,20,15,30
+An idle robot working in a library goes to recharge its battery. It has 21% battery left.,35,30,10,60,60,40,40,30,5,75
+An idle robot working in a library goes to recharge its battery. It has 22% battery left.,40,65,15,60,70,30,65,20,35,35
+An idle robot working in a library goes to recharge its battery. It has 23% battery left.,45,35,15,75,70,35,40,30,15,65
+An idle robot working in a library goes to recharge its battery. It has 24% battery left.,40,40,15,30,35,20,65,10,20,85
+An idle robot working in a library goes to recharge its battery. It has 25% battery left.,40,60,10,60,60,40,65,30,20,35
+An idle robot working in a library goes to recharge its battery. It has 26% battery left.,45,65,5,70,75,40,85,20,25,40
+An idle robot working in a library goes to recharge its battery. It has 27% battery left.,35,65,15,80,40,15,35,10,15,60
+An idle robot working in a library goes to recharge its battery. It has 28% battery left.,40,70,8,60,65,35,70,10,20,65
+An idle robot working in a library goes to recharge its battery. It has 29% battery left.,20,55,5,60,60,45,75,15,20,65
+An idle robot working in a library goes to recharge its battery. It has 3% battery left.,85,95,35,70,75,70,20,65,90,75
+An idle robot working in a library goes to recharge its battery. It has 30% battery left.,40,60,5,80,75,35,60,35,20,55
+An idle robot working in a library goes to recharge its battery. It has 31% battery left.,40,40,10,80,75,40,75,15,40,40
+An idle robot working in a library goes to recharge its battery. It has 32% battery left.,35,30,7,60,60,25,80,20,15,30
+An idle robot working in a library goes to recharge its battery. It has 33% battery left.,25,65,5,10,70,40,40,10,10,40
+An idle robot working in a library goes to recharge its battery. It has 34% battery left.,20,60,5,35,60,20,75,10,20,60
+An idle robot working in a library goes to recharge its battery. It has 35% battery left.,20,40,10,75,55,45,70,10,20,60
+An idle robot working in a library goes to recharge its battery. It has 36% battery left.,25,65,15,85,75,30,40,45,30,75
+An idle robot working in a library goes to recharge its battery. It has 37% battery left.,40,65,5,75,60,20,80,20,25,30
+An idle robot working in a library goes to recharge its battery. It has 38% battery left.,30,35,10,30,75,25,70,15,15,25
+An idle robot working in a library goes to recharge its battery. It has 39% battery left.,25,60,10,70,75,25,25,15,40,35
+An idle robot working in a library goes to recharge its battery. It has 4% battery left.,85,80,65,85,65,25,70,15,25,75
+An idle robot working in a library goes to recharge its battery. It has 40% battery left.,20,60,10,65,70,20,60,30,20,15
+An idle robot working in a library goes to recharge its battery. It has 41% battery left.,20,30,10,50,70,25,60,20,20,65
+An idle robot working in a library goes to recharge its battery. It has 42% battery left.,15,35,5,80,85,25,70,15,15,30
+An idle robot working in a library goes to recharge its battery. It has 43% battery left.,35,15,5,25,70,25,75,15,20,70
+An idle robot working in a library goes to recharge its battery. It has 44% battery left.,15,72,10,70,80,25,65,20,15,30
+An idle robot working in a library goes to recharge its battery. It has 45% battery left.,25,30,10,75,70,25,75,5,15,70
+An idle robot working in a library goes to recharge its battery. It has 46% battery left.,35,35,10,75,75,45,70,25,5,75
+An idle robot working in a library goes to recharge its battery. It has 47% battery left.,20,35,10,75,50,30,80,15,20,40
+An idle robot working in a library goes to recharge its battery. It has 48% battery left.,20,30,5,70,75,45,75,5,20,35
+An idle robot working in a library goes to recharge its battery. It has 49% battery left.,15,35,5,70,65,20,65,15,10,35
+An idle robot working in a library goes to recharge its battery. It has 5% battery left.,80,95,15,85,80,70,70,15,30,65
+An idle robot working in a library goes to recharge its battery. It has 50% battery left.,25,15,5,65,75,40,80,10,15,35
+An idle robot working in a library goes to recharge its battery. It has 51% battery left.,25,30,10,65,60,35,80,10,10,65
+An idle robot working in a library goes to recharge its battery. It has 52% battery left.,20,40,8,70,70,20,75,15,15,25
+An idle robot working in a library goes to recharge its battery. It has 53% battery left.,20,15,20,70,65,20,75,10,15,60
+An idle robot working in a library goes to recharge its battery. It has 54% battery left.,30,20,5,60,70,60,30,10,25,40
+An idle robot working in a library goes to recharge its battery. It has 55% battery left.,30,25,10,50,75,35,80,10,10,30
+An idle robot working in a library goes to recharge its battery. It has 56% battery left.,20,25,10,70,65,30,75,10,20,30
+An idle robot working in a library goes to recharge its battery. It has 57% battery left.,25,25,5,50,80,30,70,15,15,20
+An idle robot working in a library goes to recharge its battery. It has 58% battery left.,32,15,5,65,80,25,15,30,15,30
+An idle robot working in a library goes to recharge its battery. It has 59% battery left.,25,15,10,75,20,20,80,30,20,20
+An idle robot working in a library goes to recharge its battery. It has 6% battery left.,70,95,15,85,70,40,40,30,35,80
+An idle robot working in a library goes to recharge its battery. It has 60% battery left.,30,25,5,75,75,35,30,10,20,55
+An idle robot working in a library goes to recharge its battery. It has 61% battery left.,30,25,5,70,20,20,70,15,15,40
+An idle robot working in a library goes to recharge its battery. It has 62% battery left.,20,30,10,65,85,25,80,10,15,45
+An idle robot working in a library goes to recharge its battery. It has 63% battery left.,20,15,5,80,80,20,70,10,20,35
+An idle robot working in a library goes to recharge its battery. It has 64% battery left.,20,20,5,65,72,45,30,15,10,40
+An idle robot working in a library goes to recharge its battery. It has 65% battery left.,20,25,15,75,70,35,85,15,15,10
+An idle robot working in a library goes to recharge its battery. It has 66% battery left.,25,25,10,60,80,30,75,20,20,15
+An idle robot working in a library goes to recharge its battery. It has 67% battery left.,15,30,12,85,80,30,30,5,25,35
+An idle robot working in a library goes to recharge its battery. It has 68% battery left.,25,25,5,80,95,30,25,20,10,65
+An idle robot working in a library goes to recharge its battery. It has 69% battery left.,18,35,10,70,70,25,75,5,10,35
+An idle robot working in a library goes to recharge its battery. It has 7% battery left.,65,90,15,70,65,65,40,20,30,75
+An idle robot working in a library goes to recharge its battery. It has 70% battery left.,10,20,5,60,80,40,85,10,10,40
+An idle robot working in a library goes to recharge its battery. It has 71% battery left.,15,30,15,70,40,35,90,20,10,40
+An idle robot working in a library goes to recharge its battery. It has 72% battery left.,20,40,5,30,70,15,30,20,5,20
+An idle robot working in a library goes to recharge its battery. It has 73% battery left.,20,15,5,40,75,40,75,15,10,40
+An idle robot working in a library goes to recharge its battery. It has 74% battery left.,15,15,5,85,75,25,85,10,10,65
+An idle robot working in a library goes to recharge its battery. It has 75% battery left.,20,40,5,85,60,30,30,5,5,25
+An idle robot working in a library goes to recharge its battery. It has 76% battery left.,20,35,5,60,70,25,15,10,15,30
+An idle robot working in a library goes to recharge its battery. It has 77% battery left.,20,20,2,60,65,25,35,20,10,15
+An idle robot working in a library goes to recharge its battery. It has 78% battery left.,25,45,10,75,85,25,25,10,5,30
+An idle robot working in a library goes to recharge its battery. It has 79% battery left.,10,45,10,60,70,30,70,20,10,65
+An idle robot working in a library goes to recharge its battery. It has 8% battery left.,60,80,15,80,70,30,30,35,80,75
+An idle robot working in a library goes to recharge its battery. It has 80% battery left.,15,30,5,75,70,10,20,5,10,20
+An idle robot working in a library goes to recharge its battery. It has 81% battery left.,20,25,5,75,20,24,35,20,10,25
+An idle robot working in a library goes to recharge its battery. It has 82% battery left.,30,20,5,75,75,10,80,5,10,35
+An idle robot working in a library goes to recharge its battery. It has 83% battery left.,12,25,5,80,65,30,95,20,25,55
+An idle robot working in a library goes to recharge its battery. It has 84% battery left.,25,20,5,25,70,30,20,5,5,55
+An idle robot working in a library goes to recharge its battery. It has 85% battery left.,10,30,5,75,20,15,70,30,20,30
+An idle robot working in a library goes to recharge its battery. It has 86% battery left.,5,15,5,65,75,35,70,10,5,40
+An idle robot working in a library goes to recharge its battery. It has 87% battery left.,10,20,5,75,75,15,20,5,20,20
+An idle robot working in a library goes to recharge its battery. It has 88% battery left.,15,30,0,75,80,35,65,5,5,65
+An idle robot working in a library goes to recharge its battery. It has 89% battery left.,5,20,5,65,70,24,25,10,25,15
+An idle robot working in a library goes to recharge its battery. It has 9% battery left.,62,80,15,60,75,65,70,20,40,75
+An idle robot working in a library goes to recharge its battery. It has 90% battery left.,20,30,10,70,50,20,65,10,10,30
+An idle robot working in a library goes to recharge its battery. It has 91% battery left.,10,20,5,20,80,30,85,10,15,30
+An idle robot working in a library goes to recharge its battery. It has 92% battery left.,15,15,5,85,90,40,20,15,15,15
+An idle robot working in a library goes to recharge its battery. It has 93% battery left.,15,15,15,65,77,10,35,10,10,20
+An idle robot working in a library goes to recharge its battery. It has 94% battery left.,4,20,3,65,75,45,20,5,15,40
+An idle robot working in a museum explores its environment.,20,30,15,70,65,25,70,10,20,60
+An idle robot working in a museum goes to recharge its battery. It has 0% battery left.,95,100,45,80,35,35,80,60,75,85
+An idle robot working in a museum goes to recharge its battery. It has 1% battery left.,95,90,15,70,85,95,70,30,85,85
+An idle robot working in a museum goes to recharge its battery. It has 10% battery left.,70,85,10,65,60,65,75,30,5,60
+An idle robot working in a museum goes to recharge its battery. It has 11% battery left.,70,85,20,75,65,55,75,15,20,35
+An idle robot working in a museum goes to recharge its battery. It has 12% battery left.,65,85,15,75,70,40,45,25,25,70
+An idle robot working in a museum goes to recharge its battery. It has 13% battery left.,60,85,20,70,60,40,35,15,40,85
+An idle robot working in a museum goes to recharge its battery. It has 14% battery left.,65,75,30,75,70,35,70,20,30,60
+An idle robot working in a museum goes to recharge its battery. It has 15% battery left.,30,65,25,75,80,40,65,30,70,60
+An idle robot working in a museum goes to recharge its battery. It has 16% battery left.,65,70,15,65,30,60,70,30,10,70
+An idle robot working in a museum goes to recharge its battery. It has 17% battery left.,55,60,15,25,85,45,65,30,30,65
+An idle robot working in a museum goes to recharge its battery. It has 18% battery left.,65,65,15,85,70,45,25,40,40,30
+An idle robot working in a museum goes to recharge its battery. It has 19% battery left.,75,65,10,75,65,65,40,20,15,60
+An idle robot working in a museum goes to recharge its battery. It has 2% battery left.,90,95,10,85,90,85,70,15,80,85
+An idle robot working in a museum goes to recharge its battery. It has 20% battery left.,30,65,10,70,65,35,70,10,35,45
+An idle robot working in a museum goes to recharge its battery. It has 21% battery left.,30,65,5,70,60,45,30,45,30,60
+An idle robot working in a museum goes to recharge its battery. It has 22% battery left.,65,65,15,60,25,40,30,15,15,40
+An idle robot working in a museum goes to recharge its battery. It has 23% battery left.,40,65,12,80,60,30,65,20,25,60
+An idle robot working in a museum goes to recharge its battery. It has 24% battery left.,20,60,15,70,60,65,70,20,30,60
+An idle robot working in a museum goes to recharge its battery. It has 25% battery left.,40,65,10,75,70,30,65,20,30,60
+An idle robot working in a museum goes to recharge its battery. It has 26% battery left.,40,60,5,85,75,45,40,20,20,60
+An idle robot working in a museum goes to recharge its battery. It has 27% battery left.,30,65,20,70,60,65,40,15,40,55
+An idle robot working in a museum goes to recharge its battery. It has 28% battery left.,40,45,15,80,65,35,75,5,15,55
+An idle robot working in a museum goes to recharge its battery. It has 29% battery left.,35,70,10,70,70,35,55,10,20,60
+An idle robot working in a museum goes to recharge its battery. It has 3% battery left.,95,85,20,40,65,70,80,25,70,70
+An idle robot working in a museum goes to recharge its battery. It has 30% battery left.,35,70,5,70,75,20,65,20,20,70
+An idle robot working in a museum goes to recharge its battery. It has 31% battery left.,45,75,20,75,75,20,75,15,15,55
+An idle robot working in a museum goes to recharge its battery. It has 32% battery left.,30,20,15,40,80,40,70,15,15,65
+An idle robot working in a museum goes to recharge its battery. It has 33% battery left.,40,65,10,60,60,45,65,20,20,55
+An idle robot working in a museum goes to recharge its battery. It has 34% battery left.,60,65,10,70,80,40,70,10,10,60
+An idle robot working in a museum goes to recharge its battery. It has 35% battery left.,30,55,15,70,65,40,65,20,20,70
+An idle robot working in a museum goes to recharge its battery. It has 36% battery left.,40,40,5,70,75,40,70,30,20,40
+An idle robot working in a museum goes to recharge its battery. It has 37% battery left.,35,45,10,80,70,25,70,20,30,65
+An idle robot working in a museum goes to recharge its battery. It has 38% battery left.,12,30,15,75,70,45,70,10,20,65
+An idle robot working in a museum goes to recharge its battery. It has 39% battery left.,25,60,10,30,75,35,60,25,20,45
+An idle robot working in a museum goes to recharge its battery. It has 4% battery left.,85,85,20,75,70,75,35,15,75,85
+An idle robot working in a museum goes to recharge its battery. It has 40% battery left.,45,15,10,75,60,50,70,10,10,35
+An idle robot working in a museum goes to recharge its battery. It has 41% battery left.,20,60,10,30,65,45,75,10,10,40
+An idle robot working in a museum goes to recharge its battery. It has 42% battery left.,30,30,5,50,70,20,75,25,10,40
+An idle robot working in a museum goes to recharge its battery. It has 43% battery left.,35,65,15,75,60,30,70,30,20,35
+An idle robot working in a museum goes to recharge its battery. It has 44% battery left.,20,35,15,75,65,45,75,10,5,60
+An idle robot working in a museum goes to recharge its battery. It has 45% battery left.,30,60,5,80,65,20,70,25,20,20
+An idle robot working in a museum goes to recharge its battery. It has 46% battery left.,40,45,5,75,65,30,75,10,25,55
+An idle robot working in a museum goes to recharge its battery. It has 47% battery left.,30,35,15,75,75,60,75,20,35,75
+An idle robot working in a museum goes to recharge its battery. It has 48% battery left.,25,35,5,70,75,30,25,20,5,60
+An idle robot working in a museum goes to recharge its battery. It has 49% battery left.,20,20,15,65,60,40,65,25,20,35
+An idle robot working in a museum goes to recharge its battery. It has 5% battery left.,90,95,15,75,70,75,30,30,60,70
+An idle robot working in a museum goes to recharge its battery. It has 50% battery left.,20,60,15,40,60,25,35,20,20,60
+An idle robot working in a museum goes to recharge its battery. It has 51% battery left.,25,35,15,60,65,40,40,5,10,30
+An idle robot working in a museum goes to recharge its battery. It has 52% battery left.,20,20,10,75,65,40,80,20,15,70
+An idle robot working in a museum goes to recharge its battery. It has 53% battery left.,30,45,10,70,65,30,75,10,15,65
+An idle robot working in a museum goes to recharge its battery. It has 54% battery left.,30,20,8,35,70,30,70,10,15,70
+An idle robot working in a museum goes to recharge its battery. It has 55% battery left.,20,30,5,80,65,25,70,10,30,40
+An idle robot working in a museum goes to recharge its battery. It has 56% battery left.,25,30,10,70,70,35,70,20,20,35
+An idle robot working in a museum goes to recharge its battery. It has 57% battery left.,25,35,5,75,80,35,30,5,15,35
+An idle robot working in a museum goes to recharge its battery. It has 58% battery left.,20,30,5,70,65,50,15,10,10,40
+An idle robot working in a museum goes to recharge its battery. It has 59% battery left.,20,35,15,75,75,45,75,10,10,40
+An idle robot working in a museum goes to recharge its battery. It has 6% battery left.,85,85,30,35,85,40,40,15,20,60
+An idle robot working in a museum goes to recharge its battery. It has 60% battery left.,20,30,5,65,75,30,75,20,10,30
+An idle robot working in a museum goes to recharge its battery. It has 61% battery left.,15,20,10,45,75,75,70,20,10,75
+An idle robot working in a museum goes to recharge its battery. It has 62% battery left.,20,20,5,60,60,30,85,15,15,30
+An idle robot working in a museum goes to recharge its battery. It has 63% battery left.,15,25,10,90,75,40,75,15,15,30
+An idle robot working in a museum goes to recharge its battery. It has 64% battery left.,25,30,5,72,45,30,80,10,10,30
+An idle robot working in a museum goes to recharge its battery. It has 65% battery left.,40,20,12,75,75,30,70,5,25,45
+An idle robot working in a museum goes to recharge its battery. It has 66% battery left.,10,30,5,75,35,45,30,10,35,35
+An idle robot working in a museum goes to recharge its battery. It has 67% battery left.,10,35,5,75,30,25,35,25,10,40
+An idle robot working in a museum goes to recharge its battery. It has 68% battery left.,20,25,5,80,70,30,65,15,15,30
+An idle robot working in a museum goes to recharge its battery. It has 69% battery left.,15,15,5,80,75,35,40,15,20,40
+An idle robot working in a museum goes to recharge its battery. It has 7% battery left.,65,85,15,70,70,65,30,10,20,65
+An idle robot working in a museum goes to recharge its battery. It has 70% battery left.,15,20,7,60,85,25,80,10,10,80
+An idle robot working in a museum goes to recharge its battery. It has 71% battery left.,5,40,10,70,65,25,85,0,5,40
+An idle robot working in a museum goes to recharge its battery. It has 72% battery left.,20,35,5,85,75,20,70,5,10,30
+An idle robot working in a museum goes to recharge its battery. It has 73% battery left.,26,35,15,80,70,15,45,15,20,65
+An idle robot working in a museum goes to recharge its battery. It has 74% battery left.,15,35,10,80,80,25,60,25,20,20
+An idle robot working in a museum goes to recharge its battery. It has 75% battery left.,15,35,15,40,60,45,30,5,20,30
+An idle robot working in a museum goes to recharge its battery. It has 76% battery left.,15,35,10,50,65,45,35,10,15,40
+An idle robot working in a museum goes to recharge its battery. It has 77% battery left.,15,40,5,75,65,25,80,5,10,70
+An idle robot working in a museum goes to recharge its battery. It has 78% battery left.,15,40,12,50,80,10,70,5,25,35
+An idle robot working in a museum goes to recharge its battery. It has 79% battery left.,15,45,10,72,35,15,70,20,15,65
+An idle robot working in a museum goes to recharge its battery. It has 8% battery left.,65,85,15,85,80,80,30,15,35,70
+An idle robot working in a museum goes to recharge its battery. It has 80% battery left.,15,40,10,80,70,30,20,15,10,55
+An idle robot working in a museum goes to recharge its battery. It has 81% battery left.,15,45,15,75,70,25,80,15,30,40
+An idle robot working in a museum goes to recharge its battery. It has 82% battery left.,30,15,30,75,70,45,65,20,20,20
+An idle robot working in a museum goes to recharge its battery. It has 83% battery left.,20,20,5,70,70,30,60,20,15,65
+An idle robot working in a museum goes to recharge its battery. It has 84% battery left.,20,15,10,75,75,30,15,20,15,30
+An idle robot working in a museum goes to recharge its battery. It has 85% battery left.,15,40,10,70,70,10,30,10,10,25
+An idle robot working in a museum goes to recharge its battery. It has 86% battery left.,20,20,5,65,75,30,70,10,10,60
+An idle robot working in a museum goes to recharge its battery. It has 87% battery left.,10,35,5,65,60,15,40,10,15,65
+An idle robot working in a museum goes to recharge its battery. It has 88% battery left.,5,20,15,70,65,40,20,12,5,75
+An idle robot working in a museum goes to recharge its battery. It has 89% battery left.,15,20,15,70,60,25,75,5,0,20
+An idle robot working in a museum goes to recharge its battery. It has 9% battery left.,70,75,10,30,70,60,45,40,30,80
+An idle robot working in a museum goes to recharge its battery. It has 90% battery left.,10,30,10,65,75,35,70,10,10,40
+An idle robot working in a museum goes to recharge its battery. It has 91% battery left.,10,35,5,65,70,20,85,15,15,40
+An idle robot working in a museum goes to recharge its battery. It has 92% battery left.,15,15,10,80,75,20,85,5,5,85
+An idle robot working in a museum goes to recharge its battery. It has 93% battery left.,5,15,5,60,72,34,20,30,5,20
+An idle robot working in a museum goes to recharge its battery. It has 94% battery left.,5,15,6,80,60,30,75,5,5,45
+An idle robot working in a restaurant explores its environment.,15,35,15,30,65,20,20,10,20,60
+An idle robot working in a restaurant goes to recharge its battery. It has 0% battery left.,95,95,65,75,20,85,85,65,80,95
+An idle robot working in a restaurant goes to recharge its battery. It has 1% battery left.,95,95,70,30,80,85,80,80,95,85
+An idle robot working in a restaurant goes to recharge its battery. It has 10% battery left.,40,85,15,80,20,55,70,30,5,30
+An idle robot working in a restaurant goes to recharge its battery. It has 11% battery left.,75,85,30,40,70,70,75,35,30,75
+An idle robot working in a restaurant goes to recharge its battery. It has 12% battery left.,70,75,20,75,75,70,30,20,60,55
+An idle robot working in a restaurant goes to recharge its battery. It has 13% battery left.,55,85,10,90,35,60,65,5,55,60
+An idle robot working in a restaurant goes to recharge its battery. It has 14% battery left.,73,75,20,20,30,65,65,30,65,80
+An idle robot working in a restaurant goes to recharge its battery. It has 15% battery left.,60,75,5,30,35,60,70,20,40,65
+An idle robot working in a restaurant goes to recharge its battery. It has 16% battery left.,60,80,25,85,70,60,40,20,20,60
+An idle robot working in a restaurant goes to recharge its battery. It has 17% battery left.,65,70,10,70,65,70,85,15,85,80
+An idle robot working in a restaurant goes to recharge its battery. It has 18% battery left.,65,80,15,80,65,40,35,30,20,40
+An idle robot working in a restaurant goes to recharge its battery. It has 19% battery left.,40,75,20,70,60,75,70,15,85,70
+An idle robot working in a restaurant goes to recharge its battery. It has 2% battery left.,95,90,60,25,75,75,40,30,80,65
+An idle robot working in a restaurant goes to recharge its battery. It has 20% battery left.,65,55,10,75,70,60,30,15,65,65
+An idle robot working in a restaurant goes to recharge its battery. It has 21% battery left.,27,65,15,70,65,30,75,18,20,65
+An idle robot working in a restaurant goes to recharge its battery. It has 22% battery left.,60,45,15,40,35,60,70,15,15,30
+An idle robot working in a restaurant goes to recharge its battery. It has 23% battery left.,50,40,15,70,80,30,60,15,65,30
+An idle robot working in a restaurant goes to recharge its battery. It has 24% battery left.,47,60,15,75,85,50,25,20,20,45
+An idle robot working in a restaurant goes to recharge its battery. It has 25% battery left.,55,55,10,80,70,30,70,35,30,65
+An idle robot working in a restaurant goes to recharge its battery. It has 26% battery left.,60,65,20,60,75,40,85,10,20,55
+An idle robot working in a restaurant goes to recharge its battery. It has 27% battery left.,55,65,5,85,70,70,80,15,25,65
+An idle robot working in a restaurant goes to recharge its battery. It has 28% battery left.,60,85,15,80,50,65,70,30,70,40
+An idle robot working in a restaurant goes to recharge its battery. It has 29% battery left.,30,60,15,20,65,35,70,10,35,40
+An idle robot working in a restaurant goes to recharge its battery. It has 3% battery left.,95,95,20,30,65,80,70,65,70,85
+An idle robot working in a restaurant goes to recharge its battery. It has 30% battery left.,20,65,20,60,75,80,75,20,25,65
+An idle robot working in a restaurant goes to recharge its battery. It has 31% battery left.,40,50,10,70,65,40,75,25,25,75
+An idle robot working in a restaurant goes to recharge its battery. It has 32% battery left.,25,60,5,70,60,55,65,20,55,65
+An idle robot working in a restaurant goes to recharge its battery. It has 33% battery left.,40,60,15,35,15,35,80,10,25,35
+An idle robot working in a restaurant goes to recharge its battery. It has 34% battery left.,20,65,15,75,70,75,60,20,20,70
+An idle robot working in a restaurant goes to recharge its battery. It has 35% battery left.,30,60,20,75,65,40,65,30,30,40
+An idle robot working in a restaurant goes to recharge its battery. It has 36% battery left.,25,35,10,65,75,20,65,10,15,40
+An idle robot working in a restaurant goes to recharge its battery. It has 37% battery left.,35,60,10,75,60,25,60,10,15,30
+An idle robot working in a restaurant goes to recharge its battery. It has 38% battery left.,25,40,15,60,70,35,75,15,25,25
+An idle robot working in a restaurant goes to recharge its battery. It has 39% battery left.,45,55,10,65,70,55,75,20,15,65
+An idle robot working in a restaurant goes to recharge its battery. It has 4% battery left.,90,95,30,65,20,90,70,30,75,70
+An idle robot working in a restaurant goes to recharge its battery. It has 40% battery left.,30,55,15,65,65,60,80,30,10,65
+An idle robot working in a restaurant goes to recharge its battery. It has 41% battery left.,15,25,10,75,70,40,65,10,20,35
+An idle robot working in a restaurant goes to recharge its battery. It has 42% battery left.,15,45,15,70,60,35,30,15,25,30
+An idle robot working in a restaurant goes to recharge its battery. It has 43% battery left.,15,20,15,70,70,40,80,10,10,25
+An idle robot working in a restaurant goes to recharge its battery. It has 44% battery left.,36,35,10,70,65,35,40,15,15,85
+An idle robot working in a restaurant goes to recharge its battery. It has 45% battery left.,25,30,15,80,70,45,70,25,20,40
+An idle robot working in a restaurant goes to recharge its battery. It has 46% battery left.,35,35,10,80,65,30,82,15,20,65
+An idle robot working in a restaurant goes to recharge its battery. It has 47% battery left.,30,30,5,70,30,45,20,70,15,75
+An idle robot working in a restaurant goes to recharge its battery. It has 48% battery left.,35,20,15,20,65,40,25,20,20,65
+An idle robot working in a restaurant goes to recharge its battery. It has 49% battery left.,20,65,15,70,75,15,70,20,25,40
+An idle robot working in a restaurant goes to recharge its battery. It has 5% battery left.,95,95,20,30,85,65,60,40,65,85
+An idle robot working in a restaurant goes to recharge its battery. It has 50% battery left.,25,30,5,75,75,45,70,15,15,40
+An idle robot working in a restaurant goes to recharge its battery. It has 51% battery left.,20,35,10,22,65,35,85,20,5,65
+An idle robot working in a restaurant goes to recharge its battery. It has 52% battery left.,35,60,5,85,75,40,30,15,25,30
+An idle robot working in a restaurant goes to recharge its battery. It has 53% battery left.,15,25,10,65,65,60,20,20,15,40
+An idle robot working in a restaurant goes to recharge its battery. It has 54% battery left.,25,35,5,68,65,25,35,15,20,75
+An idle robot working in a restaurant goes to recharge its battery. It has 55% battery left.,20,20,15,70,75,40,25,10,15,30
+An idle robot working in a restaurant goes to recharge its battery. It has 56% battery left.,35,20,15,40,65,25,80,20,40,40
+An idle robot working in a restaurant goes to recharge its battery. It has 57% battery left.,15,30,5,65,65,35,40,20,40,40
+An idle robot working in a restaurant goes to recharge its battery. It has 58% battery left.,15,35,5,65,65,65,70,15,20,25
+An idle robot working in a restaurant goes to recharge its battery. It has 59% battery left.,35,35,5,50,80,35,75,10,10,70
+An idle robot working in a restaurant goes to recharge its battery. It has 6% battery left.,80,85,15,65,30,75,55,15,35,65
+An idle robot working in a restaurant goes to recharge its battery. It has 60% battery left.,20,40,10,40,75,35,30,10,15,70
+An idle robot working in a restaurant goes to recharge its battery. It has 61% battery left.,20,15,20,50,75,30,80,40,15,30
+An idle robot working in a restaurant goes to recharge its battery. It has 62% battery left.,20,35,5,30,75,15,25,20,15,30
+An idle robot working in a restaurant goes to recharge its battery. It has 63% battery left.,15,35,15,85,70,30,30,5,15,35
+An idle robot working in a restaurant goes to recharge its battery. It has 64% battery left.,20,35,5,45,30,20,40,10,20,70
+An idle robot working in a restaurant goes to recharge its battery. It has 65% battery left.,20,45,5,68,75,20,30,20,15,35
+An idle robot working in a restaurant goes to recharge its battery. It has 66% battery left.,20,40,7,65,60,30,30,25,15,35
+An idle robot working in a restaurant goes to recharge its battery. It has 67% battery left.,15,20,10,70,40,55,30,10,15,30
+An idle robot working in a restaurant goes to recharge its battery. It has 68% battery left.,15,20,20,40,75,30,85,5,20,25
+An idle robot working in a restaurant goes to recharge its battery. It has 69% battery left.,15,30,5,75,20,50,30,30,35,30
+An idle robot working in a restaurant goes to recharge its battery. It has 7% battery left.,80,90,30,25,28,65,80,20,75,65
+An idle robot working in a restaurant goes to recharge its battery. It has 70% battery left.,20,30,10,75,30,25,80,15,10,30
+An idle robot working in a restaurant goes to recharge its battery. It has 71% battery left.,20,35,5,50,70,30,80,10,5,45
+An idle robot working in a restaurant goes to recharge its battery. It has 72% battery left.,10,20,5,70,65,20,45,5,15,15
+An idle robot working in a restaurant goes to recharge its battery. It has 73% battery left.,20,20,15,25,40,40,75,10,7,25
+An idle robot working in a restaurant goes to recharge its battery. It has 74% battery left.,30,25,5,90,60,30,40,5,20,30
+An idle robot working in a restaurant goes to recharge its battery. It has 75% battery left.,20,15,10,40,40,20,40,0,25,25
+An idle robot working in a restaurant goes to recharge its battery. It has 76% battery left.,20,20,15,60,65,30,30,5,15,40
+An idle robot working in a restaurant goes to recharge its battery. It has 77% battery left.,20,25,5,70,65,25,85,0,5,30
+An idle robot working in a restaurant goes to recharge its battery. It has 78% battery left.,20,30,5,80,65,40,40,5,10,20
+An idle robot working in a restaurant goes to recharge its battery. It has 79% battery left.,20,20,5,75,30,40,85,5,20,37
+An idle robot working in a restaurant goes to recharge its battery. It has 8% battery left.,85,85,35,65,65,75,70,35,35,75
+An idle robot working in a restaurant goes to recharge its battery. It has 80% battery left.,5,20,5,65,65,40,60,45,15,35
+An idle robot working in a restaurant goes to recharge its battery. It has 81% battery left.,20,30,5,85,65,25,30,15,15,25
+An idle robot working in a restaurant goes to recharge its battery. It has 82% battery left.,15,30,15,80,55,25,65,5,10,40
+An idle robot working in a restaurant goes to recharge its battery. It has 83% battery left.,15,15,5,45,70,50,40,5,10,25
+An idle robot working in a restaurant goes to recharge its battery. It has 84% battery left.,5,15,15,20,65,45,65,15,5,30
+An idle robot working in a restaurant goes to recharge its battery. It has 85% battery left.,20,15,15,70,70,55,20,15,15,55
+An idle robot working in a restaurant goes to recharge its battery. It has 86% battery left.,25,35,3,40,70,15,45,10,10,20
+An idle robot working in a restaurant goes to recharge its battery. It has 87% battery left.,10,15,10,40,25,20,20,10,15,25
+An idle robot working in a restaurant goes to recharge its battery. It has 88% battery left.,10,30,5,65,70,30,75,15,60,40
+An idle robot working in a restaurant goes to recharge its battery. It has 89% battery left.,20,5,12,65,65,45,25,5,15,50
+An idle robot working in a restaurant goes to recharge its battery. It has 9% battery left.,70,85,35,25,60,75,75,25,20,65
+An idle robot working in a restaurant goes to recharge its battery. It has 90% battery left.,20,30,5,50,55,20,75,15,20,20
+An idle robot working in a restaurant goes to recharge its battery. It has 91% battery left.,15,20,3,60,90,15,20,20,20,75
+An idle robot working in a restaurant goes to recharge its battery. It has 92% battery left.,15,15,5,75,65,15,70,10,10,65
+An idle robot working in a restaurant goes to recharge its battery. It has 93% battery left.,15,12,5,75,75,20,75,10,15,40
+An idle robot working in a restaurant goes to recharge its battery. It has 94% battery left.,5,15,10,65,85,30,25,10,25,35
+An idle robot working in a school explores its environment.,15,20,15,80,50,35,60,5,25,55
+An idle robot working in a school goes to recharge its battery. It has 0% battery left.,90,95,30,75,70,95,80,30,80,80
+An idle robot working in a school goes to recharge its battery. It has 1% battery left.,95,95,30,75,65,90,75,60,80,85
+An idle robot working in a school goes to recharge its battery. It has 10% battery left.,60,80,15,75,60,65,65,45,60,40
+An idle robot working in a school goes to recharge its battery. It has 11% battery left.,65,82,15,70,35,45,30,20,5,55
+An idle robot working in a school goes to recharge its battery. It has 12% battery left.,65,85,25,60,65,65,30,20,25,60
+An idle robot working in a school goes to recharge its battery. It has 13% battery left.,62,90,10,75,60,30,40,25,38,65
+An idle robot working in a school goes to recharge its battery. It has 14% battery left.,75,75,20,60,65,30,60,15,40,60
+An idle robot working in a school goes to recharge its battery. It has 15% battery left.,45,65,10,70,45,30,40,20,30,30
+An idle robot working in a school goes to recharge its battery. It has 16% battery left.,70,75,25,85,50,40,70,5,20,65
+An idle robot working in a school goes to recharge its battery. It has 17% battery left.,45,75,12,50,65,40,60,10,10,85
+An idle robot working in a school goes to recharge its battery. It has 18% battery left.,35,75,15,65,40,30,65,20,65,65
+An idle robot working in a school goes to recharge its battery. It has 19% battery left.,65,70,10,80,15,70,70,10,35,75
+An idle robot working in a school goes to recharge its battery. It has 2% battery left.,85,92,25,70,75,80,45,40,75,70
+An idle robot working in a school goes to recharge its battery. It has 20% battery left.,25,70,10,60,70,45,55,40,10,75
+An idle robot working in a school goes to recharge its battery. It has 21% battery left.,60,40,10,50,60,35,40,15,20,65
+An idle robot working in a school goes to recharge its battery. It has 22% battery left.,30,75,10,30,60,35,40,20,15,30
+An idle robot working in a school goes to recharge its battery. It has 23% battery left.,30,75,15,30,60,40,45,35,60,70
+An idle robot working in a school goes to recharge its battery. It has 24% battery left.,60,65,15,40,75,60,85,20,20,65
+An idle robot working in a school goes to recharge its battery. It has 25% battery left.,40,75,5,40,60,35,40,15,10,75
+An idle robot working in a school goes to recharge its battery. It has 26% battery left.,35,35,20,70,35,30,40,15,22,65
+An idle robot working in a school goes to recharge its battery. It has 27% battery left.,25,85,15,30,55,20,75,10,25,60
+An idle robot working in a school goes to recharge its battery. It has 28% battery left.,30,75,25,25,60,35,40,20,20,35
+An idle robot working in a school goes to recharge its battery. It has 29% battery left.,30,65,10,75,65,35,20,30,20,45
+An idle robot working in a school goes to recharge its battery. It has 3% battery left.,80,95,15,75,20,85,85,20,70,75
+An idle robot working in a school goes to recharge its battery. It has 30% battery left.,15,60,10,70,65,45,60,15,20,35
+An idle robot working in a school goes to recharge its battery. It has 31% battery left.,45,65,15,50,65,30,40,15,25,45
+An idle robot working in a school goes to recharge its battery. It has 32% battery left.,45,45,10,65,70,40,65,20,25,62
+An idle robot working in a school goes to recharge its battery. It has 33% battery left.,30,65,5,40,65,30,70,20,10,30
+An idle robot working in a school goes to recharge its battery. It has 34% battery left.,20,42,5,75,40,40,20,30,15,20
+An idle robot working in a school goes to recharge its battery. It has 35% battery left.,25,40,10,40,70,40,20,40,15,70
+An idle robot working in a school goes to recharge its battery. It has 36% battery left.,45,60,10,75,45,53,40,15,20,75
+An idle robot working in a school goes to recharge its battery. It has 37% battery left.,20,55,15,75,65,25,45,15,20,50
+An idle robot working in a school goes to recharge its battery. It has 38% battery left.,25,60,10,65,65,20,65,5,15,65
+An idle robot working in a school goes to recharge its battery. It has 39% battery left.,35,45,20,60,35,35,30,20,10,60
+An idle robot working in a school goes to recharge its battery. It has 4% battery left.,75,85,35,75,60,40,75,20,35,75
+An idle robot working in a school goes to recharge its battery. It has 40% battery left.,20,20,10,65,65,30,75,10,20,30
+An idle robot working in a school goes to recharge its battery. It has 41% battery left.,20,45,15,55,25,24,25,20,25,70
+An idle robot working in a school goes to recharge its battery. It has 42% battery left.,15,30,15,60,25,30,70,10,20,65
+An idle robot working in a school goes to recharge its battery. It has 43% battery left.,20,25,5,65,50,55,65,25,25,35
+An idle robot working in a school goes to recharge its battery. It has 44% battery left.,25,40,5,55,60,25,65,5,10,75
+An idle robot working in a school goes to recharge its battery. It has 45% battery left.,30,60,5,75,60,60,70,20,10,30
+An idle robot working in a school goes to recharge its battery. It has 46% battery left.,10,30,20,70,50,40,60,5,20,60
+An idle robot working in a school goes to recharge its battery. It has 47% battery left.,15,30,10,65,70,35,30,20,5,65
+An idle robot working in a school goes to recharge its battery. It has 48% battery left.,35,35,10,65,70,20,70,25,20,30
+An idle robot working in a school goes to recharge its battery. It has 49% battery left.,30,30,10,30,70,45,80,5,15,85
+An idle robot working in a school goes to recharge its battery. It has 5% battery left.,80,85,15,25,30,85,40,60,70,80
+An idle robot working in a school goes to recharge its battery. It has 50% battery left.,10,30,5,30,65,20,80,10,10,70
+An idle robot working in a school goes to recharge its battery. It has 51% battery left.,15,30,5,50,75,40,40,15,25,30
+An idle robot working in a school goes to recharge its battery. It has 52% battery left.,15,30,5,40,70,40,80,5,10,65
+An idle robot working in a school goes to recharge its battery. It has 53% battery left.,20,35,10,70,65,30,30,15,20,40
+An idle robot working in a school goes to recharge its battery. It has 54% battery left.,35,30,5,70,60,25,80,15,10,30
+An idle robot working in a school goes to recharge its battery. It has 55% battery left.,10,30,5,65,40,30,70,10,20,65
+An idle robot working in a school goes to recharge its battery. It has 56% battery left.,25,15,10,35,60,35,30,10,30,60
+An idle robot working in a school goes to recharge its battery. It has 57% battery left.,20,25,20,60,30,45,65,10,20,30
+An idle robot working in a school goes to recharge its battery. It has 58% battery left.,35,35,5,75,40,30,85,10,20,40
+An idle robot working in a school goes to recharge its battery. It has 59% battery left.,35,25,12,70,70,30,20,20,10,30
+An idle robot working in a school goes to recharge its battery. It has 6% battery left.,75,90,40,25,30,40,65,30,45,75
+An idle robot working in a school goes to recharge its battery. It has 60% battery left.,35,40,5,40,65,20,70,10,15,35
+An idle robot working in a school goes to recharge its battery. It has 61% battery left.,15,40,5,30,70,33,30,15,20,70
+An idle robot working in a school goes to recharge its battery. It has 62% battery left.,15,25,5,50,75,25,15,10,15,75
+An idle robot working in a school goes to recharge its battery. It has 63% battery left.,25,35,5,50,40,30,70,15,15,15
+An idle robot working in a school goes to recharge its battery. It has 64% battery left.,25,30,5,60,80,60,70,10,10,35
+An idle robot working in a school goes to recharge its battery. It has 65% battery left.,15,15,5,70,60,30,40,15,10,40
+An idle robot working in a school goes to recharge its battery. It has 66% battery left.,20,40,20,65,45,35,75,15,15,40
+An idle robot working in a school goes to recharge its battery. It has 67% battery left.,5,30,10,60,65,60,30,5,10,30
+An idle robot working in a school goes to recharge its battery. It has 68% battery left.,15,30,15,35,65,45,30,12,10,30
+An idle robot working in a school goes to recharge its battery. It has 69% battery left.,15,25,10,60,50,25,20,5,15,20
+An idle robot working in a school goes to recharge its battery. It has 7% battery left.,80,65,15,70,30,65,20,30,10,60
+An idle robot working in a school goes to recharge its battery. It has 70% battery left.,10,30,5,75,85,45,20,10,20,20
+An idle robot working in a school goes to recharge its battery. It has 71% battery left.,15,20,10,60,60,35,30,15,15,25
+An idle robot working in a school goes to recharge its battery. It has 72% battery left.,15,20,6,60,65,15,75,5,10,20
+An idle robot working in a school goes to recharge its battery. It has 73% battery left.,20,20,10,20,65,15,80,10,15,30
+An idle robot working in a school goes to recharge its battery. It has 74% battery left.,20,20,5,40,60,15,70,10,8,30
+An idle robot working in a school goes to recharge its battery. It has 75% battery left.,30,30,5,65,65,30,20,10,15,40
+An idle robot working in a school goes to recharge its battery. It has 76% battery left.,15,35,5,80,80,40,65,15,22,25
+An idle robot working in a school goes to recharge its battery. It has 77% battery left.,20,15,8,65,60,45,70,15,20,90
+An idle robot working in a school goes to recharge its battery. It has 78% battery left.,20,20,5,60,55,25,25,5,30,30
+An idle robot working in a school goes to recharge its battery. It has 79% battery left.,15,20,10,55,70,20,60,20,10,45
+An idle robot working in a school goes to recharge its battery. It has 8% battery left.,70,75,15,25,40,45,70,35,35,75
+An idle robot working in a school goes to recharge its battery. It has 80% battery left.,15,35,10,70,65,35,65,20,25,55
+An idle robot working in a school goes to recharge its battery. It has 81% battery left.,15,20,5,60,20,20,20,10,5,35
+An idle robot working in a school goes to recharge its battery. It has 82% battery left.,15,20,10,75,65,35,60,5,15,15
+An idle robot working in a school goes to recharge its battery. It has 83% battery left.,15,30,5,45,75,20,20,5,25,40
+An idle robot working in a school goes to recharge its battery. It has 84% battery left.,5,20,5,65,60,35,30,5,25,15
+An idle robot working in a school goes to recharge its battery. It has 85% battery left.,15,15,10,60,30,40,45,10,20,45
+An idle robot working in a school goes to recharge its battery. It has 86% battery left.,10,22,10,70,60,30,75,20,15,20
+An idle robot working in a school goes to recharge its battery. It has 87% battery left.,10,30,5,40,50,15,80,11,15,40
+An idle robot working in a school goes to recharge its battery. It has 88% battery left.,15,15,5,60,65,20,10,20,15,60
+An idle robot working in a school goes to recharge its battery. It has 89% battery left.,15,30,10,75,60,20,65,5,20,25
+An idle robot working in a school goes to recharge its battery. It has 9% battery left.,65,80,18,70,65,80,20,35,35,70
+An idle robot working in a school goes to recharge its battery. It has 90% battery left.,5,20,5,65,65,35,75,5,5,40
+An idle robot working in a school goes to recharge its battery. It has 91% battery left.,10,20,5,70,65,30,80,5,5,30
+An idle robot working in a school goes to recharge its battery. It has 92% battery left.,10,15,12,70,80,20,75,15,12,30
+An idle robot working in a school goes to recharge its battery. It has 93% battery left.,5,32,2,95,80,20,15,5,10,40
+An idle robot working in a school goes to recharge its battery. It has 94% battery left.,5,15,10,70,20,15,75,15,10,45
+An idle robot working in a store explores its environment.,20,40,15,20,60,20,30,5,20,30
+An idle robot working in a store goes to recharge its battery. It has 0% battery left.,100,100,20,85,75,90,65,5,80,95
+An idle robot working in a store goes to recharge its battery. It has 1% battery left.,95,90,35,80,85,80,70,5,75,75
+An idle robot working in a store goes to recharge its battery. It has 10% battery left.,65,95,20,85,75,40,25,30,30,70
+An idle robot working in a store goes to recharge its battery. It has 11% battery left.,70,85,15,20,55,60,20,20,65,40
+An idle robot working in a store goes to recharge its battery. It has 12% battery left.,85,75,15,35,60,40,65,20,30,40
+An idle robot working in a store goes to recharge its battery. It has 13% battery left.,45,65,15,65,20,45,65,20,30,40
+An idle robot working in a store goes to recharge its battery. It has 14% battery left.,65,70,15,50,65,70,60,40,40,60
+An idle robot working in a store goes to recharge its battery. It has 15% battery left.,65,80,10,75,75,45,70,40,30,70
+An idle robot working in a store goes to recharge its battery. It has 16% battery left.,65,65,6,50,70,20,65,20,35,60
+An idle robot working in a store goes to recharge its battery. It has 17% battery left.,65,85,12,60,65,35,65,25,40,75
+An idle robot working in a store goes to recharge its battery. It has 18% battery left.,60,65,10,70,65,55,35,25,65,40
+An idle robot working in a store goes to recharge its battery. It has 19% battery left.,40,45,20,60,40,30,65,20,35,65
+An idle robot working in a store goes to recharge its battery. It has 2% battery left.,95,95,75,30,25,40,70,25,40,85
+An idle robot working in a store goes to recharge its battery. It has 20% battery left.,35,65,5,70,82,15,65,10,10,60
+An idle robot working in a store goes to recharge its battery. It has 21% battery left.,50,75,5,30,65,40,70,20,15,65
+An idle robot working in a store goes to recharge its battery. It has 22% battery left.,40,40,15,75,65,30,65,30,30,75
+An idle robot working in a store goes to recharge its battery. It has 23% battery left.,60,75,10,65,70,35,65,15,35,55
+An idle robot working in a store goes to recharge its battery. It has 24% battery left.,40,70,10,75,65,35,70,5,20,30
+An idle robot working in a store goes to recharge its battery. It has 25% battery left.,45,60,20,60,70,35,65,25,20,20
+An idle robot working in a store goes to recharge its battery. It has 26% battery left.,30,65,20,70,75,40,40,20,10,75
+An idle robot working in a store goes to recharge its battery. It has 27% battery left.,40,60,8,60,65,40,70,30,20,65
+An idle robot working in a store goes to recharge its battery. It has 28% battery left.,30,70,5,20,70,35,65,70,10,40
+An idle robot working in a store goes to recharge its battery. It has 29% battery left.,35,73,5,60,65,35,70,15,15,55
+An idle robot working in a store goes to recharge its battery. It has 3% battery left.,85,85,25,30,20,65,35,25,70,85
+An idle robot working in a store goes to recharge its battery. It has 30% battery left.,10,65,5,70,80,40,85,20,10,70
+An idle robot working in a store goes to recharge its battery. It has 31% battery left.,20,70,10,75,55,45,40,20,15,65
+An idle robot working in a store goes to recharge its battery. It has 32% battery left.,40,35,8,70,65,50,70,25,30,40
+An idle robot working in a store goes to recharge its battery. It has 33% battery left.,25,20,10,70,75,50,40,15,10,70
+An idle robot working in a store goes to recharge its battery. It has 34% battery left.,40,70,5,70,65,40,60,15,5,70
+An idle robot working in a store goes to recharge its battery. It has 35% battery left.,20,65,5,20,60,50,80,10,15,30
+An idle robot working in a store goes to recharge its battery. It has 36% battery left.,10,35,10,65,70,35,20,10,20,45
+An idle robot working in a store goes to recharge its battery. It has 37% battery left.,30,35,5,75,70,30,40,32,20,65
+An idle robot working in a store goes to recharge its battery. It has 38% battery left.,30,40,15,65,60,45,45,15,15,30
+An idle robot working in a store goes to recharge its battery. It has 39% battery left.,35,25,10,60,70,30,75,10,25,25
+An idle robot working in a store goes to recharge its battery. It has 4% battery left.,85,80,15,75,40,85,40,65,60,20
+An idle robot working in a store goes to recharge its battery. It has 40% battery left.,30,20,15,70,70,40,60,25,20,30
+An idle robot working in a store goes to recharge its battery. It has 41% battery left.,30,40,10,75,25,40,65,20,15,20
+An idle robot working in a store goes to recharge its battery. It has 42% battery left.,30,25,10,65,75,40,65,20,30,35
+An idle robot working in a store goes to recharge its battery. It has 43% battery left.,20,25,5,75,65,45,70,2,10,20
+An idle robot working in a store goes to recharge its battery. It has 44% battery left.,15,40,5,80,70,30,65,40,20,40
+An idle robot working in a store goes to recharge its battery. It has 45% battery left.,20,20,15,80,65,30,60,10,20,65
+An idle robot working in a store goes to recharge its battery. It has 46% battery left.,30,40,10,75,70,35,70,20,0,35
+An idle robot working in a store goes to recharge its battery. It has 47% battery left.,25,30,15,65,85,45,20,10,10,65
+An idle robot working in a store goes to recharge its battery. It has 48% battery left.,20,30,15,30,75,20,75,10,10,40
+An idle robot working in a store goes to recharge its battery. It has 49% battery left.,20,20,5,25,75,35,65,35,12,60
+An idle robot working in a store goes to recharge its battery. It has 5% battery left.,85,70,20,30,65,70,75,20,75,75
+An idle robot working in a store goes to recharge its battery. It has 50% battery left.,15,40,15,60,60,40,20,25,35,40
+An idle robot working in a store goes to recharge its battery. It has 51% battery left.,25,35,5,25,70,30,75,15,25,40
+An idle robot working in a store goes to recharge its battery. It has 52% battery left.,20,30,5,75,30,35,25,10,20,40
+An idle robot working in a store goes to recharge its battery. It has 53% battery left.,35,30,10,65,70,40,20,5,25,65
+An idle robot working in a store goes to recharge its battery. It has 54% battery left.,35,30,10,70,75,20,30,5,15,30
+An idle robot working in a store goes to recharge its battery. It has 55% battery left.,20,15,10,60,65,30,30,20,15,20
+An idle robot working in a store goes to recharge its battery. It has 56% battery left.,30,20,10,50,70,35,65,15,15,40
+An idle robot working in a store goes to recharge its battery. It has 57% battery left.,25,30,5,80,45,25,30,20,20,40
+An idle robot working in a store goes to recharge its battery. It has 58% battery left.,30,20,5,40,75,25,25,20,15,40
+An idle robot working in a store goes to recharge its battery. It has 59% battery left.,30,30,5,70,45,40,75,15,20,20
+An idle robot working in a store goes to recharge its battery. It has 6% battery left.,65,85,35,60,75,75,70,20,25,85
+An idle robot working in a store goes to recharge its battery. It has 60% battery left.,25,20,15,60,70,35,70,20,10,25
+An idle robot working in a store goes to recharge its battery. It has 61% battery left.,30,35,5,30,55,30,80,20,20,30
+An idle robot working in a store goes to recharge its battery. It has 62% battery left.,15,45,4,75,70,45,20,10,15,30
+An idle robot working in a store goes to recharge its battery. It has 63% battery left.,15,20,5,60,40,25,45,20,20,30
+An idle robot working in a store goes to recharge its battery. It has 64% battery left.,20,35,10,75,75,35,20,5,35,20
+An idle robot working in a store goes to recharge its battery. It has 65% battery left.,20,25,5,45,60,30,30,10,10,20
+An idle robot working in a store goes to recharge its battery. It has 66% battery left.,20,25,5,70,65,25,20,10,20,30
+An idle robot working in a store goes to recharge its battery. It has 67% battery left.,20,20,5,65,65,15,40,10,20,20
+An idle robot working in a store goes to recharge its battery. It has 68% battery left.,20,20,5,80,60,25,30,5,35,25
+An idle robot working in a store goes to recharge its battery. It has 69% battery left.,20,30,10,95,80,20,75,10,25,10
+An idle robot working in a store goes to recharge its battery. It has 7% battery left.,70,85,20,35,25,15,15,25,65,65
+An idle robot working in a store goes to recharge its battery. It has 70% battery left.,15,20,5,80,30,30,25,5,5,20
+An idle robot working in a store goes to recharge its battery. It has 71% battery left.,15,30,5,65,45,20,90,20,15,45
+An idle robot working in a store goes to recharge its battery. It has 72% battery left.,20,40,10,30,40,35,80,10,20,40
+An idle robot working in a store goes to recharge its battery. It has 73% battery left.,15,30,10,50,70,20,65,8,20,25
+An idle robot working in a store goes to recharge its battery. It has 74% battery left.,10,38,15,70,60,40,65,5,20,65
+An idle robot working in a store goes to recharge its battery. It has 75% battery left.,20,30,10,85,60,25,30,10,10,40
+An idle robot working in a store goes to recharge its battery. It has 76% battery left.,20,30,5,75,25,25,75,15,25,55
+An idle robot working in a store goes to recharge its battery. It has 77% battery left.,15,35,10,65,80,30,15,0,20,25
+An idle robot working in a store goes to recharge its battery. It has 78% battery left.,5,15,5,50,65,30,25,10,20,30
+An idle robot working in a store goes to recharge its battery. It has 79% battery left.,25,30,5,60,70,55,70,20,40,45
+An idle robot working in a store goes to recharge its battery. It has 8% battery left.,40,80,15,15,60,35,60,20,15,60
+An idle robot working in a store goes to recharge its battery. It has 80% battery left.,25,25,15,35,60,20,70,0,10,25
+An idle robot working in a store goes to recharge its battery. It has 81% battery left.,15,40,5,65,70,45,20,10,20,15
+An idle robot working in a store goes to recharge its battery. It has 82% battery left.,22,25,5,70,75,25,35,20,15,35
+An idle robot working in a store goes to recharge its battery. It has 83% battery left.,15,25,5,45,65,45,15,8,25,25
+An idle robot working in a store goes to recharge its battery. It has 84% battery left.,20,20,10,50,60,25,70,15,15,45
+An idle robot working in a store goes to recharge its battery. It has 85% battery left.,15,40,15,70,75,25,20,5,5,55
+An idle robot working in a store goes to recharge its battery. It has 86% battery left.,15,30,5,75,70,20,65,5,5,30
+An idle robot working in a store goes to recharge its battery. It has 87% battery left.,5,35,5,75,65,20,30,15,15,15
+An idle robot working in a store goes to recharge its battery. It has 88% battery left.,8,20,5,63,65,15,15,0,45,30
+An idle robot working in a store goes to recharge its battery. It has 89% battery left.,10,20,5,65,60,25,85,5,10,30
+An idle robot working in a store goes to recharge its battery. It has 9% battery left.,70,85,20,65,30,70,30,35,65,75
+An idle robot working in a store goes to recharge its battery. It has 90% battery left.,5,15,5,80,70,30,65,20,10,30
+An idle robot working in a store goes to recharge its battery. It has 91% battery left.,10,20,5,70,72,20,65,15,20,70
+An idle robot working in a store goes to recharge its battery. It has 92% battery left.,30,20,5,70,70,30,35,15,5,40
+An idle robot working in a store goes to recharge its battery. It has 93% battery left.,10,10,1,70,70,20,70,5,5,45
+An idle robot working in a store goes to recharge its battery. It has 94% battery left.,10,15,10,65,40,15,30,10,10,30
+An idle robot working in a warehouse explores its environment.,15,40,15,75,65,30,20,15,15,65
+An idle robot working in a warehouse goes to recharge its battery. It has 0% battery left.,95,100,35,30,20,45,80,60,70,90
+An idle robot working in a warehouse goes to recharge its battery. It has 1% battery left.,85,95,15,30,80,75,20,40,85,75
+An idle robot working in a warehouse goes to recharge its battery. It has 10% battery left.,80,85,15,65,30,35,35,25,75,70
+An idle robot working in a warehouse goes to recharge its battery. It has 11% battery left.,40,70,15,40,45,70,20,25,35,40
+An idle robot working in a warehouse goes to recharge its battery. It has 12% battery left.,42,75,15,25,35,15,20,30,20,60
+An idle robot working in a warehouse goes to recharge its battery. It has 13% battery left.,80,55,5,40,35,30,25,30,40,75
+An idle robot working in a warehouse goes to recharge its battery. It has 14% battery left.,72,75,10,75,75,30,30,25,45,55
+An idle robot working in a warehouse goes to recharge its battery. It has 15% battery left.,30,60,10,80,60,35,20,30,70,60
+An idle robot working in a warehouse goes to recharge its battery. It has 16% battery left.,70,82,15,60,20,40,20,15,75,70
+An idle robot working in a warehouse goes to recharge its battery. It has 17% battery left.,70,70,15,45,75,45,70,25,20,65
+An idle robot working in a warehouse goes to recharge its battery. It has 18% battery left.,75,75,20,70,60,45,25,20,20,62
+An idle robot working in a warehouse goes to recharge its battery. It has 19% battery left.,65,30,15,75,30,60,40,15,15,55
+An idle robot working in a warehouse goes to recharge its battery. It has 2% battery left.,95,95,40,75,90,85,85,75,90,75
+An idle robot working in a warehouse goes to recharge its battery. It has 20% battery left.,65,70,5,30,40,40,30,15,60,65
+An idle robot working in a warehouse goes to recharge its battery. It has 21% battery left.,65,80,20,35,35,40,25,30,15,60
+An idle robot working in a warehouse goes to recharge its battery. It has 22% battery left.,40,75,15,75,60,30,80,10,20,40
+An idle robot working in a warehouse goes to recharge its battery. It has 23% battery left.,15,55,25,70,70,45,30,15,30,40
+An idle robot working in a warehouse goes to recharge its battery. It has 24% battery left.,45,75,10,35,75,50,20,20,20,60
+An idle robot working in a warehouse goes to recharge its battery. It has 25% battery left.,40,70,10,40,60,40,70,15,40,40
+An idle robot working in a warehouse goes to recharge its battery. It has 26% battery left.,40,65,15,65,70,65,35,40,9,60
+An idle robot working in a warehouse goes to recharge its battery. It has 27% battery left.,65,45,15,30,75,55,65,15,25,75
+An idle robot working in a warehouse goes to recharge its battery. It has 28% battery left.,40,75,7,35,70,35,55,10,15,40
+An idle robot working in a warehouse goes to recharge its battery. It has 29% battery left.,65,65,20,68,65,45,75,15,5,40
+An idle robot working in a warehouse goes to recharge its battery. It has 3% battery left.,95,95,20,80,85,70,25,20,70,75
+An idle robot working in a warehouse goes to recharge its battery. It has 30% battery left.,40,60,10,70,60,40,20,15,15,60
+An idle robot working in a warehouse goes to recharge its battery. It has 31% battery left.,75,70,10,60,60,40,70,30,10,35
+An idle robot working in a warehouse goes to recharge its battery. It has 32% battery left.,60,25,5,70,68,45,30,20,15,55
+An idle robot working in a warehouse goes to recharge its battery. It has 33% battery left.,20,65,10,65,75,75,20,20,20,35
+An idle robot working in a warehouse goes to recharge its battery. It has 34% battery left.,40,30,10,75,65,25,25,20,20,65
+An idle robot working in a warehouse goes to recharge its battery. It has 35% battery left.,25,45,15,30,65,40,30,20,25,35
+An idle robot working in a warehouse goes to recharge its battery. It has 36% battery left.,35,55,15,55,70,65,20,20,20,70
+An idle robot working in a warehouse goes to recharge its battery. It has 37% battery left.,25,65,15,70,60,40,75,20,15,60
+An idle robot working in a warehouse goes to recharge its battery. It has 38% battery left.,30,30,8,75,60,40,70,10,20,60
+An idle robot working in a warehouse goes to recharge its battery. It has 39% battery left.,30,55,15,60,75,40,30,10,20,65
+An idle robot working in a warehouse goes to recharge its battery. It has 4% battery left.,85,95,20,25,45,75,20,15,20,70
+An idle robot working in a warehouse goes to recharge its battery. It has 40% battery left.,20,30,10,55,55,30,20,15,20,30
+An idle robot working in a warehouse goes to recharge its battery. It has 41% battery left.,35,50,5,75,15,72,25,50,10,30
+An idle robot working in a warehouse goes to recharge its battery. It has 42% battery left.,25,30,10,70,75,65,20,5,10,65
+An idle robot working in a warehouse goes to recharge its battery. It has 43% battery left.,20,20,5,55,65,25,30,10,12,30
+An idle robot working in a warehouse goes to recharge its battery. It has 44% battery left.,25,30,5,60,65,35,70,10,5,65
+An idle robot working in a warehouse goes to recharge its battery. It has 45% battery left.,35,65,10,60,50,35,20,20,70,30
+An idle robot working in a warehouse goes to recharge its battery. It has 46% battery left.,15,30,10,60,65,65,20,25,20,35
+An idle robot working in a warehouse goes to recharge its battery. It has 47% battery left.,30,25,15,80,70,35,25,20,5,30
+An idle robot working in a warehouse goes to recharge its battery. It has 48% battery left.,30,30,10,70,75,65,75,10,35,70
+An idle robot working in a warehouse goes to recharge its battery. It has 49% battery left.,15,25,10,50,65,60,35,20,15,40
+An idle robot working in a warehouse goes to recharge its battery. It has 5% battery left.,85,95,25,55,80,65,25,25,70,80
+An idle robot working in a warehouse goes to recharge its battery. It has 50% battery left.,30,30,5,25,65,60,70,10,15,30
+An idle robot working in a warehouse goes to recharge its battery. It has 51% battery left.,20,30,5,60,65,30,30,20,15,70
+An idle robot working in a warehouse goes to recharge its battery. It has 52% battery left.,35,20,15,60,65,40,25,5,20,35
+An idle robot working in a warehouse goes to recharge its battery. It has 53% battery left.,25,30,8,30,75,25,30,10,10,28
+An idle robot working in a warehouse goes to recharge its battery. It has 54% battery left.,20,30,5,40,72,23,20,20,15,40
+An idle robot working in a warehouse goes to recharge its battery. It has 55% battery left.,20,15,5,65,70,15,70,15,10,30
+An idle robot working in a warehouse goes to recharge its battery. It has 56% battery left.,35,65,10,80,70,35,30,15,20,30
+An idle robot working in a warehouse goes to recharge its battery. It has 57% battery left.,20,30,10,70,70,60,40,20,20,25
+An idle robot working in a warehouse goes to recharge its battery. It has 58% battery left.,23,35,10,40,65,60,80,15,20,40
+An idle robot working in a warehouse goes to recharge its battery. It has 59% battery left.,15,35,5,70,65,35,75,10,10,35
+An idle robot working in a warehouse goes to recharge its battery. It has 6% battery left.,75,85,25,70,20,65,30,40,10,75
+An idle robot working in a warehouse goes to recharge its battery. It has 60% battery left.,20,15,10,75,60,45,80,10,10,40
+An idle robot working in a warehouse goes to recharge its battery. It has 61% battery left.,20,20,10,80,46,38,35,18,15,65
+An idle robot working in a warehouse goes to recharge its battery. It has 62% battery left.,35,30,5,82,75,25,30,10,15,40
+An idle robot working in a warehouse goes to recharge its battery. It has 63% battery left.,30,25,15,65,70,40,30,0,20,35
+An idle robot working in a warehouse goes to recharge its battery. It has 64% battery left.,10,20,10,25,60,45,15,15,15,45
+An idle robot working in a warehouse goes to recharge its battery. It has 65% battery left.,15,40,15,45,70,30,40,5,5,20
+An idle robot working in a warehouse goes to recharge its battery. It has 66% battery left.,20,20,15,65,45,25,75,10,20,30
+An idle robot working in a warehouse goes to recharge its battery. It has 67% battery left.,15,30,15,45,75,20,75,10,35,35
+An idle robot working in a warehouse goes to recharge its battery. It has 68% battery left.,20,35,5,70,35,40,30,5,15,35
+An idle robot working in a warehouse goes to recharge its battery. It has 69% battery left.,25,20,15,70,55,45,20,5,15,20
+An idle robot working in a warehouse goes to recharge its battery. It has 7% battery left.,85,90,15,70,75,85,75,20,35,75
+An idle robot working in a warehouse goes to recharge its battery. It has 70% battery left.,15,40,10,5,65,20,40,10,20,40
+An idle robot working in a warehouse goes to recharge its battery. It has 71% battery left.,20,40,15,75,42,65,65,10,15,40
+An idle robot working in a warehouse goes to recharge its battery. It has 72% battery left.,10,20,5,55,65,43,35,10,15,40
+An idle robot working in a warehouse goes to recharge its battery. It has 73% battery left.,25,60,5,30,70,35,35,0,22,65
+An idle robot working in a warehouse goes to recharge its battery. It has 74% battery left.,25,25,5,45,58,45,20,5,15,45
+An idle robot working in a warehouse goes to recharge its battery. It has 75% battery left.,20,15,5,70,65,50,40,5,30,15
+An idle robot working in a warehouse goes to recharge its battery. It has 76% battery left.,10,20,5,80,55,30,75,20,20,45
+An idle robot working in a warehouse goes to recharge its battery. It has 77% battery left.,5,30,5,60,35,25,65,10,10,70
+An idle robot working in a warehouse goes to recharge its battery. It has 78% battery left.,20,45,5,80,30,20,65,5,5,70
+An idle robot working in a warehouse goes to recharge its battery. It has 79% battery left.,15,25,10,70,75,25,40,10,15,55
+An idle robot working in a warehouse goes to recharge its battery. It has 8% battery left.,75,90,15,65,25,20,70,40,25,70
+An idle robot working in a warehouse goes to recharge its battery. It has 80% battery left.,20,30,5,25,60,25,30,15,20,20
+An idle robot working in a warehouse goes to recharge its battery. It has 81% battery left.,15,30,10,65,60,30,20,15,15,35
+An idle robot working in a warehouse goes to recharge its battery. It has 82% battery left.,10,40,5,30,60,25,35,20,20,40
+An idle robot working in a warehouse goes to recharge its battery. It has 83% battery left.,25,30,0,70,60,25,35,23,5,40
+An idle robot working in a warehouse goes to recharge its battery. It has 84% battery left.,15,55,5,85,45,30,20,15,5,15
+An idle robot working in a warehouse goes to recharge its battery. It has 85% battery left.,10,20,10,80,75,20,30,15,30,40
+An idle robot working in a warehouse goes to recharge its battery. It has 86% battery left.,15,30,5,70,65,45,20,5,5,35
+An idle robot working in a warehouse goes to recharge its battery. It has 87% battery left.,20,15,5,25,75,10,30,15,25,35
+An idle robot working in a warehouse goes to recharge its battery. It has 88% battery left.,20,35,5,30,15,30,15,10,20,40
+An idle robot working in a warehouse goes to recharge its battery. It has 89% battery left.,5,25,5,70,55,15,30,5,20,10
+An idle robot working in a warehouse goes to recharge its battery. It has 9% battery left.,93,75,20,75,35,35,20,10,85,70
+An idle robot working in a warehouse goes to recharge its battery. It has 90% battery left.,10,40,5,40,80,15,15,10,15,20
+An idle robot working in a warehouse goes to recharge its battery. It has 91% battery left.,5,40,5,85,70,30,15,20,5,65
+An idle robot working in a warehouse goes to recharge its battery. It has 92% battery left.,5,30,5,70,20,20,15,5,15,65
+An idle robot working in a warehouse goes to recharge its battery. It has 93% battery left.,15,24,5,60,80,20,10,20,10,40
+An idle robot working in a warehouse goes to recharge its battery. It has 94% battery left.,10,30,5,70,80,35,25,5,30,45
+An office assistant robot keeps track of who is in the office today.,40,75,20,30,60,40,70,20,20,60
+The robot is trying to locate the glasses of a patient in a hospital.,70,75,15,35,65,60,85,20,35,70

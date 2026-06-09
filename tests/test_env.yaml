@@ -119,6 +119,6 @@ env:
     max_map_x: 9  # maximum size of map along x direction
 
     min_map_y: 10  # minimum size of map along y direction
-    max_map_y: 20  # maximum size of map along y direction
+    max_map_y: 15  # maximum size of map along y direction
 
-    min_area:  50
+    min_area:  60

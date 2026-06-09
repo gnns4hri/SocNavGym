@@ -39,9 +39,11 @@ class Reward(RewardAPI):
         if not os.path.isdir(self.json_directory):
             os.mkdir(self.json_directory)
 
+        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+
         # Load the checkpoint
         try:
-            checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
+            checkpoint = torch.load(checkpoint_path, map_location=self.device)
         except FileNotFoundError:
             print(self.checkpoint_directory)
             print(self.checkpoint_directory)
@@ -50,7 +52,7 @@ class Reward(RewardAPI):
             import urllib.request
             URL = "https://www.dropbox.com/scl/fo/5mdx98kxux31tpz17t737/AAHIzVc82m32fPYvAjOyooU/models/baseline.pytorch?rlkey=70f89t67bg4zoa6g6lw5dcflg&st=sabxyxe3&dl=1"
             urllib.request.urlretrieve(URL, checkpoint_path)
-            checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
+            checkpoint = torch.load(checkpoint_path, map_location=self.device)
         self.checkpoint = checkpoint
 
 
@@ -88,6 +90,7 @@ class Reward(RewardAPI):
 
             
         model = RNNModel(input_size, hidden_size, num_layers, rnn_type = RNN_TYPE, linear_layers = LINEAR_LAYERS, activation=ACTIVATION, context_vars=CONTEXT_FEATURES).to("cpu")
+        model.to(self.device)
         self.model = model
         self.model.load_state_dict(checkpoint["model_state_dict"])
         self.model.eval()
@@ -275,7 +278,7 @@ class Reward(RewardAPI):
         with torch.no_grad():
             for trajectories, _, slengths in data_loader:
                 # Pass the whole batched graph sequence to the model at once
-                preds = model(trajectories, slengths)
+                preds = model(trajectories.to(self.device), slengths.to(self.device))
                 prediction += preds.tolist() 
         if len(prediction)==0:
             print(f"Prediction error for dataset formed by trajectory: {self.new_filepath}, returning collision reward")

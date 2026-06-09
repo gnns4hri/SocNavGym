@@ -2937,7 +2937,7 @@ class SocNavEnv_v2(gym.Env):
         return collision_human, collision_object, collision_wall
 
 
-    def check_timeout(self, start_time, period=30):
+    def check_timeout(self, start_time, period=3):
         if time.time()-start_time >= period:
             return True
         else:
@@ -3420,8 +3420,8 @@ class SocNavEnv_v2(gym.Env):
         # adding walls to the environment
         self._add_walls()
 
-        # robot
         robot = self._sample_object(start_time, SocNavGymObject.ROBOT)
+        # robot
         if robot == None:
             return False, None, None
         self.robot = robot

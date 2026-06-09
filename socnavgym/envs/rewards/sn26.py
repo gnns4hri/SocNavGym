@@ -284,9 +284,19 @@ class Reward(RewardAPI):
 
     def compute_reward(self, action, prev_obs: EntityObs, curr_obs: EntityObs):
         if self.check_out_of_map() or self.check_collision() or self.check_reached_goal() or self.check_timeout() or self.env._is_truncated:
-            predicted_reward = self.predict(self.model)
-            self.remove_JSON()
-            return predicted_reward
+            try:
+                predicted_reward = self.predict(self.model)
+                self.remove_JSON()
+                return predicted_reward
+            except IndexError as e:
+                # An exception can be raised if the episode is exceedingly short, as some of
+                # the metrics used as an input for the learned metric cannot be computed.
+                if self.check_out_of_map() or self.check_collision() or self.check_timeout() or self.env._is_truncated:
+                    return 0
+                elif self.check_reached_goal():
+                    return 1
+                else:
+                    raise e
         else:
             self.add_to_trajectory()
             return 0

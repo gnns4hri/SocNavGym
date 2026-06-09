@@ -266,15 +266,17 @@ def compute_metrics(tDict_sequence):
 
     cur_time = tDict_sequence['timestamp']
     prev_time = torch.zeros(cur_time.shape, dtype = torch.float64)
-    prev_time[1:] = cur_time[:-1]
-    prev_time[0] = prev_time[1]-1
-    prev_speed_x = torch.zeros(robot['vx'].shape, dtype = torch.float64)
-    prev_speed_x[1:] = robot['vx'][:-1]
-    prev_speed_x[0] = prev_speed_x[1]
-    prev_speed_y = torch.zeros(robot['vy'].shape, dtype = torch.float64)
-    prev_speed_y[1:] = robot['vy'][:-1]
-    prev_speed_y[0] = prev_speed_y[1]
-
+    try:
+        prev_time[1:] = cur_time[:-1]
+        prev_time[0] = prev_time[1]-1
+        prev_speed_x = torch.zeros(robot['vx'].shape, dtype = torch.float64)
+        prev_speed_x[1:] = robot['vx'][:-1]
+        prev_speed_x[0] = prev_speed_x[1]
+        prev_speed_y = torch.zeros(robot['vy'].shape, dtype = torch.float64)
+        prev_speed_y[1:] = robot['vy'][:-1]
+        prev_speed_y[0] = prev_speed_y[1]
+    except IndexError as e:
+        raise e
     diff_time = cur_time-prev_time
     metrics_sequence['acceleration_x'] = (robot['vx']-prev_speed_x)/diff_time
     metrics_sequence['acceleration_y'] = (robot['vy']-prev_speed_y)/diff_time

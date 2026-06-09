@@ -32,15 +32,25 @@ from datetime import datetime
 class Reward(RewardAPI):
     def __init__(self, env: SocNavEnv_v2) -> None:
         super().__init__(env)
-        self.checkpoint_directory = os.path.dirname(__file__)
-        checkpoint_path = os.path.join(self.checkpoint_directory, "RNNBaseline", "checkpoints", "baseline.pytorch")
+        self.checkpoint_directory = os.path.join(os.path.dirname(__file__), "RNNBaseline", "checkpoints") 
+        checkpoint_path = os.path.join(self.checkpoint_directory, "baseline.pytorch")
         self.current_working_directory = os.getcwd()
         self.json_directory = os.path.join(self.current_working_directory, "experimental_JSONs")
         if not os.path.isdir(self.json_directory):
             os.mkdir(self.json_directory)
 
         # Load the checkpoint
-        checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
+        try:
+            checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
+        except FileNotFoundError:
+            print(self.checkpoint_directory)
+            print(self.checkpoint_directory)
+            print(self.checkpoint_directory)
+            os.makedirs(self.checkpoint_directory, exist_ok=True)
+            import urllib.request
+            URL = "https://www.dropbox.com/scl/fo/5mdx98kxux31tpz17t737/AAHIzVc82m32fPYvAjOyooU/models/baseline.pytorch?rlkey=70f89t67bg4zoa6g6lw5dcflg&st=sabxyxe3&dl=1"
+            urllib.request.urlretrieve(URL, checkpoint_path)
+            checkpoint = torch.load(checkpoint_path, map_location=torch.device('cpu'))
         self.checkpoint = checkpoint
 
 

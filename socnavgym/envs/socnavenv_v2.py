@@ -2119,7 +2119,7 @@ class SocNavEnv_v2(gym.Env):
             all_objects = self.objects
             for obj in (all_objects + list(self.goals.values())): # check if spawned object collides with any of the exisiting objects. It will not be rendered as a plant.
                 if obj is None: continue
-                if(goal.collides(obj)):
+                if goal.collides(obj):
                     collides = True
                     break
 
@@ -2285,7 +2285,7 @@ class SocNavEnv_v2(gym.Env):
                 HALF_SIZE_Y = self.MAP_Y/2. - self.MARGIN
                 while True: # comes out of loop only when spawned object collides with none of current objects
                     if self.check_timeout(start_time, period=0.5):  # times out if a crowd location cannot be found in 0.5 seconds. Such a small period is set so that it does not interrupt the normal flow of the environment unnecessarily trying to form a crowd
-                        break
+                        raise TimeoutError
                     x = random.uniform(-HALF_SIZE_X, HALF_SIZE_X)
                     y = random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y)
                     i = Human_Human_Interaction(
@@ -3312,7 +3312,7 @@ class SocNavEnv_v2(gym.Env):
         while True:
             if self.check_timeout(start_time):
                 print(f"timed out spawning object of type {object_type.name}, starting again")
-                return None
+                raise TimeoutError
 
             kwargs = self._get_kwargs(object_type, extra_info)
             new_obj = object_class(**kwargs)
@@ -3340,7 +3340,7 @@ class SocNavEnv_v2(gym.Env):
         while True:
             if self.check_timeout(start_time):
                 print(f"timed out spawning object of type {object_type.name}, starting again")
-                return None, None
+                raise TimeoutError
             laptop = self._sample_object(start_time, SocNavGymObject.LAPTOP)
             if laptop == None:
                 return None, None
@@ -3362,7 +3362,10 @@ class SocNavEnv_v2(gym.Env):
         self.collision_count = 0
         success = False
         while not success:
-            success, obs, info = self.try_reset(seed, options)
+            try:
+                success, obs, info = self.try_reset(seed, options)
+            except TimeoutError:
+                pass
 
         self._is_terminated = False
         self._is_truncated = False

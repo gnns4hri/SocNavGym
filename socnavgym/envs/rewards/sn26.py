@@ -45,9 +45,6 @@ class Reward(RewardAPI):
         try:
             checkpoint = torch.load(checkpoint_path, map_location=self.device)
         except FileNotFoundError:
-            print(self.checkpoint_directory)
-            print(self.checkpoint_directory)
-            print(self.checkpoint_directory)
             os.makedirs(self.checkpoint_directory, exist_ok=True)
             import urllib.request
             URL = "https://www.dropbox.com/scl/fo/5mdx98kxux31tpz17t737/AAHIzVc82m32fPYvAjOyooU/models/baseline.pytorch?rlkey=70f89t67bg4zoa6g6lw5dcflg&st=sabxyxe3&dl=1"

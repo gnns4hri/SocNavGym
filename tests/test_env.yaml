@@ -115,7 +115,7 @@ env:
     set_shape: "rectangle"  # can be "random", "square", "rectangle", "L" or "no-walls"
     add_corridors: False  # True or False, whether there should be corridors in the environment. Corridors cannot be added for L shaped rooms
 
-    min_map_x: 3  # minimum size of map along x direction
+    min_map_x: 5  # minimum size of map along x direction
     max_map_x: 9  # maximum size of map along x direction
 
     min_map_y: 10  # minimum size of map along y direction

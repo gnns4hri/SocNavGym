@@ -125,7 +125,8 @@ def make_env():
     env = DictToFlatWrapper(env, keys=config["keys"])
 
     # Apply HER wrapper (even if disabled, for debugging purposes)
-    env = HERGoalEnvWrapper(env, config["her"])
+    if config.get("her", {}).get("enabled", False):
+        env = HERGoalEnvWrapper(env, config["her"])
 
     env = Monitor(env, filename=None)
     return env
@@ -136,13 +137,6 @@ def make_env():
 # ---------------------------------------------------------------------------
 
 train_env = make_vec_env(make_env, n_envs=config["n_envs"])
-ee = train_env
-while hasattr(ee, 'env') and not hasattr(ee, 'THIS_IS_THE_HER_WRAPPER'):
-    print("ee", type(ee), ee, "going down")
-    ee = ee.env
-print("USING in training.py", type(ee), ee, "trainig env")
-
-
 eval_env  = make_vec_env(make_env, n_envs=1)
 print("EVAL ENV", eval_env)
 

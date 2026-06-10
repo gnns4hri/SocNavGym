@@ -292,7 +292,7 @@ class Reward(RewardAPI):
             except IndexError as e:
                 # An exception can be raised if the episode is exceedingly short, as some of
                 # the metrics used as an input for the learned metric cannot be computed.
-                elif self.check_reached_goal():
+                if self.check_reached_goal():
                     return 0.9  # Close to 1, but the robot didn't do anything
                 else:
                     return 0

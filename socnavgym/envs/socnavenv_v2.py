@@ -162,6 +162,7 @@ class SocNavEnv_v2(gym.Env):
                 print("Argument config is None. Please call gym.make(\"SocNavGym-v2\", config=path_to_config) or set SOCNAV_CONFIG_FILE environment variable to point to the config file.")
                 sys.exit(-1)
 
+        self.__observation_space = None
         self.render_mode_ = render_mode
         # self.render_mode_save = render_mode
         if render_mode is None:
@@ -561,8 +562,6 @@ class SocNavEnv_v2(gym.Env):
                 self.MAP_Y = random.uniform(self.MIN_MAP_Y, self.MAX_MAP_Y)
             if self.MAP_X * self.MAP_Y > self.MIN_AREA:  # TODO: This won't work well for odd shaped rooms.
                 area_ok = True
-            else:
-                print("Not enough area. Trying again.")
 
         self.ROBOT_RADIUS = self.INITIAL_ROBOT_RADIUS + random.uniform(-self.ROBOT_RADIUS_MARGIN, self.ROBOT_RADIUS_MARGIN)
         self.GOAL_RADIUS = self.INITIAL_GOAL_RADIUS + random.uniform(-self.GOAL_RADIUS_MARGIN, self.GOAL_RADIUS_MARGIN)
@@ -644,6 +643,9 @@ class SocNavEnv_v2(gym.Env):
         Returns:
         gym.spaces.Dict : the observation space of the environment
         """
+        if self.__observation_space is not None:
+            return self.__observation_space
+
         d = {}
 
         biggest_side = max(self.MAX_MAP_X, self.MAX_MAP_Y)
@@ -694,6 +696,8 @@ class SocNavEnv_v2(gym.Env):
         high  = np.array([+(b*b), +(b*b),  1.0,  1.0, max_segment_size, +MAX_C_SPEED, +self.MAX_ROTATION, 1] * total_segments, dtype=np.float32)
         d["walls"] = spaces.Box(low=low, high=high, shape=((8*total_segments,)), dtype = np.float32)
 
+
+        self.__observation_space = spaces.Dict(d)
         return spaces.Dict(d)
 
     @property
@@ -1832,6 +1836,50 @@ class SocNavEnv_v2(gym.Env):
             raise NotImplementedError
 
 
+    def process_action(act):
+        """Converts the values from [-1,1] to the corresponding velocity values
+
+        Args:
+            act (np.ndarray): action from the action space
+
+        Returns:
+            np.ndarray: action with velocity values
+        """
+        
+        action = act.astype(np.float32)
+        # action[0] = (float(action[0]+1.0)/2.0)*self.MAX_ADVANCE_ROBOT   # [-1, +1] --> [0, self.MAX_ADVANCE_ROBOT]
+        if action[0]<0:
+            action[0] *= -self.MIN_ADVANCE_ROBOT
+        else:
+            action[0] *= self.MAX_ADVANCE_ROBOT
+
+
+        if self.robot.type == "diff-drive":
+            action[1] = 0.0
+        else:
+            action[1] = action[1]*self.MAX_ADVANCE_ROBOT  # [-1, +1] --> [-MAX_ADVANCE, +MAX_ADVANCE]
+
+
+        action[2] = (float(action[2]+0.0)/1.0)*self.MAX_ROTATION  # [-1, +1] --> [-self.MAX_ROTATION, +self.MAX_ROTATION]
+
+        if action[0] > self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
+            action[0] = self.MAX_ADVANCE_ROBOT
+        if action[0] < self.MIN_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
+            action[0] = self.MIN_ADVANCE_ROBOT
+
+        if action[1] > self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
+            action[1] = self.MAX_ADVANCE_ROBOT
+        if action[1] < -self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
+            action[1] = -self.MAX_ADVANCE_ROBOT
+
+        if action[2] < -self.MAX_ROTATION:   # Rotation must be higher than -self.MAX_ROTATION
+            action[2] =  -self.MAX_ROTATION
+        elif action[2] > self.MAX_ROTATION:  # Rotation must be lower than +self.MAX_ROTATION
+            action[2] =  self.MAX_ROTATION
+
+        return action
+
+
     def step(self, action_pre):
         """Computes a step in the current episode given the action.
 
@@ -1846,48 +1894,6 @@ class SocNavEnv_v2(gym.Env):
             info (dict) : additional information
         """
         # for converting the action to the velocity
-        def process_action(act):
-            """Converts the values from [-1,1] to the corresponding velocity values
-
-            Args:
-                act (np.ndarray): action from the action space
-
-            Returns:
-                np.ndarray: action with velocity values
-            """
-            
-            action = act.astype(np.float32)
-            # action[0] = (float(action[0]+1.0)/2.0)*self.MAX_ADVANCE_ROBOT   # [-1, +1] --> [0, self.MAX_ADVANCE_ROBOT]
-            if action[0]<0:
-                action[0] *= -self.MIN_ADVANCE_ROBOT
-            else:
-                action[0] *= self.MAX_ADVANCE_ROBOT
-
-
-            if self.robot.type == "diff-drive":
-                action[1] = 0.0
-            else:
-                action[1] = action[1]*self.MAX_ADVANCE_ROBOT  # [-1, +1] --> [-MAX_ADVANCE, +MAX_ADVANCE]
-
-
-            action[2] = (float(action[2]+0.0)/1.0)*self.MAX_ROTATION  # [-1, +1] --> [-self.MAX_ROTATION, +self.MAX_ROTATION]
-
-            if action[0] > self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
-                action[0] = self.MAX_ADVANCE_ROBOT
-            if action[0] < self.MIN_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
-                action[0] = self.MIN_ADVANCE_ROBOT
-
-            if action[1] > self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
-                action[1] = self.MAX_ADVANCE_ROBOT
-            if action[1] < -self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
-                action[1] = -self.MAX_ADVANCE_ROBOT
-
-            if action[2] < -self.MAX_ROTATION:   # Rotation must be higher than -self.MAX_ROTATION
-                action[2] =  -self.MAX_ROTATION
-            elif action[2] > self.MAX_ROTATION:  # Rotation must be lower than +self.MAX_ROTATION
-                action[2] =  self.MAX_ROTATION
-
-            return action
 
         # if action is a list, converting it to numpy.ndarray
         if type(action_pre) == list:
@@ -2015,21 +2021,17 @@ class SocNavEnv_v2(gym.Env):
         all_humans = self.dynamic_humans + self.static_humans
 
         for i in range(len(all_humans)):
-            for j in range(i + 1, len(all_humans)):
+            for j in range(i+1, len(all_humans)):
               h1 = all_humans[i]
               h2 = all_humans[j]
-
-              dist = np.sqrt((h1.x - h2.x)**2 + (h1.y - h2.y)**2)#__________
-
-              if dist < self.HUMAN_DIAMETER * 3:
+              dist = np.sqrt((h1.x - h2.x)**2 + (h1.y - h2.y)**2)
+              if dist < self.HUMAN_DIAMETER * 2:
                  collision_this_step = True
                  break
             if collision_this_step:
                break
         if collision_this_step:
             self.collision_count += 1
-
-
 
 
         # getting observations

@@ -2687,7 +2687,7 @@ class SocNavEnv_v2(gym.Env):
         info["PATH_LENGTH"] = self.robot_path_length
 
         self.reward_calculator.update_env(self)
-        reward = self.reward_calculator.compute_reward(action, self._prev_observations, self._current_observations)
+        reward = self.reward_calculator.compute_reward(action, self._prev_observations, self._current_observations, self._is_terminated, self._is_truncated)
         for k, v in self.reward_calculator.info.items():
             info[k] = v
 

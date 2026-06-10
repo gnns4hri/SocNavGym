@@ -119,7 +119,7 @@ while True:
     # Update the plot
     # plt.tight_layout()
     fig.canvas.draw()
-    # fig.canvas.flush_events()
+    fig.canvas.flush_events()
 
 
 

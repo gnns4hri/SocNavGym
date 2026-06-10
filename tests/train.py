@@ -136,12 +136,6 @@ def make_env():
 # ---------------------------------------------------------------------------
 
 train_env = make_vec_env(make_env, n_envs=config["n_envs"])
-ee = train_env
-while hasattr(ee, 'env') and not hasattr(ee, 'THIS_IS_THE_HER_WRAPPER'):
-    print("ee", type(ee), ee, "going down")
-    ee = ee.env
-print("USING in training.py", type(ee), ee, "trainig env")
-
 
 eval_env  = make_vec_env(make_env, n_envs=1)
 print("EVAL ENV", eval_env)

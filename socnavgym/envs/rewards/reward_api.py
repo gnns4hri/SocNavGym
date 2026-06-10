@@ -54,5 +54,5 @@ class RewardAPI:
     def update_env(self, new_env:SocNavEnv_v2):
         self.env = new_env
 
-    def compute_reward(self, action, prev_obs:EntityObs, curr_obs:EntityObs):
+    def compute_reward(self, action, prev_obs:EntityObs, curr_obs:EntityObs, terminated=False, truncated=False):
         raise NotImplementedError

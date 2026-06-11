@@ -2043,6 +2043,13 @@ class SocNavEnv_v2(gym.Env):
         terminated = self._is_terminated
         truncated = self._is_truncated
 
+        if self.REWARD_PATH == "sn26":
+            if abs(reward) > 0.01:
+                if self.ticks >= self.EPISODE_LENGTH:
+                    truncated = self._is_truncated = 0
+                else:
+                    terminated = 0
+
         # updating the previous observations
         self.populate_prev_obs()
 

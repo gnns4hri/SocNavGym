@@ -283,21 +283,21 @@ class Reward(RewardAPI):
         return key
 
     def compute_reward(self, action, prev_obs: EntityObs, curr_obs: EntityObs, terminated, truncated):
-        compute = terminated or truncated
-        if compute:
+        if terminated or truncated:
             try:
                 predicted_reward = self.predict(self.model)
                 self.remove_JSON()
-                return predicted_reward
+                ret = predicted_reward
             except IndexError as e:
                 # An exception can be raised if the episode is exceedingly short, as some of
                 # the metrics used as an input for the learned metric cannot be computed.
                 if self.check_reached_goal():
-                    return 0.9  # Close to 1, but the robot didn't do anything
+                    ret = 0.9  # Close to 1, but the robot didn't do anything
                 else:
-                    return 0
+                    ret = 0
         else:
             self.add_to_trajectory()
-            return 0
+            ret = 0
 
+        ret = (ret-0.5) * 2
 

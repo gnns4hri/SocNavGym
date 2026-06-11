@@ -18,7 +18,7 @@ best_model_dir: "best_model"      # Best model directory
 
 # WANDB configuration
 wandb:
-  project: "sn26_reward_3"        # WANDB project name
+  project: "sn26_reward"        # WANDB project name
   name: null                      # Run name (auto-generated if null)
   entity: null                    # WANDB entity (team/user)
 

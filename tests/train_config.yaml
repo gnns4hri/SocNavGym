@@ -6,7 +6,7 @@ keys: [ "robot", "humans" ]       # Keys to extract from Dict env
 
 # Training parameters
 total_steps: 2000000              # Total training steps
-n_envs: 30                        # Number of parallel environments
+n_envs: 1                         # Number of parallel environments
 eval_freq: 50000                  # Evaluation frequency (steps)
 eval_episodes:  50                # Number of evaluation episodes
 verbose: 0                        # Verbosity level (0=quiet, 1=normal, 2=verbose)
@@ -18,7 +18,7 @@ best_model_dir: "best_model"      # Best model directory
 
 # WANDB configuration
 wandb:
-  project: "sn26_reward6"        # WANDB project name
+  project: "sn26_reward7"         # WANDB project name
   name: null                      # Run name (auto-generated if null)
   entity: null                    # WANDB entity (team/user)
 
@@ -39,9 +39,9 @@ sac_hyperparams:
 
 # HER (Hindsight Experience Replay) configuration
 her:
-  enabled: false                  # Enable HER
-  threshold: 0.1
-  ratio: 0.1
+  enabled: true                  # Enable HER
+  threshold: -0.75
+  ratio: 0.05
   
 
 

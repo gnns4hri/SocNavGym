@@ -41,7 +41,6 @@ def get_surface(plt_array, world_image):
     return surface_resized
 
 
-
 def get_joy_values():
     if joystick_count > 0:
         vx = -joystick.get_axis(1)
@@ -97,27 +96,38 @@ else:
     stale_joystick = get_joy_values()
 
 
-
 def dummy_control(obs):
-    robot = obs["robot"]
-    angle = np.atan2(robot[1], robot[0])
-    dist = np.sqrt(robot[1]*robot[1] + robot[0]*robot[0])
-    # If we did not arrive there
-    if dist > 0.1:
-        if abs(angle) > 0.5:
-            vx = 0.0
-        else:
-            ang_multiplier =  min(1.0, 0.45*max(0.0, 0.45-abs(angle)))
-            dist_multiplier = min(1.0,      max(0.2,        0.5*dist))
-            vx = 1. * ang_multiplier * dist_multiplier
-        vy = 0
-        va = angle*0.33
-    # We arrived, we just need to orient towards the goal
-    else:
-        vx = 0.0
-        vy = 0.0
-        va = np.atan2(robot[3], robot[4])
+    def force(vector):
+        dist = np.linalg.norm(vector)
+        angle = np.atan2(vector[1], vector[0])
+        n = vector/dist
+        return n, dist, angle
 
+    # Start
+    l_speed = np.array([0.,0.])
+    a_speed = 0
+
+    # People
+    for person in obs["humans"].reshape(-1, 8):
+        person_v, person_d, person_a = force(person[0:2])
+        if person_d < 2:
+            mult = max(0, 2.-person_d)
+            l_speed -= 2.0 * mult * person_v
+
+    # Goal
+    goal = obs["robot"]
+    goal_v, goal_d, goal_a = force(goal[:2])
+    if goal_d > 2.0:
+        l_speed += goal_v
+        va = goal_a
+    else:
+        l_speed += 0.5 * goal_v
+        va = 0.25 * np.atan2(goal[3], goal[4])
+
+
+    # Set action
+    vx = l_speed[0]
+    vy = l_speed[1]
     return vx, vy, va
 
 
@@ -234,14 +244,16 @@ while True:
         # axs[0].plot([left_x, right_x], [left_y, right_y], 'b-', linewidth=2)
 
     axs[1].clear()
-    #axs[1].set_yscale("log")
     axs[1].set_ylim(-1.1, 1.1)
     if len(rewards) > 0:
         x_plot_values = np.array([x for x in range(len(rewards))])
+        for vv in [0.002, 0.25, 0.5, 0.75, 1]:
+            for s in [-1, 1]:
+                colour = (vv+0.75)/2
+                axs[1].plot([x_plot_values[0], x_plot_values[-1]], [vv*s, vv*s], "-", color=str(colour))
         y_plot_values = np.array(rewards)
-        axs[1].plot([x_plot_values[0], x_plot_values[-1]], [0,0], "k-")
-        axs[1].plot(x_plot_values, y_plot_values)
-    #print(rewards)
+        axs[1].plot(x_plot_values, y_plot_values, "b-")
+
     # Update the plot
     plt.tight_layout()
     fig.canvas.draw()

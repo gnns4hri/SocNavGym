@@ -174,6 +174,7 @@ class Reward(RewardAPI):
                 "angle": human.orientation
             }
             timestep["people"].append(humanInfo)
+
         for object in self.env.tables + self.env.plants + self.env.chairs + self.env.laptops:
             objectInfo = {
                 "id": object.id,
@@ -216,8 +217,10 @@ class Reward(RewardAPI):
             px = human.x - self.env.robot.x
             py = human.y - self.env.robot.y
 
-            vx = human.speed*np.cos(human.orientation) - action[0] * np.cos(action[2]*self.env.TIMESTEP + self.env.robot.orientation) - action[1] * np.cos(action[2]*self.env.TIMESTEP + self.env.robot.orientation + np.pi/2)
-            vy = human.speed*np.sin(human.orientation) - action[0] * np.sin(action[2]*self.env.TIMESTEP + self.env.robot.orientation) - action[1] * np.sin(action[2]*self.env.TIMESTEP + self.env.robot.orientation + np.pi/2)
+            vx = human.speed*np.cos(human.orientation) - action[0] * np.cos(action[2]*self.env.TIMESTEP + self.env.robot.orientation) \
+                - action[1] * np.cos(action[2]*self.env.TIMESTEP + self.env.robot.orientation + np.pi/2)
+            vy = human.speed*np.sin(human.orientation) - action[0] * np.sin(action[2]*self.env.TIMESTEP + self.env.robot.orientation) \
+                - action[1] * np.sin(action[2]*self.env.TIMESTEP + self.env.robot.orientation + np.pi/2)
 
             ex = px + vx * self.env.TIMESTEP
             ey = py + vy * self.env.TIMESTEP
@@ -303,4 +306,4 @@ class Reward(RewardAPI):
             ret = 0
 
         ret = (ret-0.5) * 2
-
+        return ret

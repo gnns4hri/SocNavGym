@@ -40,6 +40,19 @@ def get_surface(plt_array, world_image):
     surface_resized = pygame.transform.smoothscale(g_surface, data_array.shape[:-1][::-1])
     return surface_resized
 
+
+
+def get_joy_values():
+    if joystick_count > 0:
+        vx = -joystick.get_axis(1)
+        vy = -joystick.get_axis(0)*0.5
+        va = -joystick.get_axis(2)*0.5
+        return np.array([vx, vy, va])
+    else:
+        print("no joy")
+        return np.array([0, 0, 0])
+
+
 if not env.window_initialised:
     pygame.init()
     env.screen = pygame.display.set_mode((int(env.RESOLUTION_X+GRAPH_WIDTH), int(env.RESOLUTION_Y)))
@@ -54,8 +67,6 @@ for event in pygame.event.get():
 pygame.display.update()
 
 
-
-
 plt.ion()
 dpi = 100
 fig, axs = plt.subplots(2, 1, figsize=(GRAPH_WIDTH/dpi, env.world_image.shape[0]/dpi), dpi=dpi)
@@ -65,7 +76,7 @@ axs[0].set_ylim(-7, 7)
 axs[0].set_aspect('equal')
 axs[0].grid(True)
 axs[0].transData = rotation + axs[0].transData
-axs[1].set_ylim(-5,10.5)
+axs[1].set_ylim(-1, 1)
 plt.tight_layout()
 
 
@@ -75,25 +86,15 @@ pygame.joystick.init()
 joystick_count = pygame.joystick.get_count()
 if joystick_count == 0:
     print("No joystick detected!")
-    sys.exit(1)
-
-joystick = pygame.joystick.Joystick(0)
-joystick.init()
-print(f"Initialized joystick: {joystick.get_name()}")
-
-
-def get_joy_values():
-    if joystick_count > 0:
-        vx = -joystick.get_axis(1)
-        vy = -joystick.get_axis(0)*0.5
-        va = -joystick.get_axis(2)*0.5
-        return np.array([vx, vy, va])
-    else:
-        print("no joy")
-        return np.array([0, 0, 0])
-
-
-stale_joystick = get_joy_values()
+    print("No joystick detected!")
+    print("No joystick detected!")
+    print("No joystick detected!")
+    joystick = None
+else:
+    joystick = pygame.joystick.Joystick(0)
+    joystick.init()
+    print(f"Initialized joystick: {joystick.get_name()}")
+    stale_joystick = get_joy_values()
 
 
 rewards = []

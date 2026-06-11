@@ -1836,48 +1836,6 @@ class SocNavEnv_v2(gym.Env):
             raise NotImplementedError
 
 
-    def process_action(act):
-        """Converts the values from [-1,1] to the corresponding velocity values
-
-        Args:
-            act (np.ndarray): action from the action space
-
-        Returns:
-            np.ndarray: action with velocity values
-        """
-        
-        action = act.astype(np.float32)
-        # action[0] = (float(action[0]+1.0)/2.0)*self.MAX_ADVANCE_ROBOT   # [-1, +1] --> [0, self.MAX_ADVANCE_ROBOT]
-        if action[0]<0:
-            action[0] *= -self.MIN_ADVANCE_ROBOT
-        else:
-            action[0] *= self.MAX_ADVANCE_ROBOT
-
-
-        if self.robot.type == "diff-drive":
-            action[1] = 0.0
-        else:
-            action[1] = action[1]*self.MAX_ADVANCE_ROBOT  # [-1, +1] --> [-MAX_ADVANCE, +MAX_ADVANCE]
-
-
-        action[2] = (float(action[2]+0.0)/1.0)*self.MAX_ROTATION  # [-1, +1] --> [-self.MAX_ROTATION, +self.MAX_ROTATION]
-
-        if action[0] > self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
-            action[0] = self.MAX_ADVANCE_ROBOT
-        if action[0] < self.MIN_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
-            action[0] = self.MIN_ADVANCE_ROBOT
-
-        if action[1] > self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
-            action[1] = self.MAX_ADVANCE_ROBOT
-        if action[1] < -self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
-            action[1] = -self.MAX_ADVANCE_ROBOT
-
-        if action[2] < -self.MAX_ROTATION:   # Rotation must be higher than -self.MAX_ROTATION
-            action[2] =  -self.MAX_ROTATION
-        elif action[2] > self.MAX_ROTATION:  # Rotation must be lower than +self.MAX_ROTATION
-            action[2] =  self.MAX_ROTATION
-
-        return action
 
 
     def step(self, action_pre):
@@ -1893,6 +1851,48 @@ class SocNavEnv_v2(gym.Env):
             truncated (bool) : whether the episode has finished due to time limit or not
             info (dict) : additional information
         """
+        def process_action(act):
+            """Converts the values from [-1,1] to the corresponding velocity values
+
+            Args:
+                act (np.ndarray): action from the action space
+
+            Returns:
+                np.ndarray: action with velocity values
+            """
+            
+            action = act.astype(np.float32)
+            # action[0] = (float(action[0]+1.0)/2.0)*self.MAX_ADVANCE_ROBOT   # [-1, +1] --> [0, self.MAX_ADVANCE_ROBOT]
+            if action[0]<0:
+                action[0] *= -self.MIN_ADVANCE_ROBOT
+            else:
+                action[0] *= self.MAX_ADVANCE_ROBOT
+
+
+            if self.robot.type == "diff-drive":
+                action[1] = 0.0
+            else:
+                action[1] = action[1]*self.MAX_ADVANCE_ROBOT  # [-1, +1] --> [-MAX_ADVANCE, +MAX_ADVANCE]
+
+
+            action[2] = (float(action[2]+0.0)/1.0)*self.MAX_ROTATION  # [-1, +1] --> [-self.MAX_ROTATION, +self.MAX_ROTATION]
+
+            if action[0] > self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
+                action[0] = self.MAX_ADVANCE_ROBOT
+            if action[0] < self.MIN_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
+                action[0] = self.MIN_ADVANCE_ROBOT
+
+            if action[1] > self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
+                action[1] = self.MAX_ADVANCE_ROBOT
+            if action[1] < -self.MAX_ADVANCE_ROBOT:     # Advance must be less or equal self.MAX_ADVANCE_ROBOT
+                action[1] = -self.MAX_ADVANCE_ROBOT
+
+            if action[2] < -self.MAX_ROTATION:   # Rotation must be higher than -self.MAX_ROTATION
+                action[2] =  -self.MAX_ROTATION
+            elif action[2] > self.MAX_ROTATION:  # Rotation must be lower than +self.MAX_ROTATION
+                action[2] =  self.MAX_ROTATION
+
+            return action
         # for converting the action to the velocity
 
         # if action is a list, converting it to numpy.ndarray
@@ -2046,9 +2046,11 @@ class SocNavEnv_v2(gym.Env):
         if self.REWARD_PATH == "sn26":
             if abs(reward) > 0.01:
                 if self.ticks >= self.EPISODE_LENGTH:
-                    truncated = self._is_truncated = 0
+                    truncated = self._is_truncated = 1
+                    terminated = self._is_terminated = 0
                 else:
-                    terminated = 0
+                    truncated = self._is_truncated = 0
+                    terminated = self._is_terminated = 1
 
         # updating the previous observations
         self.populate_prev_obs()
@@ -2900,10 +2902,9 @@ class SocNavEnv_v2(gym.Env):
 
         for i, interaction in enumerate(self.h_l_interactions):
             info["interactions"]["human-laptop"].append((curr_humans + i, curr_laptops + i))
-            # assertion statement
-            if(i == len(self.h_l_interactions)):
-                assert(curr_humans + i == (self.total_humans - 1))
-                assert(curr_laptops + i == len(self.laptops + self.h_l_interactions) - 1)
+            if i == len(self.h_l_interactions):
+                assert curr_humans + i == (self.total_humans - 1)
+                assert curr_laptops + i == len(self.laptops + self.h_l_interactions) - 1
 
         return reward, info
 

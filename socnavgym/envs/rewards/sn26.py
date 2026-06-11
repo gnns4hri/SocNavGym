@@ -16,7 +16,7 @@ import os
 import uuid
 import numpy as np
 
-import zipfile
+import pickle
 
 import socnavgym
 from socnavgym.envs.socnavenv_v2 import SocNavEnv_v2, EntityObs
@@ -85,8 +85,7 @@ class Reward(RewardAPI):
         else:
             CONTEXT_FEATURES = 0
 
-            
-        model = RNNModel(input_size, hidden_size, num_layers, rnn_type = RNN_TYPE, linear_layers = LINEAR_LAYERS, activation=ACTIVATION, context_vars=CONTEXT_FEATURES).to("cpu")
+        model = RNNModel(input_size, hidden_size, num_layers, rnn_type=RNN_TYPE, linear_layers=LINEAR_LAYERS, activation=ACTIVATION, context_vars=CONTEXT_FEATURES).to("cpu")
         model.to(self.device)
         self.model = model
         self.model.load_state_dict(checkpoint["model_state_dict"])
@@ -98,7 +97,7 @@ class Reward(RewardAPI):
         self.reach_reward = 1.0
         self.out_of_map_reward = -1.0
         self.max_steps_reward = -1.0
-        self.alive_reward = -1e-6 
+        self.alive_reward = -1e-6
         self.collision_reward = -1.0
         self.distance_reward_scaler = 0.01
         self.discomfort_distance = 0.6
@@ -108,14 +107,18 @@ class Reward(RewardAPI):
         self.total_distance_reward = 0.0
         self.min_dist = float('inf')
 
-
     def remove_JSON(self):
         os.remove(self.new_filepath)
 
     def create_JSON(self):
-        datafile = open(self.new_filepath, "w")
-        json.dump(self.data, datafile, indent=4)
-        datafile.close()
+        try:
+            datafile = open(self.new_filepath, "w")
+            json.dump(self.data, datafile, indent=4)
+            datafile.close()
+        except TypeError as e:
+            with open('serialized_datafile_{time.time()}.pkl', 'wb') as file:
+                pickle.dump(self.data, file)
+                raise e
 
     def new_trajectory(self):
         filestamp = datetime.now().strftime("%Y%m%d-%H%M%S")
@@ -134,7 +137,6 @@ class Reward(RewardAPI):
             y2 = wall.y + np.sin(wall.orientation)*wall.length/2
             walls.append([x1, y1, x2, y2])
         self.data["walls"] = walls
-        #self.data["walls"] = []
 
     def add_to_trajectory(self):
         timestep = {
@@ -187,12 +189,13 @@ class Reward(RewardAPI):
         dmin = float('inf')
 
         all_humans = []
-        for human in self.env.static_humans + self.env.dynamic_humans : all_humans.append(human)
+        for human in self.env.static_humans + self.env.dynamic_humans: all_humans.append(human)
 
         for i in self.env.static_interactions + self.env.moving_interactions:
             for h in i.humans: all_humans.append(h)
-        
-        for i in self.env.h_l_interactions: all_humans.append(i.human)
+
+        for i in self.env.h_l_interactions:
+            all_humans.append(i.human)
 
         for human in all_humans:
             px = human.x - self.env.robot.x

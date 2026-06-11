@@ -97,6 +97,30 @@ else:
     stale_joystick = get_joy_values()
 
 
+
+def dummy_control(obs):
+    robot = obs["robot"]
+    angle = np.atan2(robot[1], robot[0])
+    dist = np.sqrt(robot[1]*robot[1] + robot[0]*robot[0])
+    # If we did not arrive there
+    if dist > 0.1:
+        if abs(angle) > 0.5:
+            vx = 0.0
+        else:
+            ang_multiplier =  min(1.0, 0.45*max(0.0, 0.45-abs(angle)))
+            dist_multiplier = min(1.0,      max(0.2,        0.5*dist))
+            vx = 1. * ang_multiplier * dist_multiplier
+        vy = 0
+        va = angle*0.33
+    # We arrived, we just need to orient towards the goal
+    else:
+        vx = 0.0
+        vy = 0.0
+        va = np.atan2(robot[3], robot[4])
+
+    return vx, vy, va
+
+
 rewards = []
 pause = False
 episode = 0
@@ -124,10 +148,7 @@ while True:
         vy = joystic_data[1]
         va = joystic_data[2]
     else:
-        vx = 0.1
-        vy = 0
-        va = 0
-
+        vx, vy, va = dummy_control(obs)
     if done:
         patience -= 1
         if patience < 0:
@@ -167,17 +188,6 @@ while True:
     axs[0].plot([  0,  0], [-10, 10], 'k-', linewidth=1)
 
 
-    if info["relative_frame"] == "GOAL_FR":
-        # Draw robot
-        robot = obs["robot"]
-        robot_x = robot[0]
-        robot_y = robot[1]
-        robot_x2 = robot_x + 0.2*robot[4]
-        robot_y2 = robot_y + 0.2*robot[3]
-        axs[0].plot([robot_x, robot_x2], [robot_y, robot_y2], 'r-', linewidth=4)
-        axs[0].add_patch(Circle((robot_x, robot_y), robot[2], fill=False, color='red', linewidth=2))
-        # Draw goal
-        axs[0].add_patch(Circle((0, 0), robot[2], fill=False, color='green', linewidth=2))
     if info["relative_frame"] == "ROBOT_FR":
         # Draw goal
         robot = obs["robot"]

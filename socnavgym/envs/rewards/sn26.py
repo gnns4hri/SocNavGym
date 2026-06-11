@@ -301,9 +301,9 @@ class Reward(RewardAPI):
                     ret = 0.9  # Close to 1, but the robot didn't do anything
                 else:
                     ret = 0
+            ret = (ret-0.5) * 2
         else:
             self.add_to_trajectory()
             ret = 0
 
-        ret = (ret-0.5) * 2
         return ret

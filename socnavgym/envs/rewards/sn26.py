@@ -116,7 +116,7 @@ class Reward(RewardAPI):
             json.dump(self.data, datafile, indent=4)
             datafile.close()
         except TypeError as e:
-            with open('serialized_datafile_{time.time()}.pkl', 'wb') as file:
+            with open(f"serialized_datafile_{time.time()}.pkl", "wb") as file:
                 pickle.dump(self.data, file)
                 raise e
 
@@ -159,28 +159,28 @@ class Reward(RewardAPI):
             "goal": {
                 "type": "go-to",
                 "human": None,
-                "x": self.env.robot.goal_x,
-                "y": self.env.robot.goal_y,
-                "angle": self.env.robot.goal_a,
-                "pos_threshold": self.env.GOAL_RADIUS,
-                "angle_threshold": self.env.GOAL_ORIENTATION_THRESHOLD
+                "x": float(self.env.robot.goal_x),
+                "y": float(self.env.robot.goal_y),
+                "angle": float(self.env.robot.goal_a),
+                "pos_threshold": float(self.env.GOAL_RADIUS),
+                "angle_threshold": float(self.env.GOAL_ORIENTATION_THRESHOLD)
             }
         }
         for human in self.env.dynamic_humans + self.env.static_humans:
             humanInfo = {
-                "id": human.id,
-                "x": human.x,
-                "y": human.y,
-                "angle": human.orientation
+                "id": int(human.id),
+                "x": float(human.x),
+                "y": float(human.y),
+                "angle": float(human.orientation)
             }
             timestep["people"].append(humanInfo)
 
         for object in self.env.tables + self.env.plants + self.env.chairs + self.env.laptops:
             objectInfo = {
-                "id": object.id,
-                "x": object.x,
-                "y": object.y,
-                "angle": object.orientation
+                "id": int(object.id),
+                "x": float(object.x),
+                "y": float(object.y),
+                "angle": float(object.orientation)
             }
             timestep["people"].append(objectInfo)
         self.data["sequence"].append(timestep)
@@ -250,7 +250,7 @@ class Reward(RewardAPI):
 
             if closest_dist < dmin:
                 dmin = closest_dist
-        
+
         return dmin
 
 
@@ -285,8 +285,9 @@ class Reward(RewardAPI):
                 prediction += preds.tolist() 
         if len(prediction)==0:
             print(f"Prediction error for dataset formed by trajectory: {self.new_filepath}, returning collision reward")
-        key = prediction[0][0]
-        return key
+
+        return  float(prediction[0][0])
+
 
     def compute_reward(self, action, prev_obs: EntityObs, curr_obs: EntityObs, terminated, truncated):
         if terminated or truncated:

@@ -60,19 +60,24 @@ def setup_directories(config):
 # ---------------------------------------------------------------------------
 
 config = load_config()
+do_her = config.get("her", {}).get("enabled", False)
     
 # Generate a run name if not provided
 if config["wandb"]["name"] is None:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    do_her = config.get("her", {}).get("enabled", False)
     if do_her:
         if np.isnan(HER_THRESHOLD):
             HER_THRESHOLD = config["her"]["threshold"]
-        her_value = f"_HER({HER_THRESHOLD})"
+        her_value = f"_HER___{HER_THRESHOLD}"
     else:
         her_value = ""
 
     config["wandb"]["name"] = f"sac_{timestamp}{her_value}"
+
+if do_her is False:
+    HERGoalEnvWrapper.active = False
+
+
 
 # ---------------------------------------------------------------------------
 # Initialise wandb run
@@ -109,7 +114,7 @@ if WANDB_MODE != "offline":
 else:
     run = namedtuple('rubbish', ["id", "run", "name"])("offline", "offline", config["wandb"]["name"])
     config["wandb"]["run_id"] = run.id
-    
+
 
 
 # ---------------------------------------------------------------------------
@@ -226,11 +231,11 @@ if config.get("her", {}).get("enabled", False):
 # ---------------------------------------------------------------------------
 try:
     model.learn(total_timesteps=config["total_steps"], callback=callbacks, progress_bar=(WANDB_MODE != "offline"))
-    
+
     # Save final model with run name
     final_model_path = f"{run.name}_final"
     model.save(final_model_path)
-    
+
     # Upload final model to wandb
     if WANDB_MODE != "offline":
         artifact = wandb.Artifact(f"model_{run.name}", type="model")

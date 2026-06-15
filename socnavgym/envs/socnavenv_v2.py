@@ -2619,9 +2619,9 @@ class SocNavEnv_v2(gym.Env):
                     speed += h.speed
                 speed /= len(interaction.humans)
 
-
-            vx = speed*np.cos(interaction.orientation) - action[0] * np.cos(action[2]*self.TIMESTEP + self.robot.orientation) - action[1] * np.cos(action[2]*self.TIMESTEP + self.robot.orientation + np.pi/2)
-            vy = speed*np.sin(interaction.orientation) - action[0] * np.sin(action[2]*self.TIMESTEP + self.robot.orientation) - action[1] * np.sin(action[2]*self.TIMESTEP + self.robot.orientation + np.pi/2)
+            # BUG ERROR WARNING `human` is a variable from a different loop.
+            vx = speed*np.cos(human.orientation) - action[0] * np.cos(action[2]*self.TIMESTEP + self.robot.orientation) - action[1] * np.cos(action[2]*self.TIMESTEP + self.robot.orientation + np.pi/2)
+            vy = speed*np.sin(human.orientation) - action[0] * np.sin(action[2]*self.TIMESTEP + self.robot.orientation) - action[1] * np.sin(action[2]*self.TIMESTEP + self.robot.orientation + np.pi/2)
 
             ex = px + vx * self.TIMESTEP
             ey = py + vy * self.TIMESTEP

@@ -108,7 +108,7 @@ else:
     stale_joystick = get_joy_values()
 
 
-def dummy_control(obs):
+def dummy_control(obs, tick):
     def force(vector):
         dist = np.linalg.norm(vector)
         angle = np.atan2(vector[1], vector[0])
@@ -123,7 +123,7 @@ def dummy_control(obs):
     for person in obs["humans"].reshape(-1, 8):
         person_v, person_d, person_a = force(person[0:2])
         if person_d < 2:
-            mult = max(0, 2.-person_d)
+            mult = max(0, 2.-person_d) * ((800-tick)/800)
             l_speed -= 2.0 * mult * person_v
 
     # Goal
@@ -146,7 +146,9 @@ def dummy_control(obs):
 rewards = []
 pause = False
 episode = 0
+tick = 0
 while True:
+    tick += 1
     print(".", end="")
     sys.stdout.flush()
     pygame.event.pump()
@@ -170,7 +172,7 @@ while True:
         vy = joystic_data[1]
         va = joystic_data[2]
     else:
-        vx, vy, va = dummy_control(obs)
+        vx, vy, va = dummy_control(obs, tick)
     if done:
         patience -= 1
         if patience < 0:
@@ -183,6 +185,7 @@ while True:
                 patience = MAX_PATIENCE
                 pause = False
                 rewards = []
+                tick = 0
                 print(f"Episode {episode} started.")
             else:
                 print(f"{MAX_EPISODES} episodes should be enough")

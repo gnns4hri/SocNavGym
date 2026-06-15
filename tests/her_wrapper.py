@@ -20,7 +20,8 @@ MINIMUM_TRANSITIONS = 3
 
 def print_obs_transition(transition, text="transition_obs_pose"):
     obs = transition["obs"]
-    print(f"{text}: {obs[0]}, {obs[1]}, {np.atan2(obs[3],obs[4])}  (a={np.atan2(obs[1], obs[0])} d={np.sqrt(obs[0]*obs[0] + obs[1]*obs[1])})")
+    robot = obs["robot"] if isinstance(obs, dict) else obs
+    print(f"{text}: {robot[0]}, {robot[1]}, {np.atan2(robot[3],robot[4])}  (a={np.atan2(robot[1], robot[0])} d={np.sqrt(robot[0]*robot[0] + robot[1]*robot[1])})")
 
 class HERGoalEnvWrapper(gym.Wrapper):
     """
@@ -139,10 +140,16 @@ class HERGoalEnvWrapper(gym.Wrapper):
         # Create a copy of the transition
         relabeled = copy.deepcopy(transition)
 
-        relabeled["obs"][0] = new_goal_relative_coords[0]
-        relabeled["obs"][1] = new_goal_relative_coords[1]
-        relabeled["obs"][3] = np.sin(rel_angle)
-        relabeled["obs"][4] = np.cos(rel_angle)
+        if isinstance(relabeled["obs"], dict):
+            relabeled["obs"]["robot"][0] = new_goal_relative_coords[0]
+            relabeled["obs"]["robot"][1] = new_goal_relative_coords[1]
+            relabeled["obs"]["robot"][3] = np.sin(rel_angle)
+            relabeled["obs"]["robot"][4] = np.cos(rel_angle)
+        else:
+            relabeled["obs"][0] = new_goal_relative_coords[0]
+            relabeled["obs"][1] = new_goal_relative_coords[1]
+            relabeled["obs"][3] = np.sin(rel_angle)
+            relabeled["obs"][4] = np.cos(rel_angle)
 
         # Recalculate reward based on new goal
         relabeled['reward'] = self._calculate_her_reward(relabeled, last)
@@ -184,8 +191,12 @@ class HERGoalEnvWrapper(gym.Wrapper):
             return self.base_env.ticks > self.base_env.EPISODE_LENGTH
 
         obs = relabeled["obs"]
-        robot = relabeled["obs"][0:8]
-        humans = relabeled["obs"][7:].reshape(-1,8)
+        if isinstance(obs, dict):
+            robot = obs["robot"]
+            humans = obs.get("humans", np.zeros(0, dtype=np.float32)).reshape(-1, 8)
+        else:
+            robot = obs[0:8]
+            humans = obs[7:].reshape(-1, 8)
         robot_int = relabeled["robot_internal_state"]
 
         if _check_out_of_map(relabeled["robot_internal_state"]):
@@ -242,12 +253,22 @@ class HERGoalEnvWrapper(gym.Wrapper):
 
         for i in range(0, sample_idx+1):
             relabeled = self.relabel_with_absolute_goal(self.episode_transitions[i], sample_goal, i==sample_idx)
-            HERGoalEnvWrapper.replay_buffer.add(
-                obs=torch.tensor(relabeled["obs"]).unsqueeze(0),
-                next_obs=torch.tensor(relabeled["next_obs"]).unsqueeze(0),
-                action=torch.tensor(relabeled['action']).unsqueeze(0),
-                reward=torch.tensor([relabeled['reward']]),
-                done=torch.tensor([relabeled['done']]),
-                infos=[relabeled["info"]]
-            )
+            if isinstance(relabeled["obs"], dict):
+                HERGoalEnvWrapper.replay_buffer.add(
+                    obs={k: np.array([v]) for k, v in relabeled["obs"].items()},
+                    next_obs={k: np.array([v]) for k, v in relabeled["next_obs"].items()},
+                    action=np.array([relabeled['action']]),
+                    reward=np.array([relabeled['reward']]),
+                    done=np.array([relabeled['done']]),
+                    infos=[relabeled["info"]]
+                )
+            else:
+                HERGoalEnvWrapper.replay_buffer.add(
+                    obs=torch.tensor(relabeled["obs"]).unsqueeze(0),
+                    next_obs=torch.tensor(relabeled["next_obs"]).unsqueeze(0),
+                    action=torch.tensor(relabeled['action']).unsqueeze(0),
+                    reward=torch.tensor([relabeled['reward']]),
+                    done=torch.tensor([relabeled['done']]),
+                    infos=[relabeled["info"]]
+                )
         

@@ -241,7 +241,7 @@ class SocNavEnv_v2(gym.Env):
         self.MIN_MAP_X = None
         self.MAX_MAP_X = None
         self.MIN_MAP_Y = None
-        self.MIN_MAP_Y = None
+        self.MAX_MAP_Y = None
         self.MIN_AREA = None
         self.CROWD_DISPERSAL_PROBABILITY = None
         self.HUMAN_LAPTOP_DISPERSAL_PROBABILITY = None
@@ -689,7 +689,7 @@ class SocNavEnv_v2(gym.Env):
         if x_max_segs<=0 or y_max_segs<=0:
             x_max_segs = y_max_segs = 16
         total_segments = int(x_max_segs + y_max_segs)
-        b = max(self.MAP_X, self.MAP_Y)
+        b = max(self.MAX_MAP_X, self.MAX_MAP_Y)
 
         max_segment_size = self.WALL_SEGMENT_SIZE if self.WALL_SEGMENT_SIZE > 0 else 50
         low   = np.array([-(b*b), -(b*b), -1.0, -1.0,             0.0, -MAX_C_SPEED, -self.MAX_ROTATION, 0] * total_segments, dtype=np.float32)
@@ -879,7 +879,7 @@ class SocNavEnv_v2(gym.Env):
             assert(entity.x != None and entity.y != None and entity.width != None), "Attributes are None type"
             other_obj = Point((entity.x, entity.y)).buffer(entity.width/2)
 
-        elif entity.name == "laptop" or entity.name == "table" or entity.name == "chaie":
+        elif entity.name == "laptop" or entity.name == "table" or entity.name == "chair":
             assert(entity.x != None and entity.y != None and entity.width != None and entity.length != None and entity.orientation != None), "Attributes are None type"
             other_obj = Polygon(get_coordinates_of_rotated_rectangle(entity.x, entity.y, entity.orientation, entity.length, entity.width))
 
@@ -1593,14 +1593,10 @@ class SocNavEnv_v2(gym.Env):
         delay_steps = 3
 
         for other_human in self.static_humans + self.dynamic_humans:
-
             # do not predict stationary humans
             if other_human.type == "static":
                 future_x, future_y = other_human.x, other_human.y
-
-
-            if len(other_human.position_history) >= delay_steps:
-     #________________________
+            elif len(other_human.position_history) >= delay_steps:
                 delayed_x, delayed_y, delayed_theta, _ = other_human.position_history[-delay_steps]
                 dt = 0.05
 
@@ -1620,7 +1616,7 @@ class SocNavEnv_v2(gym.Env):
             else:
                 future_x, future_y = other_human.x, other_human.y
 
-      #______________________________
+
             h = sim.addAgent((future_x, future_y))
             pref_vel = np.array([other_human.goal_x - other_human.x, other_human.goal_y - other_human.y], dtype=np.float32)
 
@@ -2043,8 +2039,8 @@ class SocNavEnv_v2(gym.Env):
         terminated = self._is_terminated
         truncated = self._is_truncated
 
-        if self.REWARD_PATH == "sn26":
-            if abs(reward) > 0.01:
+        if "sn26" in self.REWARD_PATH:
+            if abs(reward) > 0.001:
                 if self.ticks >= self.EPISODE_LENGTH:
                     truncated = self._is_truncated = 1
                     terminated = self._is_terminated = 0
@@ -2624,8 +2620,8 @@ class SocNavEnv_v2(gym.Env):
                 speed /= len(interaction.humans)
 
 
-            vx = speed*np.cos(human.orientation) - action[0] * np.cos(action[2]*self.TIMESTEP + self.robot.orientation) - action[1] * np.cos(action[2]*self.TIMESTEP + self.robot.orientation + np.pi/2)
-            vy = speed*np.sin(human.orientation) - action[0] * np.sin(action[2]*self.TIMESTEP + self.robot.orientation) - action[1] * np.sin(action[2]*self.TIMESTEP + self.robot.orientation + np.pi/2)
+            vx = speed*np.cos(interaction.orientation) - action[0] * np.cos(action[2]*self.TIMESTEP + self.robot.orientation) - action[1] * np.cos(action[2]*self.TIMESTEP + self.robot.orientation + np.pi/2)
+            vy = speed*np.sin(interaction.orientation) - action[0] * np.sin(action[2]*self.TIMESTEP + self.robot.orientation) - action[1] * np.sin(action[2]*self.TIMESTEP + self.robot.orientation + np.pi/2)
 
             ex = px + vx * self.TIMESTEP
             ey = py + vy * self.TIMESTEP
@@ -2902,9 +2898,6 @@ class SocNavEnv_v2(gym.Env):
 
         for i, interaction in enumerate(self.h_l_interactions):
             info["interactions"]["human-laptop"].append((curr_humans + i, curr_laptops + i))
-            if i == len(self.h_l_interactions):
-                assert curr_humans + i == (self.total_humans - 1)
-                assert curr_laptops + i == len(self.laptops + self.h_l_interactions) - 1
 
         return reward, info
 
@@ -3707,8 +3700,8 @@ class SocNavEnv_v2(gym.Env):
         # self.count+=1
 
         if self._is_terminated or self._is_truncated:
-            w = self.world_image.shape[0]
-            h = self.world_image.shape[1]
+            w = self.world_image.shape[1]
+            h = self.world_image.shape[0]
             cv2.line(self.world_image, (0,0), (w-1, h-1), (0,0,0), 1)
             cv2.line(self.world_image, (w-1,0), (0, h-1), (0,0,0), 1)
 

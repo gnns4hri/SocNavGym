@@ -31,6 +31,18 @@ obs, _ = env.reset()
 env.world_image = env.render_without_showing("human", draw_human_gaze=False, draw_human_goal=False)
 plt_array = np.ones((env.world_image.shape[0], GRAPH_WIDTH, 3), dtype=np.uint8)*100
 
+
+
+space = env.observation_space
+for key, subspace in space.spaces.items():
+    o = obs[key]
+    if not subspace.contains(o):
+        viol_low = o < subspace.low
+        viol_high = o > subspace.high
+        print(f"{key}: low_viol idx={np.where(viol_low)}, high_viol idx={np.where(viol_high)}")
+        print(f"{key}: values={o[viol_low | viol_high]}")
+
+
 g_surface = None
 def get_surface(plt_array, world_image):
     global g_surface

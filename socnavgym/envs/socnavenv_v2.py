@@ -651,7 +651,7 @@ class SocNavEnv_v2(gym.Env):
         biggest_side = max(self.MAX_MAP_X, self.MAX_MAP_Y)
         biggest_dist = biggest_side * np.sqrt(2)
 
-        low   = np.array([-biggest_dist, -biggest_dist,                                        0, -1, -1, self.MIN_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS-self.ROBOT_RADIUS_MARGIN], dtype=np.float32)
+        low   = np.array([-biggest_dist, -biggest_dist,                                        0, -1, -1, self.MIN_GOAL_ORIENTATION_THRESHOLD,                                          0], dtype=np.float32)
         high  = np.array([+biggest_dist, +biggest_dist, self.GOAL_RADIUS+self.GOAL_RADIUS_MARGIN, +1, +1, self.MAX_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS+self.ROBOT_RADIUS_MARGIN], dtype=np.float32)
         d["robot"] = spaces.Box(low=low, high=high, shape=((7,)), dtype=np.float32)
 
@@ -691,8 +691,8 @@ class SocNavEnv_v2(gym.Env):
         total_segments = int(x_max_segs + y_max_segs)
         b = max(self.MAP_X, self.MAP_Y)
 
-        max_segment_size = self.WALL_SEGMENTSIZE if self.WALL_SEGMENT_SIZE > 0 else 50
-        low   = np.array([-(b*b), -(b*b), -1.0, -1.0,             0.01, -MAX_C_SPEED, -self.MAX_ROTATION, 0] * total_segments, dtype=np.float32)
+        max_segment_size = self.WALL_SEGMENT_SIZE if self.WALL_SEGMENT_SIZE > 0 else 50
+        low   = np.array([-(b*b), -(b*b), -1.0, -1.0,             0.0, -MAX_C_SPEED, -self.MAX_ROTATION, 0] * total_segments, dtype=np.float32)
         high  = np.array([+(b*b), +(b*b),  1.0,  1.0, max_segment_size, +MAX_C_SPEED, +self.MAX_ROTATION, 1] * total_segments, dtype=np.float32)
         d["walls"] = spaces.Box(low=low, high=high, shape=((8*total_segments,)), dtype = np.float32)
 

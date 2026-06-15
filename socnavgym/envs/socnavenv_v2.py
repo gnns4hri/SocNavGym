@@ -651,15 +651,15 @@ class SocNavEnv_v2(gym.Env):
         biggest_side = max(self.MAX_MAP_X, self.MAX_MAP_Y)
         biggest_dist = biggest_side * np.sqrt(2)
 
-        low   = np.array([-biggest_dist, -biggest_dist,                                        0, -1, -1, self.MIN_GOAL_ORIENTATION_THRESHOLD,                                          0], dtype=np.float32)
-        high  = np.array([+biggest_dist, +biggest_dist, self.GOAL_RADIUS+self.GOAL_RADIUS_MARGIN, +1, +1, self.MAX_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS+self.ROBOT_RADIUS_MARGIN], dtype=np.float32)
-        d["robot"] = spaces.Box(low=low, high=high, shape=((7,)), dtype=np.float32)
+        low   = np.array([-biggest_dist, -biggest_dist,                                        0, -1, -1, self.MIN_GOAL_ORIENTATION_THRESHOLD,                                          0, 0], dtype=np.float32)
+        high  = np.array([+biggest_dist, +biggest_dist, self.GOAL_RADIUS+self.GOAL_RADIUS_MARGIN, +1, +1, self.MAX_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS+self.ROBOT_RADIUS_MARGIN, 0], dtype=np.float32)
+        d["robot"] = spaces.Box(low=low, high=high, shape=((8,)), dtype=np.float32)
 
         MAX_HUMANS = self.MAX_HUMANS
         MAX_H_SPEED = abs(self.MAX_ADVANCE_HUMAN)
         MAX_R_SPEED = max(abs(self.MIN_ADVANCE_ROBOT), abs(self.MAX_ADVANCE_ROBOT))
         MAX_C_SPEED = MAX_H_SPEED + MAX_R_SPEED
-        low = np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, -MAX_C_SPEED, -2*np.pi/self.TIMESTEP, 0]*MAX_HUMANS, dtype=np.float32)
+        low =   np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, -MAX_C_SPEED, -2*np.pi/self.TIMESTEP, 0]*MAX_HUMANS, dtype=np.float32)
         high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, +MAX_C_SPEED, +2*np.pi/self.TIMESTEP, 1]*MAX_HUMANS, dtype=np.float32)
         d["humans"] =  spaces.Box(low=low, high=high, shape=((8*MAX_HUMANS,)), dtype=np.float32)
 
@@ -1093,7 +1093,8 @@ class SocNavEnv_v2(gym.Env):
             r_sin,
             r_cos,
             self.GOAL_ORIENTATION_THRESHOLD,
-            self.ROBOT_RADIUS
+            self.ROBOT_RADIUS,
+            1
             ], dtype=np.float32).flatten()
 
         # getting the observations of humans

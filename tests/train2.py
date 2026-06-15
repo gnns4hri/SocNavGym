@@ -7,6 +7,8 @@ from collections import namedtuple
 import yaml
 import numpy as np
 
+import warnings
+
 import socnavgym
 import gymnasium as gym
 
@@ -16,6 +18,7 @@ from stable_baselines3.common.callbacks import CallbackList, CheckpointCallback,
 from stable_baselines3.common.env_util import make_vec_env
 from stable_baselines3.common.monitor import Monitor
 from wandb.integration.sb3 import WandbCallback
+
 
 
 
@@ -34,8 +37,8 @@ if WANDB_MODE != "offline":
     import wandb
 
 
-from her_wrapper import HERGoalEnvWrapper
 from gnn_extractor import GATv2Extractor, FilterZeroObsWrapper
+from her_wrapper import HERGoalEnvWrapper
 
 def load_config(config_path="train_config.yaml"):
     """Load configuration from YAML file."""
@@ -53,6 +56,74 @@ def setup_directories(config):
     os.makedirs(config["checkpoint_dir"], exist_ok=True)
     os.makedirs(config["best_model_dir"], exist_ok=True)
     os.makedirs("models", exist_ok=True)
+
+
+
+class RewardThresholdCallback(EvalCallback):
+    def __init__(self, threshold: float, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.threshold = threshold
+        self.threshold_reached = False
+
+    def _on_step(self) -> bool:
+        # Run the parent eval logic (handles periodic evaluation internally)
+        continue_training = super()._on_step()
+
+        # last_mean_reward is set by EvalCallback after each evaluation
+        if self.last_mean_reward >= self.threshold and not self.threshold_reached:
+            self.threshold_reached = True
+            self._on_threshold_reached(self.last_mean_reward)
+        return continue_training
+
+    def _on_threshold_reached(self, reward: float):
+        print("Mean reward threshold reached!")
+        HERGoalEnvWrapper.active = False
+
+
+
+class RewardBoundsMonitor(gym.Wrapper):
+    """Checks that per-step and cumulative episode rewards stay within bounds."""
+
+    def __init__(self, env, step_low=-1.0, step_high=1.0,
+                 episode_low=-1.0, episode_high=1.0,
+                 mode="warn"):
+        super().__init__(env)
+        self.step_low = step_low
+        self.step_high = step_high
+        self.episode_low = episode_low
+        self.episode_high = episode_high
+        assert mode in ("warn", "raise")
+        self.mode = mode
+        self._episode_reward = 0.0
+
+    def reset(self, **kwargs):
+        self._episode_reward = 0.0
+        return self.env.reset(**kwargs)
+
+    def step(self, action):
+        obs, reward, terminated, truncated, info = self.env.step(action)
+
+        if not (self.step_low <= reward <= self.step_high):
+            self._violation(
+                f"Step reward {reward} outside [{self.step_low}, {self.step_high}]"
+            )
+
+        self._episode_reward += reward
+
+        if terminated or truncated:
+            if not (self.episode_low <= self._episode_reward <= self.episode_high):
+                self._violation(
+                    f"Episode reward {self._episode_reward} outside "
+                    f"[{self.episode_low}, {self.episode_high}]"
+                )
+
+        return obs, reward, terminated, truncated, info
+
+    def _violation(self, msg):
+        if self.mode == "raise":
+            raise ValueError(msg)
+        else:
+            warnings.warn(msg)
 
 
 # ---------------------------------------------------------------------------
@@ -130,6 +201,8 @@ def make_env():
     # which cause NumPy ≥2.0 to fail inside SB3's obs_to_tensor.
     env = FilterZeroObsWrapper(env)
 
+    env = RewardBoundsMonitor(env, step_low=-1, step_high=1, episode_low=-1, episode_high=1, mode="raise")
+
     if do_her:
         env = HERGoalEnvWrapper(env, config["her"])
 
@@ -162,29 +235,6 @@ class HERStatusCallback(WandbCallback):
         wandb.log({"her_active": float(HERGoalEnvWrapper.active)}, commit=False)
         return True
 
-
-
-
-
-class RewardThresholdCallback(EvalCallback):
-    def __init__(self, threshold: float, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.threshold = threshold
-        self.threshold_reached = False
-
-    def _on_step(self) -> bool:
-        # Run the parent eval logic (handles periodic evaluation internally)
-        continue_training = super()._on_step()
-
-        # last_mean_reward is set by EvalCallback after each evaluation
-        if self.last_mean_reward >= self.threshold and not self.threshold_reached:
-            self.threshold_reached = True
-            self._on_threshold_reached(self.last_mean_reward)
-        return continue_training
-
-    def _on_threshold_reached(self, reward: float):
-        print("Mean reward threshold reached!")
-        HERGoalEnvWrapper.active = False
 
 
 

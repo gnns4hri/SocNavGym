@@ -8,8 +8,8 @@ import gymnasium as gym
 from gymnasium import spaces
 
 # Ordered list of entity keys — must match the order in SocNavEnv_v2.observation_space
-ENTITY_KEYS = ["humans", "laptops", "tables", "plants", "chairs", "walls"]
-
+# `robot`` too, but not explicitly in the list
+ENTITY_KEYS = ["humans", "laptops", "tables", "plants", "chairs", "walls" ]
 # One-hot type indices: robot=0, then ENTITY_KEYS in order
 N_TYPES = 1 + len(ENTITY_KEYS)  # 7
 
@@ -26,6 +26,10 @@ class FilterZeroObsWrapper(gym.ObservationWrapper):
     NumPy ≥2.0 when space.shape == (0,) because the -1 dimension is
     indeterminate (0/0 is undefined).  Stripping these empty keys before SB3
     ever sees them avoids the reshape entirely.
+
+    Just to make it clear, as it could potentially be misunderstood... This filters out
+    keys that have no entities at all (empty tensor). It does not filter padding. Padding
+    is filtered when we build the graph.
     """
 
     def __init__(self, env: gym.Env):

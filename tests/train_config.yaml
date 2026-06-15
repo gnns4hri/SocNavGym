@@ -37,9 +37,16 @@ sac_hyperparams:
   sde_sample_freq: -1             # SDE sample frequency
   use_sde_at_warmup: False        # Use SDE at warmup
 
+# GNN feature extractor hyperparameters
+gnn:
+  hidden_dim: 128     # node embedding dimension (must be divisible by n_heads)
+  n_heads: 4          # attention heads per GATv2Conv layer
+  n_layers: 2         # number of GATv2Conv layers
+  features_dim: 256   # output feature dimension fed to the SAC actor/critic
+
 # HER (Hindsight Experience Replay) configuration
 her:
-  enabled: true                  # Enable HER
+  enabled: false                  # Enable HER
   threshold: -0.75
   ratio: 0.05
   

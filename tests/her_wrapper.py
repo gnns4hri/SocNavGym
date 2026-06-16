@@ -151,6 +151,22 @@ class HERGoalEnvWrapper(gym.Wrapper):
             relabeled["obs"][3] = np.sin(rel_angle)
             relabeled["obs"][4] = np.cos(rel_angle)
 
+        # Also relabel next_obs so both sides of the transition share the same fake goal
+        next_robot = transition.get("next_robot_internal_state")
+        if next_robot is not None:
+            next_coords = get_relative_frame_coordinates(next_robot, goal_absolute_x_y_a)
+            next_rel_angle = goal_absolute_x_y_a[2] - next_robot.orientation
+            if isinstance(relabeled["next_obs"], dict):
+                relabeled["next_obs"]["robot"][0] = next_coords[0]
+                relabeled["next_obs"]["robot"][1] = next_coords[1]
+                relabeled["next_obs"]["robot"][3] = np.sin(next_rel_angle)
+                relabeled["next_obs"]["robot"][4] = np.cos(next_rel_angle)
+            else:
+                relabeled["next_obs"][0] = next_coords[0]
+                relabeled["next_obs"][1] = next_coords[1]
+                relabeled["next_obs"][3] = np.sin(next_rel_angle)
+                relabeled["next_obs"][4] = np.cos(next_rel_angle)
+
         # Recalculate reward based on new goal
         relabeled['reward'] = self._calculate_her_reward(relabeled, last)
         # print("r", relabeled['reward'])
@@ -196,7 +212,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
             humans = obs.get("humans", np.zeros(0, dtype=np.float32)).reshape(-1, 8)
         else:
             robot = obs[0:8]
-            humans = obs[7:].reshape(-1, 8)
+            humans = obs[8:].reshape(-1, 8)
         robot_int = relabeled["robot_internal_state"]
 
         if _check_out_of_map(relabeled["robot_internal_state"]):
@@ -220,10 +236,12 @@ class HERGoalEnvWrapper(gym.Wrapper):
             return
 
 
-        # Fill next observations
-        for i, transition in enumerate(self.episode_transitions[:-1]): # Skip the last transition (no next state)
+        # Fill next observations and next robot states (needed for next_obs relabeling)
+        for i in range(len(self.episode_transitions) - 1):
             self.episode_transitions[i]['next_obs'] = self.episode_transitions[i + 1]["obs"]
+            self.episode_transitions[i]['next_robot_internal_state'] = self.episode_transitions[i + 1]["robot_internal_state"]
         self.episode_transitions[-1]['next_obs'] = self.episode_transitions[-1]["obs"]
+        self.episode_transitions[-1]['next_robot_internal_state'] = self.episode_transitions[-1]["robot_internal_state"]
 
         # Sample from any state in the episode and take it as the fake goal
         episode_indices = list(range(len(self.episode_transitions)))
@@ -246,10 +264,6 @@ class HERGoalEnvWrapper(gym.Wrapper):
         av += a_offset
         sample_goal = [xv, yv, av]  # Goal in robot frame
 
-
-        for i in range(0, sample_idx+1):
-            transition = self.episode_transitions[i]
-            internal = transition["robot_internal_state"]
 
         for i in range(0, sample_idx+1):
             relabeled = self.relabel_with_absolute_goal(self.episode_transitions[i], sample_goal, i==sample_idx)

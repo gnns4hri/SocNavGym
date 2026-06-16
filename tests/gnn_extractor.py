@@ -90,9 +90,12 @@ class GATv2Extractor(BaseFeaturesExtractor):
             )
             for _ in range(n_layers)
         ])
+        # LayerNorm applied before each GATv2 layer (pre-norm residual style)
+        self.norms = nn.ModuleList([nn.LayerNorm(hidden_dim) for _ in range(n_layers)])
         self.act = nn.ELU()
+        # Readout takes robot node embedding || global mean — 2× hidden_dim input
         self.readout = nn.Sequential(
-            nn.Linear(hidden_dim, features_dim),
+            nn.Linear(2 * hidden_dim, features_dim),
             nn.ReLU(),
         )
 
@@ -130,11 +133,14 @@ class GATv2Extractor(BaseFeaturesExtractor):
         batch = Batch.from_data_list(graphs)
 
         h = self.act(self.input_proj(batch.x))
-        for layer in self.gat_layers:
-            h = self.act(layer(h, batch.edge_index))
+        for layer, norm in zip(self.gat_layers, self.norms):
+            h = h + self.act(layer(norm(h), batch.edge_index))  # pre-norm residual
 
-        pooled = global_mean_pool(h, batch.batch)  # (B, hidden_dim)
-        return self.readout(pooled)                 # (B, features_dim)
+        # Robot is always node 0 within each graph; batch.ptr[i] is its index in the batch
+        robot_h = h[batch.ptr[:-1]]                # (B, hidden_dim)
+        pooled  = global_mean_pool(h, batch.batch) # (B, hidden_dim)
+        combined = torch.cat([robot_h, pooled], dim=-1)  # (B, 2*hidden_dim)
+        return self.readout(combined)               # (B, features_dim)
 
 
 # --- Smoke test ---------------------------------------------------------------

@@ -39,7 +39,7 @@ sac_hyperparams:
 
 # GNN feature extractor hyperparameters
 gnn:
-  hidden_dim: 128     # node embedding dimension (must be divisible by n_heads)
+  hidden_dim: 64     # node embedding dimension (must be divisible by n_heads)
   n_heads: 4          # attention heads per GATv2Conv layer
   n_layers: 2         # number of GATv2Conv layers
   features_dim: 256   # output feature dimension fed to the SAC actor/critic

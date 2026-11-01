@@ -162,6 +162,7 @@ class SocNavEnv_v2(gym.Env):
                 print("Argument config is None. Please call gym.make(\"SocNavGym-v2\", config=path_to_config) or set SOCNAV_CONFIG_FILE environment variable to point to the config file.")
                 sys.exit(-1)
 
+        self.__observation_space = None
         self.render_mode_ = render_mode
         # self.render_mode_save = render_mode
         if render_mode is None:
@@ -240,7 +241,8 @@ class SocNavEnv_v2(gym.Env):
         self.MIN_MAP_X = None
         self.MAX_MAP_X = None
         self.MIN_MAP_Y = None
-        self.MIN_MAP_Y = None
+        self.MAX_MAP_Y = None
+        self.MIN_AREA = None
         self.CROWD_DISPERSAL_PROBABILITY = None
         self.HUMAN_LAPTOP_DISPERSAL_PROBABILITY = None
         self.CROWD_FORMATION_PROBABILITY = None
@@ -490,6 +492,7 @@ class SocNavEnv_v2(gym.Env):
         self.MAX_MAP_X = config["env"]["max_map_x"]
         self.MIN_MAP_Y = config["env"]["min_map_y"]
         self.MAX_MAP_Y = config["env"]["max_map_y"]
+        self.MIN_AREA  = config["env"]["min_area"]
 
         self.CROWD_DISPERSAL_PROBABILITY = config["env"]["crowd_dispersal_probability"]
         assert(self.CROWD_DISPERSAL_PROBABILITY >= 0 and self.CROWD_DISPERSAL_PROBABILITY <= 1.0), "Probability should be within [0, 1]"
@@ -512,8 +515,10 @@ class SocNavEnv_v2(gym.Env):
             self.REWARD_PATH = os.path.dirname(os.path.abspath(__file__)) + "/rewards/" + "dsrnn_reward.py"
         elif self.REWARD_PATH == "sparse_gotopoint":
             self.REWARD_PATH = os.path.dirname(os.path.abspath(__file__)) + "/rewards/" + "sparse_gotopoint_reward.py"
+        elif self.REWARD_PATH == "sn26":
+            self.REWARD_PATH = os.path.dirname(os.path.abspath(__file__)) + "/rewards/" + "sn26.py"
         else:
-            assert self.REWARD_PATH == "dsrnn", "No other option for now"
+            print("The reward must be one of the following: dsrnn, sparse_gotopoint, sn26")
 
         module, self.REWARD_PATH = self.process_reward_path(self.REWARD_PATH)
         reward_module = SourceFileLoader(module, self.REWARD_PATH).load_module()
@@ -548,12 +553,15 @@ class SocNavEnv_v2(gym.Env):
         """
         To randomly initialize the number of entities of each type. Specifically, this function would initialize the MAP_SIZE, NUMBER_OF_HUMANS, NUMBER_OF_PLANTS, NUMBER_OF_LAPTOPS and NUMBER_OF_TABLES
         """
-        self.MAP_X = random.uniform(self.MIN_MAP_X, self.MAX_MAP_X)
-
-        if self.shape == "square" or self.shape == "L":
-            self.MAP_Y = self.MAP_X
-        else :
-            self.MAP_Y = random.uniform(self.MIN_MAP_Y, self.MAX_MAP_Y)
+        area_ok = False
+        while area_ok is False:
+            self.MAP_X = random.uniform(self.MIN_MAP_X, self.MAX_MAP_X)
+            if self.shape == "square" or self.shape == "L":
+                self.MAP_Y = self.MAP_X
+            else :
+                self.MAP_Y = random.uniform(self.MIN_MAP_Y, self.MAX_MAP_Y)
+            if self.MAP_X * self.MAP_Y > self.MIN_AREA:  # TODO: This won't work well for odd shaped rooms.
+                area_ok = True
 
         self.ROBOT_RADIUS = self.INITIAL_ROBOT_RADIUS + random.uniform(-self.ROBOT_RADIUS_MARGIN, self.ROBOT_RADIUS_MARGIN)
         self.GOAL_RADIUS = self.INITIAL_GOAL_RADIUS + random.uniform(-self.GOAL_RADIUS_MARGIN, self.GOAL_RADIUS_MARGIN)
@@ -635,20 +643,23 @@ class SocNavEnv_v2(gym.Env):
         Returns:
         gym.spaces.Dict : the observation space of the environment
         """
+        if self.__observation_space is not None:
+            return self.__observation_space
+
         d = {}
 
         biggest_side = max(self.MAX_MAP_X, self.MAX_MAP_Y)
         biggest_dist = biggest_side * np.sqrt(2)
 
-        low   = np.array([-biggest_dist, -biggest_dist,                                        0, -1, -1, self.MIN_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS-self.ROBOT_RADIUS_MARGIN], dtype=np.float32)
-        high  = np.array([+biggest_dist, +biggest_dist, self.GOAL_RADIUS+self.GOAL_RADIUS_MARGIN, +1, +1, self.MAX_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS+self.ROBOT_RADIUS_MARGIN], dtype=np.float32)
-        d["robot"] = spaces.Box(low=low, high=high, shape=((7,)), dtype=np.float32)
+        low   = np.array([-biggest_dist, -biggest_dist,                                        0, -1, -1, self.MIN_GOAL_ORIENTATION_THRESHOLD,                                          0, 0], dtype=np.float32)
+        high  = np.array([+biggest_dist, +biggest_dist, self.GOAL_RADIUS+self.GOAL_RADIUS_MARGIN, +1, +1, self.MAX_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS+self.ROBOT_RADIUS_MARGIN, 0], dtype=np.float32)
+        d["robot"] = spaces.Box(low=low, high=high, shape=((8,)), dtype=np.float32)
 
         MAX_HUMANS = self.MAX_HUMANS
         MAX_H_SPEED = abs(self.MAX_ADVANCE_HUMAN)
         MAX_R_SPEED = max(abs(self.MIN_ADVANCE_ROBOT), abs(self.MAX_ADVANCE_ROBOT))
         MAX_C_SPEED = MAX_H_SPEED + MAX_R_SPEED
-        low = np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, -MAX_C_SPEED, -2*np.pi/self.TIMESTEP, 0]*MAX_HUMANS, dtype=np.float32)
+        low =   np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, -MAX_C_SPEED, -2*np.pi/self.TIMESTEP, 0]*MAX_HUMANS, dtype=np.float32)
         high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, +MAX_C_SPEED, +2*np.pi/self.TIMESTEP, 1]*MAX_HUMANS, dtype=np.float32)
         d["humans"] =  spaces.Box(low=low, high=high, shape=((8*MAX_HUMANS,)), dtype=np.float32)
 
@@ -678,13 +689,15 @@ class SocNavEnv_v2(gym.Env):
         if x_max_segs<=0 or y_max_segs<=0:
             x_max_segs = y_max_segs = 16
         total_segments = int(x_max_segs + y_max_segs)
-        b = max(self.MAP_X, self.MAP_Y)
+        b = max(self.MAX_MAP_X, self.MAX_MAP_Y)
 
-        max_segment_size = self.WALL_SEGMENTSIZE if self.WALL_SEGMENT_SIZE > 0 else 50
-        low   = np.array([-(b*b), -(b*b), -1.0, -1.0,             0.01, -MAX_C_SPEED, -self.MAX_ROTATION, 0] * total_segments, dtype=np.float32)
+        max_segment_size = self.WALL_SEGMENT_SIZE if self.WALL_SEGMENT_SIZE > 0 else 50
+        low   = np.array([-(b*b), -(b*b), -1.0, -1.0,             0.0, -MAX_C_SPEED, -self.MAX_ROTATION, 0] * total_segments, dtype=np.float32)
         high  = np.array([+(b*b), +(b*b),  1.0,  1.0, max_segment_size, +MAX_C_SPEED, +self.MAX_ROTATION, 1] * total_segments, dtype=np.float32)
         d["walls"] = spaces.Box(low=low, high=high, shape=((8*total_segments,)), dtype = np.float32)
 
+
+        self.__observation_space = spaces.Dict(d)
         return spaces.Dict(d)
 
     @property
@@ -866,7 +879,7 @@ class SocNavEnv_v2(gym.Env):
             assert(entity.x != None and entity.y != None and entity.width != None), "Attributes are None type"
             other_obj = Point((entity.x, entity.y)).buffer(entity.width/2)
 
-        elif entity.name == "laptop" or entity.name == "table" or entity.name == "chaie":
+        elif entity.name == "laptop" or entity.name == "table" or entity.name == "chair":
             assert(entity.x != None and entity.y != None and entity.width != None and entity.length != None and entity.orientation != None), "Attributes are None type"
             other_obj = Polygon(get_coordinates_of_rotated_rectangle(entity.x, entity.y, entity.orientation, entity.length, entity.width))
 
@@ -1080,7 +1093,8 @@ class SocNavEnv_v2(gym.Env):
             r_sin,
             r_cos,
             self.GOAL_ORIENTATION_THRESHOLD,
-            self.ROBOT_RADIUS
+            self.ROBOT_RADIUS,
+            1
             ], dtype=np.float32).flatten()
 
         # getting the observations of humans
@@ -1580,14 +1594,10 @@ class SocNavEnv_v2(gym.Env):
         delay_steps = 3
 
         for other_human in self.static_humans + self.dynamic_humans:
-
             # do not predict stationary humans
             if other_human.type == "static":
                 future_x, future_y = other_human.x, other_human.y
-
-
-            if len(other_human.position_history) >= delay_steps:
-     #________________________
+            elif len(other_human.position_history) >= delay_steps:
                 delayed_x, delayed_y, delayed_theta, _ = other_human.position_history[-delay_steps]
                 dt = 0.05
 
@@ -1607,7 +1617,7 @@ class SocNavEnv_v2(gym.Env):
             else:
                 future_x, future_y = other_human.x, other_human.y
 
-      #______________________________
+
             h = sim.addAgent((future_x, future_y))
             pref_vel = np.array([other_human.goal_x - other_human.x, other_human.goal_y - other_human.y], dtype=np.float32)
 
@@ -1823,6 +1833,8 @@ class SocNavEnv_v2(gym.Env):
             raise NotImplementedError
 
 
+
+
     def step(self, action_pre):
         """Computes a step in the current episode given the action.
 
@@ -1836,7 +1848,6 @@ class SocNavEnv_v2(gym.Env):
             truncated (bool) : whether the episode has finished due to time limit or not
             info (dict) : additional information
         """
-        # for converting the action to the velocity
         def process_action(act):
             """Converts the values from [-1,1] to the corresponding velocity values
 
@@ -1850,7 +1861,7 @@ class SocNavEnv_v2(gym.Env):
             action = act.astype(np.float32)
             # action[0] = (float(action[0]+1.0)/2.0)*self.MAX_ADVANCE_ROBOT   # [-1, +1] --> [0, self.MAX_ADVANCE_ROBOT]
             if action[0]<0:
-                action[0] *= self.MIN_ADVANCE_ROBOT
+                action[0] *= -self.MIN_ADVANCE_ROBOT
             else:
                 action[0] *= self.MAX_ADVANCE_ROBOT
 
@@ -1879,6 +1890,7 @@ class SocNavEnv_v2(gym.Env):
                 action[2] =  self.MAX_ROTATION
 
             return action
+        # for converting the action to the velocity
 
         # if action is a list, converting it to numpy.ndarray
         if type(action_pre) == list:
@@ -2006,21 +2018,17 @@ class SocNavEnv_v2(gym.Env):
         all_humans = self.dynamic_humans + self.static_humans
 
         for i in range(len(all_humans)):
-            for j in range(i + 1, len(all_humans)):
+            for j in range(i+1, len(all_humans)):
               h1 = all_humans[i]
               h2 = all_humans[j]
-
-              dist = np.sqrt((h1.x - h2.x)**2 + (h1.y - h2.y)**2)#__________
-
-              if dist < self.HUMAN_DIAMETER * 3:
+              dist = np.sqrt((h1.x - h2.x)**2 + (h1.y - h2.y)**2)
+              if dist < self.HUMAN_DIAMETER * 2:
                  collision_this_step = True
                  break
             if collision_this_step:
                break
         if collision_this_step:
             self.collision_count += 1
-
-
 
 
         # getting observations
@@ -2031,6 +2039,15 @@ class SocNavEnv_v2(gym.Env):
         reward, info = self.compute_reward_and_ticks(action)
         terminated = self._is_terminated
         truncated = self._is_truncated
+
+        if "sn26" in self.REWARD_PATH:
+            if abs(reward) > 0.001:
+                if self.ticks >= self.EPISODE_LENGTH:
+                    truncated = self._is_truncated = 1
+                    terminated = self._is_terminated = 0
+                else:
+                    truncated = self._is_truncated = 0
+                    terminated = self._is_terminated = 1
 
         # updating the previous observations
         self.populate_prev_obs()
@@ -2110,7 +2127,7 @@ class SocNavEnv_v2(gym.Env):
             all_objects = self.objects
             for obj in (all_objects + list(self.goals.values())): # check if spawned object collides with any of the exisiting objects. It will not be rendered as a plant.
                 if obj is None: continue
-                if(goal.collides(obj)):
+                if goal.collides(obj):
                     collides = True
                     break
 
@@ -2276,7 +2293,7 @@ class SocNavEnv_v2(gym.Env):
                 HALF_SIZE_Y = self.MAP_Y/2. - self.MARGIN
                 while True: # comes out of loop only when spawned object collides with none of current objects
                     if self.check_timeout(start_time, period=0.5):  # times out if a crowd location cannot be found in 0.5 seconds. Such a small period is set so that it does not interrupt the normal flow of the environment unnecessarily trying to form a crowd
-                        break
+                        raise TimeoutError
                     x = random.uniform(-HALF_SIZE_X, HALF_SIZE_X)
                     y = random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y)
                     i = Human_Human_Interaction(
@@ -2603,7 +2620,7 @@ class SocNavEnv_v2(gym.Env):
                     speed += h.speed
                 speed /= len(interaction.humans)
 
-
+            # BUG ERROR WARNING `human` is a variable from a different loop.
             vx = speed*np.cos(human.orientation) - action[0] * np.cos(action[2]*self.TIMESTEP + self.robot.orientation) - action[1] * np.cos(action[2]*self.TIMESTEP + self.robot.orientation + np.pi/2)
             vy = speed*np.sin(human.orientation) - action[0] * np.sin(action[2]*self.TIMESTEP + self.robot.orientation) - action[1] * np.sin(action[2]*self.TIMESTEP + self.robot.orientation + np.pi/2)
 
@@ -2678,7 +2695,7 @@ class SocNavEnv_v2(gym.Env):
         info["PATH_LENGTH"] = self.robot_path_length
 
         self.reward_calculator.update_env(self)
-        reward = self.reward_calculator.compute_reward(action, self._prev_observations, self._current_observations)
+        reward = self.reward_calculator.compute_reward(action, self._prev_observations, self._current_observations, self._is_terminated, self._is_truncated)
         for k, v in self.reward_calculator.info.items():
             info[k] = v
 
@@ -2882,10 +2899,6 @@ class SocNavEnv_v2(gym.Env):
 
         for i, interaction in enumerate(self.h_l_interactions):
             info["interactions"]["human-laptop"].append((curr_humans + i, curr_laptops + i))
-            # assertion statement
-            if(i == len(self.h_l_interactions)):
-                assert(curr_humans + i == (self.total_humans - 1))
-                assert(curr_laptops + i == len(self.laptops + self.h_l_interactions) - 1)
 
         return reward, info
 
@@ -2928,7 +2941,7 @@ class SocNavEnv_v2(gym.Env):
         return collision_human, collision_object, collision_wall
 
 
-    def check_timeout(self, start_time, period=30):
+    def check_timeout(self, start_time, period=3):
         if time.time()-start_time >= period:
             return True
         else:
@@ -3303,7 +3316,7 @@ class SocNavEnv_v2(gym.Env):
         while True:
             if self.check_timeout(start_time):
                 print(f"timed out spawning object of type {object_type.name}, starting again")
-                return None
+                raise TimeoutError
 
             kwargs = self._get_kwargs(object_type, extra_info)
             new_obj = object_class(**kwargs)
@@ -3331,7 +3344,7 @@ class SocNavEnv_v2(gym.Env):
         while True:
             if self.check_timeout(start_time):
                 print(f"timed out spawning object of type {object_type.name}, starting again")
-                return None, None
+                raise TimeoutError
             laptop = self._sample_object(start_time, SocNavGymObject.LAPTOP)
             if laptop == None:
                 return None, None
@@ -3353,7 +3366,10 @@ class SocNavEnv_v2(gym.Env):
         self.collision_count = 0
         success = False
         while not success:
-            success, obs, info = self.try_reset(seed, options)
+            try:
+                success, obs, info = self.try_reset(seed, options)
+            except TimeoutError:
+                pass
 
         self._is_terminated = False
         self._is_truncated = False
@@ -3411,8 +3427,8 @@ class SocNavEnv_v2(gym.Env):
         # adding walls to the environment
         self._add_walls()
 
-        # robot
         robot = self._sample_object(start_time, SocNavGymObject.ROBOT)
+        # robot
         if robot == None:
             return False, None, None
         self.robot = robot
@@ -3685,8 +3701,8 @@ class SocNavEnv_v2(gym.Env):
         # self.count+=1
 
         if self._is_terminated or self._is_truncated:
-            w = self.world_image.shape[0]
-            h = self.world_image.shape[1]
+            w = self.world_image.shape[1]
+            h = self.world_image.shape[0]
             cv2.line(self.world_image, (0,0), (w-1, h-1), (0,0,0), 1)
             cv2.line(self.world_image, (w-1,0), (0, h-1), (0,0,0), 1)
 

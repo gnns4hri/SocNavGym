@@ -60,19 +60,24 @@ def setup_directories(config):
 # ---------------------------------------------------------------------------
 
 config = load_config()
+do_her = config.get("her", {}).get("enabled", False)
     
 # Generate a run name if not provided
 if config["wandb"]["name"] is None:
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-    do_her = config.get("her", {}).get("enabled", False)
     if do_her:
         if np.isnan(HER_THRESHOLD):
             HER_THRESHOLD = config["her"]["threshold"]
-        her_value = f"_HER({HER_THRESHOLD})"
+        her_value = f"_HER___{HER_THRESHOLD}"
     else:
         her_value = ""
 
     config["wandb"]["name"] = f"sac_{timestamp}{her_value}"
+
+if do_her is False:
+    HERGoalEnvWrapper.active = False
+
+
 
 # ---------------------------------------------------------------------------
 # Initialise wandb run
@@ -109,7 +114,7 @@ if WANDB_MODE != "offline":
 else:
     run = namedtuple('rubbish', ["id", "run", "name"])("offline", "offline", config["wandb"]["name"])
     config["wandb"]["run_id"] = run.id
-    
+
 
 
 # ---------------------------------------------------------------------------
@@ -136,15 +141,7 @@ def make_env():
 # ---------------------------------------------------------------------------
 
 train_env = make_vec_env(make_env, n_envs=config["n_envs"])
-ee = train_env
-while hasattr(ee, 'env') and not hasattr(ee, 'THIS_IS_THE_HER_WRAPPER'):
-    print("ee", type(ee), ee, "going down")
-    ee = ee.env
-print("USING in training.py", type(ee), ee, "trainig env")
-
-
 eval_env  = make_vec_env(make_env, n_envs=1)
-print("EVAL ENV", eval_env)
 
 # ---------------------------------------------------------------------------
 # Callbacks
@@ -218,27 +215,27 @@ sac_params = {k: v for k, v in config["sac_hyperparams"].items() if v is not Non
 
 model = SAC(policy="MlpPolicy", env=train_env, verbose=config["verbose"], tensorboard_log=f"runs/{run.id}", **sac_params)
 
-
-# Get HER wrapper environment
-for her_env in model.env.envs:
-    # Unwrap the environment to get the HER wrapper
-    while hasattr(her_env, 'env') and not hasattr(her_env, 'THIS_IS_THE_HER_WRAPPER'):
-        print("her_env", type(her_env), her_env, "going down")
-        her_env = her_env.env
-    print("USING", type(her_env), her_env, "going down")
-HERGoalEnvWrapper.replay_buffer = model.replay_buffer
-print(f"✓ HER enabled")
+if config.get("her", {}).get("enabled", False):
+    # Get HER wrapper environment
+    for her_env in model.env.envs:
+        # Unwrap the environment to get the HER wrapper
+        while hasattr(her_env, 'env') and not hasattr(her_env, 'THIS_IS_THE_HER_WRAPPER'):
+            print("her_env", type(her_env), her_env, "going down")
+            her_env = her_env.env
+        print("USING", type(her_env), her_env, "going down")
+    HERGoalEnvWrapper.replay_buffer = model.replay_buffer
+    print(f"HER enabled")
 
 # ---------------------------------------------------------------------------
 # Train
 # ---------------------------------------------------------------------------
 try:
     model.learn(total_timesteps=config["total_steps"], callback=callbacks, progress_bar=(WANDB_MODE != "offline"))
-    
+
     # Save final model with run name
     final_model_path = f"{run.name}_final"
     model.save(final_model_path)
-    
+
     # Upload final model to wandb
     if WANDB_MODE != "offline":
         artifact = wandb.Artifact(f"model_{run.name}", type="model")

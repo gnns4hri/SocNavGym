@@ -21,8 +21,7 @@ import gymnasium as gym
 GRAPH_WIDTH=800
 
 
-terminated = False
-truncated = False
+done = False
 MAX_EPISODES = 25
 MAX_PATIENCE = 100
 patience = MAX_PATIENCE
@@ -32,6 +31,18 @@ obs, _ = env.reset()
 env.world_image = env.render_without_showing("human", draw_human_gaze=False, draw_human_goal=False)
 plt_array = np.ones((env.world_image.shape[0], GRAPH_WIDTH, 3), dtype=np.uint8)*100
 
+
+
+space = env.observation_space
+for key, subspace in space.spaces.items():
+    o = obs[key]
+    if not subspace.contains(o):
+        viol_low = o < subspace.low
+        viol_high = o > subspace.high
+        print(f"{key}: low_viol idx={np.where(viol_low)}, high_viol idx={np.where(viol_high)}")
+        print(f"{key}: values={o[viol_low | viol_high]}")
+
+
 g_surface = None
 def get_surface(plt_array, world_image):
     global g_surface
@@ -40,6 +51,18 @@ def get_surface(plt_array, world_image):
     g_surface = pygame.surfarray.make_surface(np.transpose(data_array, (1,0,2)))
     surface_resized = pygame.transform.smoothscale(g_surface, data_array.shape[:-1][::-1])
     return surface_resized
+
+
+def get_joy_values():
+    if joystick_count > 0:
+        vx = -joystick.get_axis(1)
+        vy = -joystick.get_axis(0)*0.5
+        va = -joystick.get_axis(2)*0.5
+        return np.array([vx, vy, va])
+    else:
+        print("no joy")
+        return np.array([0, 0, 0])
+
 
 if not env.window_initialised:
     pygame.init()
@@ -55,8 +78,6 @@ for event in pygame.event.get():
 pygame.display.update()
 
 
-
-
 plt.ion()
 dpi = 100
 fig, axs = plt.subplots(2, 1, figsize=(GRAPH_WIDTH/dpi, env.world_image.shape[0]/dpi), dpi=dpi)
@@ -66,7 +87,7 @@ axs[0].set_ylim(-7, 7)
 axs[0].set_aspect('equal')
 axs[0].grid(True)
 axs[0].transData = rotation + axs[0].transData
-axs[1].set_ylim(-5,10.5)
+axs[1].set_ylim(-1, 1)
 plt.tight_layout()
 
 
@@ -76,31 +97,58 @@ pygame.joystick.init()
 joystick_count = pygame.joystick.get_count()
 if joystick_count == 0:
     print("No joystick detected!")
-    sys.exit(1)
+    print("No joystick detected!")
+    print("No joystick detected!")
+    print("No joystick detected!")
+    joystick = None
+else:
+    joystick = pygame.joystick.Joystick(0)
+    joystick.init()
+    print(f"Initialized joystick: {joystick.get_name()}")
+    stale_joystick = get_joy_values()
 
-joystick = pygame.joystick.Joystick(0)
-joystick.init()
-print(f"Initialized joystick: {joystick.get_name()}")
 
+def dummy_control(obs, tick):
+    def force(vector):
+        dist = np.linalg.norm(vector)
+        angle = np.atan2(vector[1], vector[0])
+        n = vector/dist
+        return n, dist, angle
 
-def get_joy_values():
-    if joystick_count > 0:
-        vx = -joystick.get_axis(1)
-        vy = -joystick.get_axis(0)*0.1
-        va = -joystick.get_axis(2)*0.1
-        return np.array([vx, vy, va])
+    # Start
+    l_speed = np.array([0.,0.])
+    a_speed = 0
+
+    # People
+    for person in obs["humans"].reshape(-1, 8):
+        person_v, person_d, person_a = force(person[0:2])
+        if person_d < 2:
+            mult = max(0, 2.-person_d) * ((800-tick)/800)
+            l_speed -= 2.0 * mult * person_v
+
+    # Goal
+    goal = obs["robot"]
+    goal_v, goal_d, goal_a = force(goal[:2])
+    if goal_d > 2.0:
+        l_speed += goal_v
+        va = goal_a
     else:
-        print("no joy")
-        return np.array([0, 0, 0])
+        l_speed += 0.5 * goal_v
+        va = 0.25 * np.atan2(goal[3], goal[4])
 
 
-stale_joystick = get_joy_values()
+    # Set action
+    vx = l_speed[0]
+    vy = l_speed[1]
+    return vx, vy, va
 
 
 rewards = []
 pause = False
 episode = 0
+tick = 0
 while True:
+    tick += 1
     print(".", end="")
     sys.stdout.flush()
     pygame.event.pump()
@@ -124,12 +172,8 @@ while True:
         vy = joystic_data[1]
         va = joystic_data[2]
     else:
-        vx = 0.1
-        vy = 0
-        va = 0
-
-
-    if terminated or truncated:
+        vx, vy, va = dummy_control(obs, tick)
+    if done:
         patience -= 1
         if patience < 0:
             print(f"Episode {episode} finished.")
@@ -137,8 +181,11 @@ while True:
                 print(f"Generating next expisode...")
                 episode += 1
                 obs, _ = env.reset()
+                done = False
                 patience = MAX_PATIENCE
+                pause = False
                 rewards = []
+                tick = 0
                 print(f"Episode {episode} started.")
             else:
                 print(f"{MAX_EPISODES} episodes should be enough")
@@ -148,9 +195,12 @@ while True:
             # print(np.sum(np.array(rewards)))
     elif pause is False:
         obs, reward, terminated, truncated, info = env.step([vx, vy, va])
+        done = terminated or truncated
         # print(f"{obs['robot'].shape}")
         # print(f"{obs['humans'].shape}")
         rewards.append(float(reward))
+    else:
+        print("paused")
 
     # Clear the previous frame
     axs[0].clear()
@@ -163,17 +213,6 @@ while True:
     axs[0].plot([  0,  0], [-10, 10], 'k-', linewidth=1)
 
 
-    if info["relative_frame"] == "GOAL_FR":
-        # Draw robot
-        robot = obs["robot"]
-        robot_x = robot[0]
-        robot_y = robot[1]
-        robot_x2 = robot_x + 0.2*robot[4]
-        robot_y2 = robot_y + 0.2*robot[3]
-        axs[0].plot([robot_x, robot_x2], [robot_y, robot_y2], 'r-', linewidth=4)
-        axs[0].add_patch(Circle((robot_x, robot_y), robot[2], fill=False, color='red', linewidth=2))
-        # Draw goal
-        axs[0].add_patch(Circle((0, 0), robot[2], fill=False, color='green', linewidth=2))
     if info["relative_frame"] == "ROBOT_FR":
         # Draw goal
         robot = obs["robot"]
@@ -220,13 +259,16 @@ while True:
         # axs[0].plot([left_x, right_x], [left_y, right_y], 'b-', linewidth=2)
 
     axs[1].clear()
-    #axs[1].set_yscale("log")
-    axs[1].set_ylim(-11, 11)
-    x_plot_values = np.array([x for x in range(len(rewards))])
-    y_plot_values = np.array(rewards)
-    axs[1].plot([x_plot_values[0], x_plot_values[-1]], [0,0], "k-")
-    axs[1].plot(x_plot_values, y_plot_values)
-    #print(rewards)
+    axs[1].set_ylim(-1.1, 1.1)
+    if len(rewards) > 0:
+        x_plot_values = np.array([x for x in range(len(rewards))])
+        for vv in [0.002, 0.25, 0.5, 0.75, 1]:
+            for s in [-1, 1]:
+                colour = (vv+0.75)/2
+                axs[1].plot([x_plot_values[0], x_plot_values[-1]], [vv*s, vv*s], "-", color=str(colour))
+        y_plot_values = np.array(rewards)
+        axs[1].plot(x_plot_values, y_plot_values, "b-")
+
     # Update the plot
     plt.tight_layout()
     fig.canvas.draw()

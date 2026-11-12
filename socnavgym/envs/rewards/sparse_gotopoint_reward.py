@@ -16,7 +16,7 @@ class Reward(RewardAPI):
         self.collision_reward = -10.0
 
 
-    def compute_reward(self, action, prev_obs: EntityObs, curr_obs: EntityObs):
+    def compute_reward(self, action, prev_obs: EntityObs, curr_obs: EntityObs, terminated=False, truncated=False):   # v2 also passes the episode flags
         if self.check_out_of_map():
             return self.out_of_map_reward
         elif self.check_reached_goal():

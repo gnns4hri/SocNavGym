@@ -39,7 +39,7 @@ class RewardAPI:
         return False
 
     def check_out_of_map(self):
-        return (self.env.MAP_X/2 < self.env.robot.x) or (self.env.robot.x < -self.env.MAP_X/2) or (self.env.MAP_Y/2 < self.env.robot.y) or (self.env.robot.y < -self.env.MAP_Y/2)
+        return self.env.robot_out_of_map()        # False in scenes without walls unless env.bounded_without_walls
 
     def check_reached_goal(self):
         distance_to_goal = np.sqrt((self.env.robot.goal_x - self.env.robot.x)**2 + (self.env.robot.goal_y - self.env.robot.y)**2)

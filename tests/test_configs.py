@@ -16,6 +16,6 @@ def test_configs():
     configs = glob(dir_name + "/*")
     
     for config in configs:
-        env = gym.make("SocNavGym-v1", config=config)
+        env = gym.make("SocNavGym-v2", config=config)
         obs, _ = env.reset()
         assert(obs in env.observation_space)

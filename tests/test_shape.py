@@ -8,7 +8,7 @@ import yaml
 
 @pytest.mark.filterwarnings("ignore::UserWarning")
 def test_shape():
-    env = gym.make("SocNavGym-v1", config=os.path.dirname(os.path.abspath(__file__)) + "/../environment_configs/test_env.yaml")
+    env = gym.make("SocNavGym-v2", config=os.path.dirname(os.path.abspath(__file__)) + "/../environment_configs/test_env.yaml")
     env.set_padded_observations(True)
     obs, _ = env.reset()
 

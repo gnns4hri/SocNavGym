@@ -57,6 +57,11 @@ class HERGoalEnvWrapper(gym.Wrapper):
         self.base_env = env
         while hasattr(self.base_env, 'env'):
             self.base_env = self.base_env.env
+        if "sn26" in str(getattr(self.base_env, "REWARD_PATH", "")):
+            # The relabelled rewards below are the sparse_gotopoint scheme (+10/-10/-8/-5). sn26 is a learned score of the
+            # whole trajectory, so a relabelled transition cannot be scored without re-running the metric on the
+            # relabelled episode. Mixing the two scales in one replay buffer was silently inconsistent (bug #7).
+            raise NotImplementedError("HERWrapper relabels with sparse_gotopoint rewards and does not support the sn26 reward")
 
         self.ratio = her_config["ratio"]
 
@@ -189,7 +194,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
         """
         def _check_out_of_map(env_robot):
             env = self.base_env
-            return (env_robot.x > env.MAP_X) or (env_robot.x < -env.MAP_X) or (env_robot.y > env.MAP_Y) or (env_robot.y < -env.MAP_Y)
+            return (env_robot.x > env.MAP_X/2) or (env_robot.x < -env.MAP_X/2) or (env_robot.y > env.MAP_Y/2) or (env_robot.y < -env.MAP_Y/2)
 
         def _check_reached_goal(robot):
             distance_to_goal = np.sqrt( (robot[0]**2) + (robot[1]**2) )
@@ -198,13 +203,14 @@ class HERGoalEnvWrapper(gym.Wrapper):
 
         def _check_collision(humans):
             for human in humans:
+                if human[4] == 0: continue          # padded (empty) observation slot
                 distance_to_human = np.sqrt( (human[0]**2) + (human[1]**2) )
-                if distance_to_human < 0.35:
+                if distance_to_human < self.base_env.ROBOT_RADIUS + human[4]:   # human[4] = human radius
                     return True
             return False
 
         def _check_timeout():
-            return self.base_env.ticks > self.base_env.EPISODE_LENGTH
+            return self.base_env.ticks >= self.base_env.EPISODE_LENGTH   # the env truncates at ticks >= EPISODE_LENGTH
 
         obs = relabeled["obs"]
         if isinstance(obs, dict):

@@ -87,7 +87,7 @@ class Reward(RewardAPI):
         return dmin
         
 
-    def compute_reward(self, action, prev_obs: EntityObs, curr_obs: EntityObs):
+    def compute_reward(self, action, prev_obs: EntityObs, curr_obs: EntityObs, terminated=False, truncated=False):   # v2 also passes the episode flags
         if self.check_out_of_map(): return self.out_of_map_reward
         elif self.check_reached_goal(): return self.reach_reward
         elif self.check_collision(): return self.collision_reward

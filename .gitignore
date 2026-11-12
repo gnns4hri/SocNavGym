@@ -139,3 +139,7 @@ saves/
 
 # pickle files
 *.pickle
+
+# sn26: downloaded metric checkpoint and per-episode JSONs written to the working directory
+socnavgym/envs/rewards/RNNBaseline/checkpoints/
+experimental_JSONs/

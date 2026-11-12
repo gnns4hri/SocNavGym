@@ -15,13 +15,18 @@ VERSION = "0.2.0"
 with open("README.md", "r") as f:
     LONG_DESCRIPTION = f.read()
 
+# rvo2 (Python-RVO2) is not on PyPI: install it from source first (see README).
 REQUIRED = [
     "gymnasium >= 0.29.1",
-    "opencv-python",
+    "opencv-python-headless",   # cv2 is only used to draw images; the GUI build needs X libraries (libxcb) on headless machines
     "numpy",
     "matplotlib",
     "shapely",
-    "Cython"
+    "Cython",
+    "torch",                    # sn26 learned metric
+    "pandas",                   # sn26 dataset loading
+    "pyyaml",
+    "pygame",                   # render()
 ]
 EXCLUDES=["environment_configs", "tests"]
 

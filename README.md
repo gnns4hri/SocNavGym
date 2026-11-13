@@ -13,11 +13,12 @@
 10. [Reward Function](https://github.com/gnns4hri/SocNavGym/tree/main#reward-function)
 11. [Writing Custom Reward Functions](https://github.com/gnns4hri/SocNavGym/tree/main#writing-custom-reward-functions)
 12. [Config File](https://github.com/gnns4hri/SocNavGym/tree/main#config-file)
-13. [Wrappers](https://github.com/gnns4hri/SocNavGym/tree/main#wrappers)
-14. [Training Agents](https://github.com/gnns4hri/SocNavGym/tree/main#training-agents)
-15. [Evaluating Agents](https://github.com/gnns4hri/SocNavGym/tree/main#evaluating-agents)
-16. [Manually Controlling the Robot](https://github.com/gnns4hri/SocNavGym/tree/main#manually-controlling-the-robot)
-17. [Tutorials](https://github.com/gnns4hri/SocNavGym/tree/main#tutorials)
+13. [Hand-made scenarios](https://github.com/gnns4hri/SocNavGym/tree/main#hand-made-scenarios)
+14. [Wrappers](https://github.com/gnns4hri/SocNavGym/tree/main#wrappers)
+15. [Training Agents](https://github.com/gnns4hri/SocNavGym/tree/main#training-agents)
+16. [Evaluating Agents](https://github.com/gnns4hri/SocNavGym/tree/main#evaluating-agents)
+17. [Manually Controlling the Robot](https://github.com/gnns4hri/SocNavGym/tree/main#manually-controlling-the-robot)
+18. [Tutorials](https://github.com/gnns4hri/SocNavGym/tree/main#tutorials)
 
 
 ## Description
@@ -658,6 +659,42 @@ Notes:
 - Real people walk at about 1 m/s, much faster than the ORCA/SFM default `max_advance_human: 0.3`; the observation-space speed bounds are raised accordingly.
 - Cost: about 20 ms per step on one CPU core with a few walking humans.
 - Model and training code: `socnavgym/envs/utils/learned_humans.py` (inference, self-contained) and the default checkpoint in `socnavgym/envs/utils/learned_human_models/`. Dataset licences: THÖR-MAGNI CC-BY-4.0; LocoVR MIT (scenes derived from HM3D); ETH/UCY research use.
+
+## Hand-made scenarios
+Besides random scenes, an episode can be built from a scenario: a YAML file (or a dict) that fixes the map, walls, furniture, the robot's start and goal, and every person and how they behave. This is meant for reproducible edge cases: someone stepping out of a doorway, a person standing on the goal, a head-on encounter in a corridor.
+
+```python
+env.reset(seed=0, options={"scenario": "doorway.yaml"})   # this reset only (a path or a dict)
+env.set_scenario("doorway.yaml")                           # every following reset (None: back to random scenes)
+```
+
+```yaml
+name: doorway_step_out
+map:
+  size: [9, 6]                       # metres, centred on (0, 0); boundary walls by default
+  walls: [[-4.5, -1, 4.5, -1], [-4.5, 1, 0.5, 1], [1.5, 1, 4.5, 1]]   # extra segments [x1, y1, x2, y2]
+robot: {x: -3.8, y: 0, theta: 0, goal: {x: 3.8, y: 0, theta: 0}}
+furniture:
+  - {type: plant, x: -2, y: 2}       # table, chair, plant, laptop; sizes default to the config's
+people:
+  - name: door_person
+    x: 1.0
+    y: 1.6
+    behaviour: scripted              # static | goals (policy learned/orca/sfm, speed, goals, then) | scripted (exact path)
+    path: [[0.0, 1.0, 1.6], [1.0, 1.0, 0.4], [2.5, 1.0, -0.55]]   # (t, x, y)
+    start: {robot_within: {distance: 2.5, of: [1.0, 1.0]}, delay: 0.3}
+groups:
+  - {centre: [2, -2], members: 3, radius: 0.6}   # conversation group: static people facing the centre
+```
+
+People have one of three behaviours:
+- **static**: never moves.
+- **goals**: walks to a list of goals with ORCA, SFM or the learned model, reacting to others (and to the robot if `avoids_robot`); after the last goal it stops, loops or wanders (random goals, as in random scenes).
+- **scripted**: follows a timed path exactly and ignores everyone, including the robot. A collision with a scripted person may be the script's fault, so the step `info` names who the robot touched (`scenario_collision`).
+
+A person can wait for a **trigger** (`start:`): standing still, visible and solid, until a condition holds, then starting once. Conditions: `time`, `robot_within` (of the person, a point or another person), `robot_crosses` (a line segment) and `after` (another person's start), each with an optional `delay`. Triggers are checked once per step after the robot moves, and every step's `info["scenario_events"]` lists what fired.
+
+The seed still matters (the learned humans' samples, ORCA/SFM noise, unspecified values such as a person's policy), so a scenario plus a seed reproduces exactly. The scene must fit the config's observation size (`max_*` entity counts, wall segments); spontaneous group formation and human-laptop interactions are off in scenario episodes. `socnavgym.envs.utils.scenario.export(env)` turns the current scene into a scenario dict (call it after `reset()`), and `dump()` writes it as YAML, so an interesting random scene can be saved, edited and replayed. The full format is in the docstring of `socnavgym/envs/utils/scenario.py`.
 
 ## Wrappers
 Gymnasium wrappers are convenient to have changes in the observation-space / action-space. SocNavGym implements 4 wrappers. 

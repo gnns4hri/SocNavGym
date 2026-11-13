@@ -240,7 +240,6 @@ class Reward(RewardAPI):
         """The network's score of the recorded trajectory. Same computation as before (TrajectoryDataset + DataLoader on a
         JSON file written for the purpose), without the file: the trajectory holds only Python floats, ints, strings and
         None, which a JSON round trip returns unchanged, so the features and the score are identical."""
-        if self.SCORE_VIA_FILE: return self._predict_via_file(model)
         if len(self.data.get("sequence", [])) == 0:
             return 0.0
         context, max_values, features = self._scoring_tools()
@@ -261,7 +260,6 @@ class Reward(RewardAPI):
             self.add_to_trajectory()   # the terminal state (goal reached / collision) must be part of the scored trajectory
             try:
                 predicted_reward = self.predict(self.model)
-                self.remove_JSON()
                 ret = predicted_reward
             except IndexError as e:
                 # An exception can be raised if the episode is exceedingly short, as some of

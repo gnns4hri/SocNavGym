@@ -395,9 +395,8 @@ class SocNavEnv_v2(gym.Env):
         self.MAX_LINEAR_SPEED = config["robot"].get("max_linear_speed", None)
         # minimum free gap at spawn between the robot and any human's collision ellipse in any orientation (bug #25)
         self.SPAWN_CLEARANCE = config["robot"].get("spawn_clearance", 0.1)
-        # Without walls the map rectangle is only where entities are spawned: the robot cannot perceive it, so by default
-        # leaving it neither ends the episode nor counts as a collision. Set env.bounded_without_walls: True for the old rule.
-        self.BOUNDED_WITHOUT_WALLS = config["env"].get("bounded_without_walls", False)
+        # The map rectangle is only where the scene is generated: the robot cannot perceive it and leaving it has no consequence
+        # (no end of the episode, no collision, no reward term). A boundary, if wanted, is made with walls.
         assert self.MAX_LINEAR_SPEED is None or self.MAX_LINEAR_SPEED > 0., "max_linear_speed must be > 0"
         # optional cap on the lateral (sideways) speed of a holonomic robot, m/s (applied before max_linear_speed)
         self.MAX_LATERAL_SPEED = config["robot"].get("max_lateral_speed", None)
@@ -2231,12 +2230,6 @@ class SocNavEnv_v2(gym.Env):
         del env_copy
         return next_state, reward, terminated, truncated, info
 
-    def robot_out_of_map(self):
-        """True if the robot has left the map in a way that counts: always in walled scenes (cannot happen without passing a
-        wall), and in scenes without walls only if env.bounded_without_walls is set (the limits are not observable)."""
-        if self.shape == "no-walls" and not self.BOUNDED_WITHOUT_WALLS: return False
-        return self.MAP_X/2 < self.robot.x or self.robot.x < -self.MAP_X/2 or self.MAP_Y/2 < self.robot.y or self.robot.y < -self.MAP_Y/2
-
     def sample_goal(self, goal_radius, HALF_SIZE_X, HALF_SIZE_Y):
         """Rejection sampling of a goal position. Same random draws and same accept/reject decisions as the original loop
         (a Plant per candidate, Object.collides against every object); the two exact shortcuts of Object.collides
@@ -2759,7 +2752,7 @@ class SocNavEnv_v2(gym.Env):
                 dmin = closest_dist
 
         info = {
-            "OUT_OF_MAP": False,
+            "OUT_OF_MAP": False,       # always False: the map area is not a boundary (key kept for existing scripts)
             "COLLISION_HUMAN": False,
             "COLLISION_OBJECT": False,
             "COLLISION": False,
@@ -2779,11 +2772,6 @@ class SocNavEnv_v2(gym.Env):
         }
 
         # calculate the reward and record necessary information
-        if self.robot_out_of_map():
-            self._is_terminated = self._is_terminated or self.END_WITH_COLLISION
-            self._collision = True
-            info["OUT_OF_MAP"] = True
-
         self._goal_settled = False
         if distance_to_goal < self.GOAL_THRESHOLD and diff_goal_angle < self.GOAL_ORIENTATION_THRESHOLD and self._goal_reach_tick is None:
             self._goal_reach_tick = self.ticks

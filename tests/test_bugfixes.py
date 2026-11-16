@@ -212,19 +212,15 @@ def test_25_robot_spawns_clear_of_humans():
             assert np.hypot(h.x - env.robot.x, h.y - env.robot.y) >= env.ROBOT_RADIUS + env.HUMAN_DIAMETER / 2 + env.SPAWN_CLEARANCE - 1e-9
 
 
-def test_26_no_walls_means_no_map_limit():
-    """Without walls the robot may leave the spawn rectangle: no termination, no collision, OUT_OF_MAP stays False.
-    With env.bounded_without_walls the old rule applies; walled scenes are unaffected by the key."""
-    def drive_out(**env_over):
-        env = make(**{"env.set_shape": "no-walls", **{"env." + k: v for k, v in env_over.items()}})
+def test_26_map_area_is_not_a_boundary():
+    """The robot may leave the map rectangle, with or without walls: no termination, no collision, OUT_OF_MAP stays False.
+    There is no option to make the rectangle count (a boundary is made with walls)."""
+    for shape in ("no-walls", "square"):
+        env = make(**{"env.set_shape": shape})
         env.reset(seed=0)
-        env.robot.x = env.MAP_X / 2 + 1.0                       # outside the spawn rectangle
+        env.robot.x = env.MAP_X / 2 + 1.0                       # outside the rectangle
         _, _, te, tr, info = env.step(np.zeros(3, np.float32))
-        return te, tr, info
-    te, tr, info = drive_out()
-    assert not te and not tr and not info["OUT_OF_MAP"] and not info["COLLISION"]
-    te, tr, info = drive_out(bounded_without_walls=True)
-    assert te and info["OUT_OF_MAP"]
+        assert not te and not tr and not info["OUT_OF_MAP"] and not info["COLLISION"], shape
 
 
 if __name__ == "__main__":

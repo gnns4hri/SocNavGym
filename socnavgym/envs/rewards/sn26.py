@@ -99,7 +99,6 @@ class Reward(RewardAPI):
 
     def reset(self):
         self.reach_reward = 1.0
-        self.out_of_map_reward = -1.0
         self.max_steps_reward = -1.0
         self.alive_reward = -1e-6
         self.collision_reward = -1.0

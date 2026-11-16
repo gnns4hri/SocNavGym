@@ -38,9 +38,6 @@ class RewardAPI:
 
         return False
 
-    def check_out_of_map(self):
-        return self.env.robot_out_of_map()        # False in scenes without walls unless env.bounded_without_walls
-
     def check_reached_goal(self):
         if getattr(self.env, "CONTINUE_AFTER_REACH", False):   # the episode goes on after reaching: true once, on the step it ends for it
             return bool(getattr(self.env, "_goal_settled", False))

@@ -333,7 +333,7 @@ The environment also allows users to provide custom reward functions. Follow the
     ```
 2. Overwrite the function `compute_reward` with the custom reward function. The input of the `compute_reward` function is the action of the current timestep, the previous entity observations and the current entity observations. The previous and current observations are given as a dictionary with key as the id of the entity, and the value is an instance of the `EntityObs` namedtuple defined in [this](https://github.com/gnns4hri/SocNavGym/blob/main/socnavgym/envs/socnavenv_v1.py#L19) file. It contains the fields : id, x, y, theta, sin_theta, cos_theta for each entity in the environment. Note that all these values are in the robot's frame of reference. 
 3. If need be, you can also access the lists of humans, plants, interactions etc, that the environment maintains by referencing the `self.env` variable. An example of this can be found in the [`dsrnn_reward.py`](https://github.com/gnns4hri/SocNavGym/blob/main/socnavgym/envs/rewards/dsrnn_reward.py#L24) file
-4. The `RewardAPI` class provides four helper functions - `check_collision`, `check_timeout`, `check_reached` and `check_out_of_map`. These functions are boolean functions that check if the robot has collided with any enitity, whether the maximum episode length has been reached, whether the robot has reached the goal, or if the robot has moved out of the map respectively. The last case can occur only when the envirnoment is configured to have no walls.
+4. The `RewardAPI` class provides three helper functions - `check_collision`, `check_timeout` and `check_reached`. These functions are boolean functions that check if the robot has collided with any enitity, whether the maximum episode length has been reached, and whether the robot has reached the goal, respectively. Leaving the map rectangle has no consequence: a boundary, if wanted, is made with walls.
 5. The `RewardAPI` class also has a helper function defined to compute the SNGNN reward function. Call `compute_sngnn_reward(actions, prev_obs, curr_obs)` to compute the SNGNN reward. Also note that if you are using the SNGNN reward function in your custom reward function, please set the variable `self.use_sngnn` to `True`.
 6. You can also store any additional information that needs to be returned in the info dict of step function by storing all of it in the variable `self.info` of the `Reward` class.
 7. Storing anything in a class variable will persist across the steps in an episode. After every episode, the reward class object's `__init__()` method would be invoked.
@@ -632,10 +632,6 @@ The behaviour of the environment is controlled using the config file. The config
     <tr>
         <td> set_shape </td>
         <td> Sets the shape of the environment. Accepted values are "random", "square", "rectangle", "L" or "no-walls"  </td>
-    </tr>
-    <tr>
-        <td> bounded_without_walls </td>
-        <td> Optional, default False. In scenes without walls ("no-walls") the map rectangle only delimits where entities are spawned and the robot cannot perceive it, so leaving it does not end the episode, is not a collision and is not reported as "OUT_OF_MAP". Set to True to restore the old rule (leaving the rectangle ends the episode). Walled scenes are not affected. </td>
     </tr>
     <tr>
         <td> add_corridors </td>

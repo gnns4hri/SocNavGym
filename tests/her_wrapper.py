@@ -192,10 +192,6 @@ class HERGoalEnvWrapper(gym.Wrapper):
         Returns:
             Recalculated reward
         """
-        def _check_out_of_map(env_robot):
-            env = self.base_env
-            return (env_robot.x > env.MAP_X/2) or (env_robot.x < -env.MAP_X/2) or (env_robot.y > env.MAP_Y/2) or (env_robot.y < -env.MAP_Y/2)
-
         def _check_reached_goal(robot):
             distance_to_goal = np.sqrt( (robot[0]**2) + (robot[1]**2) )
             angular_distance_to_goal = np.abs(np.atan2(robot[3], robot[4]))
@@ -221,9 +217,7 @@ class HERGoalEnvWrapper(gym.Wrapper):
             humans = obs[8:].reshape(-1, 8)
         robot_int = relabeled["robot_internal_state"]
 
-        if _check_out_of_map(relabeled["robot_internal_state"]):
-            return -5.
-        elif _check_reached_goal(robot):
+        if _check_reached_goal(robot):
             return 10.
         elif _check_collision(humans):
             return -10.

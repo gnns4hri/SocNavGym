@@ -6,7 +6,21 @@ import torch
 
 EPS = 0.01
 
-def get_dist_from_obj(object, o_x, o_y, o_angle, robot):
+_built = {}   # SocNavGym: shapely geometries already built (objects and walls that stay where they are: once, not at every frame). Same geometry, same distance.
+
+
+def _keep(key, make):
+    try:
+        g = _built.get(key)
+    except TypeError:                     # a key that cannot be hashed: build it as before
+        return make()
+    if g is None:
+        if len(_built) > 20000: _built.clear()
+        g = _built[key] = make()
+    return g
+
+
+def _obj_shape(object, o_x, o_y, o_angle):
     o_shape = object['shape']['type']
     if o_shape == 'circle':
         o_length = object['shape']['length']
@@ -28,16 +42,23 @@ def get_dist_from_obj(object, o_x, o_y, o_angle, robot):
         object_shape = translate(rotated_rect, xoff=o_x, yoff=o_y)
     else:
         raise ValueError("Invalid object shape. Must be 'circle' or 'rectangle'.")
+    return object_shape
+
+
+def get_dist_from_obj(object, o_x, o_y, o_angle, robot):
+    sh = object['shape']
+    object_shape = _keep(('object', sh['type'], o_x, o_y, o_angle, sh.get('length'), sh.get('width')), lambda: _obj_shape(object, o_x, o_y, o_angle))
     distance = robot.distance(object_shape)
     return distance
 
 
-def get_wall_distance(r_x, r_y, r_radius, w_x1, w_y1, w_x2, w_y2):
-    # Define robot as a circle
-    robot = Point(r_x, r_y).buffer(r_radius)
+def get_wall_distance(r_x, r_y, r_radius, w_x1, w_y1, w_x2, w_y2, robot=None):
+    # Define robot as a circle (SocNavGym: dist_to_walls gives the one it has built for the frame, instead of one per wall)
+    if robot is None:
+        robot = Point(r_x, r_y).buffer(r_radius)
     
     # Define wall as a line segment
-    wall = LineString([(w_x1, w_y1), (w_x2, w_y2)])
+    wall = _keep(('wall', w_x1, w_y1, w_x2, w_y2), lambda: LineString([(w_x1, w_y1), (w_x2, w_y2)]))
     
     # Compute the minimum distance between the robot's boundary and the wall
     distance = robot.distance(wall)
@@ -82,11 +103,12 @@ def dist_to_walls(frame, walls):
     r_x, r_y = frame['robot']['x'], frame['robot']['y']
     r_radius = frame['robot']['shape']['length']/2. 
 
+    robot = Point(r_x, r_y).buffer(r_radius)
     d_walls = []
     for wall in walls:
         w_x1, w_y1 = wall[0], wall[1]
         w_x2, w_y2 = wall[2], wall[3]
-        w_dist = get_wall_distance(r_x, r_y, r_radius, w_x1, w_y1, w_x2, w_y2)
+        w_dist = get_wall_distance(r_x, r_y, r_radius, w_x1, w_y1, w_x2, w_y2, robot)
         d_walls.append(w_dist)
     
     return d_walls

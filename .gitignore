@@ -142,4 +142,5 @@ saves/
 
 # sn26: downloaded metric checkpoint and per-episode JSONs written to the working directory
 socnavgym/envs/rewards/RNNBaseline/checkpoints/
+socnavgym/envs/rewards/SN26GNN/checkpoints/
 experimental_JSONs/

@@ -597,11 +597,13 @@ class SocNavEnv_v2(gym.Env):
             self.REWARD_PATH = os.path.dirname(os.path.abspath(__file__)) + "/rewards/" + "sparse_gotopoint_reward.py"
         elif self.REWARD_PATH == "sn26":
             self.REWARD_PATH = os.path.dirname(os.path.abspath(__file__)) + "/rewards/" + "sn26.py"
+        elif self.REWARD_PATH == "sn26gnn":   # the SN26 metric with a graph network (rewards/sn26gnn.py)
+            self.REWARD_PATH = os.path.dirname(os.path.abspath(__file__)) + "/rewards/" + "sn26gnn.py"
         elif self.REWARD_PATH == "sngnn":
             raise ValueError("reward_file 'sngnn' is no longer supported: the SNGNN model and compute_sngnn_reward are not in this "
-                             "repository. Use dsrnn, sparse_gotopoint, sn26, or a path to a custom reward file.")
+                             "repository. Use dsrnn, sparse_gotopoint, sn26, sn26gnn, or a path to a custom reward file.")
         elif not os.path.isfile(self.REWARD_PATH):
-            raise ValueError(f"reward_file must be dsrnn, sparse_gotopoint, sn26, or a path to a reward file; got {self.REWARD_PATH!r}")
+            raise ValueError(f"reward_file must be dsrnn, sparse_gotopoint, sn26, sn26gnn, or a path to a reward file; got {self.REWARD_PATH!r}")
 
         module, self.REWARD_PATH = self.process_reward_path(self.REWARD_PATH)
         reward_module = SourceFileLoader(module, self.REWARD_PATH).load_module()

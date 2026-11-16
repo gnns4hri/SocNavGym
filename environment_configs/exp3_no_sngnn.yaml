@@ -7,6 +7,9 @@ episode:
     episode_length: 200  # maximum steps in an episode
     time_step: 1  # number of seconds that one step corresponds to
     end_with_collision: True # episode end with collision
+    continue_after_reach: False  # True: after reaching the goal the episode goes on until the robot stops getting closer to it (rates below)
+    settle_position_rate: 0.01  # m/s: approaching the goal position slower than this counts as not getting closer
+    settle_rotation_rate: 0.1745  # rad/s (10 degrees/s): the same for the goal orientation
 
 robot:
     robot_radius: 0.25  # radius of the robot

@@ -360,13 +360,25 @@ The behaviour of the environment is controlled using the config file. The config
         <td> delay parameter for waitKey()</td>
     </tr>
     <tr>
-        <td rowspan="2"> episode </td>
+        <td rowspan="5"> episode </td>
         <td> episode_length </td>
         <td> maximum steps in an episode</td>
     </tr>
     <tr>
         <td> time_step </td>
         <td> number of seconds that one step corresponds to</td>
+    </tr>
+    <tr>
+        <td> continue_after_reach </td>
+        <td> Optional, default False (the episode ends on the step the goal is reached). If True, the episode goes on after the goal is reached and ends when the robot no longer gets closer to the goal: neither its distance to the goal decreases at settle_position_rate or more, nor its angle to the goal orientation at settle_rotation_rate or more (the orientation only counts if the goal has an orientation threshold below pi). A collision (with end_with_collision) or the time limit still end the episode. From the reach on, info["SUCCESS"] is True and info["TIME_TO_REACH_GOAL"] is the time of the first reach; the reach reward of the hand-written rewards is given once, on the step the episode ends. </td>
+    </tr>
+    <tr>
+        <td> settle_position_rate </td>
+        <td> Optional, default 0.01. With continue_after_reach: approach speed (m/s) below which the robot counts as no longer getting closer to the goal position </td>
+    </tr>
+    <tr>
+        <td> settle_rotation_rate </td>
+        <td> Optional, default 0.1745 (10 degrees/s). With continue_after_reach: rate (rad/s) below which the robot counts as no longer getting closer to the goal orientation </td>
     </tr>
     <tr>
         <td rowspan="3"> robot </td>

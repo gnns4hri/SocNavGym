@@ -349,6 +349,14 @@ class SocNavEnv_v2(gym.Env):
         assert(self.EPISODE_LENGTH > 0), "episode length should be greater than 0"
         self.TIMESTEP = config["episode"]["time_step"]
         self.END_WITH_COLLISION = config["episode"]["end_with_collision"]
+        # Optional: do not end the episode on the step the goal is reached, but let the robot settle. The episode then ends
+        # when the robot no longer gets closer to the goal: neither its distance to the goal decreases at
+        # settle_position_rate (m/s) or more, nor its angle to the goal orientation at settle_rotation_rate (rad/s) or
+        # more. A collision (if end_with_collision) or the time limit still end it. Default False: end on reaching.
+        self.CONTINUE_AFTER_REACH = bool(config["episode"].get("continue_after_reach", False))
+        self.SETTLE_POSITION_RATE = float(config["episode"].get("settle_position_rate", 0.01))
+        self.SETTLE_ROTATION_RATE = float(config["episode"].get("settle_rotation_rate", np.radians(10.0)))
+        assert self.SETTLE_POSITION_RATE >= 0. and self.SETTLE_ROTATION_RATE >= 0., "the settle rates must be >= 0"
 
         # robot
         self.INITIAL_ROBOT_RADIUS = config["robot"]["robot_radius"]
@@ -2776,10 +2784,22 @@ class SocNavEnv_v2(gym.Env):
             self._collision = True
             info["OUT_OF_MAP"] = True
 
-        if distance_to_goal < self.GOAL_THRESHOLD and diff_goal_angle < self.GOAL_ORIENTATION_THRESHOLD:
-            self._is_terminated = True
+        self._goal_settled = False
+        if distance_to_goal < self.GOAL_THRESHOLD and diff_goal_angle < self.GOAL_ORIENTATION_THRESHOLD and self._goal_reach_tick is None:
+            self._goal_reach_tick = self.ticks
+        if self._goal_reach_tick is not None:      # reached, now or (continue_after_reach) earlier in the episode
             info["SUCCESS"] = True
-            info["TIME_TO_REACH_GOAL"] = self.ticks * self.TIMESTEP
+            info["TIME_TO_REACH_GOAL"] = self._goal_reach_tick * self.TIMESTEP
+            if self.CONTINUE_AFTER_REACH:
+                # still approaching? (the orientation only counts if the goal has one)
+                closing = (self.prev_goal_distance - distance_to_goal) / self.TIMESTEP >= max(self.SETTLE_POSITION_RATE, 1e-12)
+                turning = (self.GOAL_ORIENTATION_THRESHOLD < np.pi
+                           and (self.prev_goal_angle - diff_goal_angle) / self.TIMESTEP >= max(self.SETTLE_ROTATION_RATE, 1e-12))
+                self._goal_settled = not (closing or turning)
+            else:
+                self._goal_settled = True
+            self._is_terminated = self._is_terminated or self._goal_settled
+        self.prev_goal_angle = diff_goal_angle
 
         if collision is True:
             self._is_terminated = self._is_terminated or self.END_WITH_COLLISION
@@ -3593,6 +3613,10 @@ class SocNavEnv_v2(gym.Env):
         self.ticks = 0
         self.compliant_count = 0  # keeps track of how many times the agent is outside the personal space of humans
         self.prev_goal_distance = np.sqrt((self.robot.x - self.robot.goal_x)**2 + (self.robot.y - self.robot.goal_y)**2)
+        _da = self.robot.goal_a - self.robot.orientation
+        self.prev_goal_angle = abs(np.arctan2(np.sin(_da), np.cos(_da)))
+        self._goal_reach_tick = None    # tick at which the goal was first reached
+        self._goal_settled = False      # the episode ended because the goal was reached (and, with continue_after_reach, the robot settled)
         self.robot_path_length = 0
         self.stalled_time = 0
         self.failure_to_progress = 0

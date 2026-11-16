@@ -1,9 +1,64 @@
 from abc import abstractmethod
+import math
 import numpy as np
 import shapely
 from shapely.geometry import LineString, Polygon, Point
 from shapely import affinity
 from socnavgym.envs.utils.utils import get_coordinates_of_rotated_line, get_coordinates_of_rotated_rectangle
+
+_ROUND = ("plant", "robot", "human")
+_RECT = ("laptop", "table", "chair", "wall")
+
+
+def _surely_apart(a, b, eps=1e-6):
+    """True only when the shapes used by Object.collides cannot intersect, so that the (slow) shapely test can be skipped
+    without changing any result. Conservative: every shape lies inside the bound used here (the polygon that shapely builds
+    for a circle is inscribed in it; a human's ellipse lies inside the circle of radius width/2), and anything within `eps`
+    of touching is left to shapely. Added because rejection sampling of goals (sample_goal) calls collides thousands of
+    times per step when the map is crowded."""
+    an, bn = a.name, b.name
+    try:
+        if an in _ROUND:
+            ra = a.radius if an != "human" else a.width / 2
+            if bn in _ROUND: return math.hypot(a.x - b.x, a.y - b.y) > ra + (b.radius if bn != "human" else b.width / 2) + eps
+            if bn in _RECT: return _far_from_rect(a.x, a.y, ra + eps, b)
+        elif an in _RECT and bn in _ROUND:
+            return _far_from_rect(b.x, b.y, (b.radius if bn != "human" else b.width / 2) + eps, a)
+        elif an in _RECT and bn in _RECT:
+            ha = 0.5 * math.hypot(a.length, a.thickness if an == "wall" else a.width)
+            hb = 0.5 * math.hypot(b.length, b.thickness if bn == "wall" else b.width)
+            return math.hypot(a.x - b.x, a.y - b.y) > ha + hb + eps
+    except (TypeError, AttributeError): pass               # unset attributes: let the original code raise its own errors
+    return False
+
+
+_INNER = 0.99   # the polygon shapely builds for a circle of radius r contains the circle of radius r*cos(pi/32) = 0.9952 r (8 segments
+                # per quarter, the coarsest default of any shapely version; finer ones contain more)
+
+
+def _surely_overlapping(a, b, eps=1e-6):
+    """True only when the shapes used by Object.collides certainly intersect (the counterpart of _surely_apart): each round
+    shape contains a circle around its centre (radius _INNER * r; for a human's ellipse, _INNER * width/6, its short
+    semi-axis); if those inner circles overlap each other, or reach a rectangle, the shapes intersect."""
+    an, bn = a.name, b.name
+    try:
+        if an in _ROUND:
+            ra = _INNER * (a.radius if an != "human" else a.width / 6)
+            if bn in _ROUND: return math.hypot(a.x - b.x, a.y - b.y) < ra + _INNER * (b.radius if bn != "human" else b.width / 6) - eps
+            if bn in _RECT: return not _far_from_rect(a.x, a.y, ra - eps, b)
+        elif an in _RECT and bn in _ROUND:
+            return not _far_from_rect(b.x, b.y, _INNER * (b.radius if bn != "human" else b.width / 6) - eps, a)
+    except (TypeError, AttributeError): pass
+    return False
+
+
+def _far_from_rect(px, py, r, rect):
+    """Is the point (px, py) farther than r from the rectangle (centre x, y; `length` along its orientation)?"""
+    c, s = math.cos(rect.orientation), math.sin(rect.orientation); dx, dy = px - rect.x, py - rect.y
+    qx = abs(dx * c + dy * s) - rect.length / 2
+    qy = abs(-dx * s + dy * c) - (rect.thickness if rect.name == "wall" else rect.width) / 2
+    return math.hypot(max(qx, 0.0), max(qy, 0.0)) > r
+
 
 class Object(object):
     """
@@ -91,13 +146,16 @@ class Object(object):
         A boolean function that determines if there is a collision between current object and the given object
         """
 
+        if _surely_apart(self, obj): return False   # exact shortcut: same answer as the shapely test below, far cheaper
+        if _surely_overlapping(self, obj): return True
+
         if self.name == "plant" or self.name == "robot":
             assert(self.x != None and self.y != None and self.radius != None), "Attributes are None type"
             curr_obj = Point((self.x, self.y)).buffer(self.radius)
 
         elif self.name == "human":
             assert(self.x != None and self.y != None and self.width != None), "Attributes are None type"
-            curr_obj = shapely.affinity.scale(shapely.geometry.Point((self.x, self.y)).buffer(1), self.width/6, self.width/2)
+            curr_obj = shapely.affinity.rotate(shapely.affinity.scale(shapely.geometry.Point((self.x, self.y)).buffer(1), self.width/6, self.width/2), self.orientation, origin=(self.x, self.y), use_radians=True)  # ellipse: front-back self.width/6, shoulders self.width/2, rotated with the heading
 
         elif self.name == "laptop" or self.name == "table" or self.name == "chair":
             assert(self.x != None and self.y != None and self.width != None and self.length != None and self.orientation != None), "Attributes are None type"
@@ -116,7 +174,7 @@ class Object(object):
 
         elif obj.name == "human":
             assert(obj.x != None and obj.y != None and obj.width != None), "Attributes are None type"
-            other_obj = shapely.affinity.scale(shapely.geometry.Point((obj.x, obj.y)).buffer(1), obj.width/6, obj.width/2)
+            other_obj = shapely.affinity.rotate(shapely.affinity.scale(shapely.geometry.Point((obj.x, obj.y)).buffer(1), obj.width/6, obj.width/2), obj.orientation, origin=(obj.x, obj.y), use_radians=True)  # ellipse: front-back obj.width/6, shoulders obj.width/2, rotated with the heading
 
         elif obj.name == "laptop" or obj.name == "table" or obj.name == "chair":
             assert(obj.x != None and obj.y != None and obj.width != None and obj.length != None and obj.orientation != None), "Attributes are None type"

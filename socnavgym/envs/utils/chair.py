@@ -86,7 +86,7 @@ class Chair(Object):
             for p in op:
                 ip = [0]*2
                 ip[0] =  w2px((self.x - p[0] * np.sin(self.orientation) + p[1] * np.cos(self.orientation)),PIXEL_TO_WORLD_X, MAP_SIZE_X)
-                ip[1] =  w2py((self.y + p[0] * np.cos(self.orientation) + p[1] * np.sin(self.orientation)),PIXEL_TO_WORLD_X, MAP_SIZE_X)
+                ip[1] =  w2py((self.y + p[0] * np.cos(self.orientation) + p[1] * np.sin(self.orientation)),PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
                 pp.append(ip)
             im_op.append(pp)
 

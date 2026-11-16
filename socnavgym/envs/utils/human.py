@@ -81,13 +81,13 @@ class Human(Object):
         assert(self.type == "static" or self.type == "dynamic"), "type can be \"static\" or \"dynamic\" only."
         self.set(id, x, y, theta, width, speed, goal_x, goal_y, goal_radius, policy)
 
-        self.initial_time = pytime.time()
+        self.time_on_goal = 0.0   # simulated seconds spent on the current goal (was wall-clock time: bug #10)
 
 
     def set_goal(self, goal_x, goal_y):
         self.goal_x = goal_x
         self.goal_y = goal_y
-        self.initial_time = pytime.time()
+        self.time_on_goal = 0.0
 
 
     def set(self, id, x, y, theta, width, speed, goal_x, goal_y, goal_radius, policy):
@@ -131,7 +131,7 @@ class Human(Object):
         # if self.width == None or self.goal_radius == None or self.goal_x==None or self.goal_y == None:
         #     return False
         distance_to_goal = np.sqrt((self.x-self.goal_x)**2 + (self.y-self.goal_y)**2)
-        if distance_to_goal < (offset + self.goal_radius) or pytime.time()-self.initial_time>MAX_TIME_TO_REACH_GOAL:
+        if distance_to_goal < (offset + self.goal_radius) or self.time_on_goal > MAX_TIME_TO_REACH_GOAL:
             return True
         else:
             return False
@@ -179,6 +179,7 @@ class Human(Object):
         """
         For updating the coordinates of the human for a single time step
         """
+        self.time_on_goal = getattr(self, "time_on_goal", 0.0) + time
         assert (
             self.x != None and self.y != None and self.orientation != None
         ), "Coordinates or orientation are None type"
@@ -217,7 +218,7 @@ class Human(Object):
 
         if len(self.position_history) > self.perception_delay_steps: #___
             delayed_state = self.position_history[-1 - self.perception_delay_steps]  #kalper
-            delayed_theta = delayed_state[1]
+            delayed_theta = delayed_state[2]   # (x, y, theta, t): index 2 is theta (was the y coordinate)
         else:
             delayed_theta = self.orientation
 
@@ -235,6 +236,18 @@ class Human(Object):
 
         self.position_history.append((self.x, self.y, self.orientation, pytime.time()))
 
+
+    def move_to(self, x, y, time):
+        """Place the human exactly at (x, y) (learned motion): same bookkeeping as update(), without its noise and speed rhythm."""
+        self.time_on_goal = getattr(self, "time_on_goal", 0.0) + time
+        self.prev_x, self.prev_y, self.prev_orientation = self.x, self.y, self.orientation
+        d = np.hypot(x - self.x, y - self.y)
+        if d > 1e-3: self.orientation = atan2(y - self.y, x - self.x)
+        self.speed = d / time
+        self.x, self.y = x, y
+        self.initial_x, self.initial_y, self.initial_orientation = self.x, self.y, self.orientation
+        self.vx = self.speed * np.cos(self.orientation); self.vy = self.speed * np.sin(self.orientation)
+        self.position_history.append((self.x, self.y, self.orientation, pytime.time()))
 
     def draw(self, img, PIXEL_TO_WORLD_X, PIXEL_TO_WORLD_Y, MAP_SIZE_X, MAP_SIZE_Y):
         if self.color == None:

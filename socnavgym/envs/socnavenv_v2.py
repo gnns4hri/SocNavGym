@@ -25,7 +25,7 @@ from socnavgym.envs.utils.human import Human
 from socnavgym.envs.utils.human_human import Human_Human_Interaction
 from socnavgym.envs.utils.human_laptop import Human_Laptop_Interaction
 from socnavgym.envs.utils.laptop import Laptop
-from socnavgym.envs.utils.object import Object
+from socnavgym.envs.utils.object import Object, _ROUND, _RECT, _INNER
 from socnavgym.envs.utils.plant import Plant
 from socnavgym.envs.utils.robot import Robot
 from socnavgym.envs.utils.table import Table
@@ -39,6 +39,31 @@ from socnavgym.envs.utils.utils import (get_coordinates_of_rotated_rectangle,
 from socnavgym.envs.utils.wall import Wall
 
 import pygame
+
+
+def _homogeneous(coord):
+    """np.c_[coord, ones] without the np.c_ machinery (same values and dtype; it was a hot spot of the observations)."""
+    out = np.ones((coord.shape[0], 3), dtype=np.result_type(coord.dtype, np.float64))
+    out[:, :2] = coord
+    return out
+
+
+def _frame_inverse(x, y, orientation, _cache={}):
+    """World -> local-frame matrix for a pose; cached by pose because the robot's matrix was rebuilt and inverted once per
+    observed entity (about 16 inversions per observation). Same arithmetic as before; callers must not modify the result."""
+    key = (x, y, orientation)
+    m = _cache.get(key)
+    if m is None:
+        if len(_cache) > 4096: _cache.clear()
+        tm = np.zeros((3,3), dtype=np.float32)
+        tm[2,2] = 1
+        tm[0,2] = x
+        tm[1,2] = y
+        tm[0,0] = tm[1,1] = np.cos(orientation)
+        tm[1,0] = np.sin(orientation)
+        tm[0,1] = -1*np.sin(orientation)
+        m = _cache[key] = np.linalg.inv(tm)
+    return m
 
 DEBUG = 0
 if 'debug' in sys.argv or "debug=2" in sys.argv:
@@ -264,6 +289,11 @@ class SocNavEnv_v2(gym.Env):
         self.set_shape = None
         self.shape = None
 
+        # hand-made scenario (utils/scenario.py): applied by every reset while set (set_scenario), or by one reset
+        # (reset(options={"scenario": ...})); _scenario is the one of the current episode (None: a random scene)
+        self.SCENARIO_SPEC = None
+        self._scenario = None
+
         # rewards
         self.prev_distance = None
 
@@ -306,6 +336,9 @@ class SocNavEnv_v2(gym.Env):
         assert(self.RESOLUTION_X > 0), "resolution X should be greater than 0"
         self.RESOLUTION_Y = config["rendering"]["resolution_y"]
         assert(self.RESOLUTION_Y > 0), "resolution Y should be greater than 0"
+        # the canvas takes the map's aspect ratio (set per episode in randomize_params) with this as its longer side,
+        # so that metres map to the same number of pixels along x and y (it used to be a fixed square: shapes were stretched)
+        self.RENDER_SIZE = max(self.RESOLUTION_X, self.RESOLUTION_Y)
 
         # milliseconds
         self.MILLISECONDS = config["rendering"]["milliseconds"]
@@ -316,6 +349,14 @@ class SocNavEnv_v2(gym.Env):
         assert(self.EPISODE_LENGTH > 0), "episode length should be greater than 0"
         self.TIMESTEP = config["episode"]["time_step"]
         self.END_WITH_COLLISION = config["episode"]["end_with_collision"]
+        # Optional: do not end the episode on the step the goal is reached, but let the robot settle. The episode then ends
+        # when the robot no longer gets closer to the goal: neither its distance to the goal decreases at
+        # settle_position_rate (m/s) or more, nor its angle to the goal orientation at settle_rotation_rate (rad/s) or
+        # more. A collision (if end_with_collision) or the time limit still end it. Default False: end on reaching.
+        self.CONTINUE_AFTER_REACH = bool(config["episode"].get("continue_after_reach", False))
+        self.SETTLE_POSITION_RATE = float(config["episode"].get("settle_position_rate", 0.01))
+        self.SETTLE_ROTATION_RATE = float(config["episode"].get("settle_rotation_rate", np.radians(10.0)))
+        assert self.SETTLE_POSITION_RATE >= 0. and self.SETTLE_ROTATION_RATE >= 0., "the settle rates must be >= 0"
 
         # robot
         self.INITIAL_ROBOT_RADIUS = config["robot"]["robot_radius"]
@@ -349,14 +390,48 @@ class SocNavEnv_v2(gym.Env):
         self.MIN_ADVANCE_ROBOT = config["robot"]["min_advance_robot"]
         assert(self.MIN_ADVANCE_ROBOT <= 0.), "min_advance_robot must be <= 0"
         self.MAX_ROTATION = config["robot"]["max_rotation"]
+        # optional cap on the norm of the linear velocity (m/s). Without it a holonomic robot reaches
+        # hypot(max_advance_robot, max_advance_robot) moving diagonally, since each component is limited separately.
+        self.MAX_LINEAR_SPEED = config["robot"].get("max_linear_speed", None)
+        # minimum free gap at spawn between the robot and any human's collision ellipse in any orientation (bug #25)
+        self.SPAWN_CLEARANCE = config["robot"].get("spawn_clearance", 0.1)
+        # The map rectangle is only where the scene is generated: the robot cannot perceive it and leaving it has no consequence
+        # (no end of the episode, no collision, no reward term). A boundary, if wanted, is made with walls.
+        assert self.MAX_LINEAR_SPEED is None or self.MAX_LINEAR_SPEED > 0., "max_linear_speed must be > 0"
+        # optional cap on the lateral (sideways) speed of a holonomic robot, m/s (applied before max_linear_speed)
+        self.MAX_LATERAL_SPEED = config["robot"].get("max_lateral_speed", None)
+        assert self.MAX_LATERAL_SPEED is None or self.MAX_LATERAL_SPEED >= 0., "max_lateral_speed must be >= 0"
         self.GOAL_ORIENTATION_THRESHOLD = np.pi
 
 
         # human
         self.HUMAN_DIAMETER = config["human"]["human_diameter"]
         self.HUMAN_GOAL_RADIUS = config["human"]["human_goal_radius"]
+        # human_policy: "orca", "sfm", "learned", "random" (= orca or sfm, 50/50), or a mapping of probabilities,
+        # e.g. {learned: 0.6, orca: 0.2, sfm: 0.2}, drawn per human when it is spawned
         self.HUMAN_POLICY = config["human"]["human_policy"]
-        assert(self.HUMAN_POLICY=="random" or self.HUMAN_POLICY == "orca" or self.HUMAN_POLICY == "sfm"), "human_policy should be \"random\", or \"orca\" or \"sfm\""
+        if isinstance(self.HUMAN_POLICY, dict):
+            w = {k: float(v) for k, v in self.HUMAN_POLICY.items()}
+            assert w and all(k in ("orca", "sfm", "learned") for k in w), "human_policy mapping keys must be orca, sfm or learned"
+            assert all(v >= 0 for v in w.values()) and sum(w.values()) > 0, "human_policy probabilities must be >= 0 and not all zero"
+            self.HUMAN_POLICY_WEIGHTS = {k: v / sum(w.values()) for k, v in w.items() if v > 0}
+        else:
+            assert(self.HUMAN_POLICY in ("random", "orca", "sfm", "learned")), "human_policy should be \"random\", \"orca\", \"sfm\", \"learned\" or a mapping of probabilities"
+            self.HUMAN_POLICY_WEIGHTS = {"orca": 0.5, "sfm": 0.5} if self.HUMAN_POLICY == "random" else {self.HUMAN_POLICY: 1.0}
+        # data-driven humans (utils/learned_humans.py): only individual walking humans; groups keep their formation logic
+        self.LEARNED_HUMANS = None
+        # optional per-human preferred walking speed, drawn uniformly per walking human for every policy (groups keep
+        # max_advance_human, their formation speed). Without it ORCA/SFM use max_advance_human, learned humans learned_speed_range.
+        sr = config["human"].get("speed_range", None)
+        self.HUMAN_SPEED_RANGE = None if sr is None else (float(sr[0]), float(sr[1]))
+        if self.HUMAN_SPEED_RANGE is not None:
+            assert 0 <= self.HUMAN_SPEED_RANGE[0] <= self.HUMAN_SPEED_RANGE[1], "speed_range must be [min, max] with 0 <= min <= max"
+        if "learned" in self.HUMAN_POLICY_WEIGHTS:
+            from socnavgym.envs.utils.learned_humans import LearnedHumanController
+            h = config["human"]
+            self.LEARNED_SPEED_RANGE = tuple(h.get("learned_speed_range", self.HUMAN_SPEED_RANGE or [0.6, 1.4]))
+            self.LEARNED_HUMANS = LearnedHumanController(model_path=h.get("learned_model", None), replan=h.get("learned_replan_steps", 4),
+                                                         temperature=h.get("learned_temperature", 0.5), speed_range=self.LEARNED_SPEED_RANGE)
         self.HUMAN_GAZE_ANGLE = config["human"]["gaze_angle"]
         self.PROB_TO_AVOID_ROBOT = config["human"]["prob_to_avoid_robot"]
         self.HUMAN_FOV = config["human"]["fov_angle"]
@@ -365,6 +440,11 @@ class SocNavEnv_v2(gym.Env):
         if "angle_noise_std" in config["human"].keys():
             self.HUMAN_ANGLE_NOISE_STD = config["human"]["angle_noise_std"]
         self.MAX_ADVANCE_HUMAN = config["human"]["max_advance_human"]
+        # observation-space speed bound: must cover every human's speed (learned humans and speed_range can exceed
+        # max_advance_human). A separate variable on purpose: max_advance_human stays the ORCA/SFM/group speed.
+        self.MAX_HUMAN_SPEED_OBS = self.MAX_ADVANCE_HUMAN
+        if self.HUMAN_SPEED_RANGE is not None: self.MAX_HUMAN_SPEED_OBS = max(self.MAX_HUMAN_SPEED_OBS, 1.5 * self.HUMAN_SPEED_RANGE[1])
+        if "learned" in self.HUMAN_POLICY_WEIGHTS: self.MAX_HUMAN_SPEED_OBS = max(self.MAX_HUMAN_SPEED_OBS, 1.5 * self.LEARNED_SPEED_RANGE[1])
         self.MAX_ROTATION_HUMAN = config["human"]["max_rotation_human"]
         self.SPEED_THRESHOLD = config["human"]["speed_threshold"]
 
@@ -517,8 +597,13 @@ class SocNavEnv_v2(gym.Env):
             self.REWARD_PATH = os.path.dirname(os.path.abspath(__file__)) + "/rewards/" + "sparse_gotopoint_reward.py"
         elif self.REWARD_PATH == "sn26":
             self.REWARD_PATH = os.path.dirname(os.path.abspath(__file__)) + "/rewards/" + "sn26.py"
-        else:
-            print("The reward must be one of the following: dsrnn, sparse_gotopoint, sn26")
+        elif self.REWARD_PATH == "sn26gnn":   # the SN26 metric with a graph network (rewards/sn26gnn.py)
+            self.REWARD_PATH = os.path.dirname(os.path.abspath(__file__)) + "/rewards/" + "sn26gnn.py"
+        elif self.REWARD_PATH == "sngnn":
+            raise ValueError("reward_file 'sngnn' is no longer supported: the SNGNN model and compute_sngnn_reward are not in this "
+                             "repository. Use dsrnn, sparse_gotopoint, sn26, sn26gnn, or a path to a custom reward file.")
+        elif not os.path.isfile(self.REWARD_PATH):
+            raise ValueError(f"reward_file must be dsrnn, sparse_gotopoint, sn26, sn26gnn, or a path to a reward file; got {self.REWARD_PATH!r}")
 
         module, self.REWARD_PATH = self.process_reward_path(self.REWARD_PATH)
         reward_module = SourceFileLoader(module, self.REWARD_PATH).load_module()
@@ -553,6 +638,11 @@ class SocNavEnv_v2(gym.Env):
         """
         To randomly initialize the number of entities of each type. Specifically, this function would initialize the MAP_SIZE, NUMBER_OF_HUMANS, NUMBER_OF_PLANTS, NUMBER_OF_LAPTOPS and NUMBER_OF_TABLES
         """
+        # the shape must be chosen BEFORE the map size, which depends on it (square / L rooms have MAP_Y = MAP_X); it used
+        # to be chosen afterwards, so the size followed the previous episode's shape and seeded scenes were not reproducible
+        if self.set_shape == "random":
+            self.shape = random.choice(["rectangle", "square", "L"])
+        else: self.shape = self.set_shape
         area_ok = False
         while area_ok is False:
             self.MAP_X = random.uniform(self.MIN_MAP_X, self.MAX_MAP_X)
@@ -568,8 +658,9 @@ class SocNavEnv_v2(gym.Env):
         self.GOAL_THRESHOLD = self.GOAL_RADIUS # + self.ROBOT_RADIUS
         self.GOAL_ORIENTATION_THRESHOLD = random.uniform(self.MIN_GOAL_ORIENTATION_THRESHOLD, self.MAX_GOAL_ORIENTATION_THRESHOLD)
 
-        self.RESOLUTION_X = int(self.RESOLUTION_X)# * self.MAP_X/(self.MAP_X + self.MAP_Y))
-        self.RESOLUTION_Y = int(self.RESOLUTION_Y)# * self.MAP_Y/(self.MAP_X + self.MAP_Y))
+        scale = self.RENDER_SIZE / max(self.MAP_X, self.MAP_Y)      # pixels per metre, identical along x and y
+        self.RESOLUTION_X = int(round(self.MAP_X * scale))
+        self.RESOLUTION_Y = int(round(self.MAP_Y * scale))
         self.NUMBER_OF_STATIC_HUMANS = random.randint(self.MIN_STATIC_HUMANS, self.MAX_STATIC_HUMANS)  # number of static humans in the env
         self.NUMBER_OF_DYNAMIC_HUMANS = random.randint(self.MIN_DYNAMIC_HUMANS, self.MAX_DYNAMIC_HUMANS)  # number of static humans in the env
         self.NUMBER_OF_PLANTS = random.randint(self.MIN_PLANTS, self.MAX_PLANTS)  # number of plants in the env
@@ -604,10 +695,6 @@ class SocNavEnv_v2(gym.Env):
         for i in self.humans_in_h_h_dynamic_interactions_non_dispersing: self.total_humans += i
         for i in self.humans_in_h_h_static_interactions_non_dispersing: self.total_humans += i
         self.total_humans += self.TOTAL_H_L_INTERACTIONS
-        # randomly select the shape
-        if self.set_shape == "random":
-            self.shape = random.choice(["rectangle", "square", "L"])
-        else: self.shape = self.set_shape
 
 
         # adding Gaussian Noise to ORCA parameters
@@ -651,13 +738,20 @@ class SocNavEnv_v2(gym.Env):
         biggest_side = max(self.MAX_MAP_X, self.MAX_MAP_Y)
         biggest_dist = biggest_side * np.sqrt(2)
 
-        low   = np.array([-biggest_dist, -biggest_dist,                                        0, -1, -1, self.MIN_GOAL_ORIENTATION_THRESHOLD,                                          0, 0], dtype=np.float32)
-        high  = np.array([+biggest_dist, +biggest_dist, self.GOAL_RADIUS+self.GOAL_RADIUS_MARGIN, +1, +1, self.MAX_GOAL_ORIENTATION_THRESHOLD, self.ROBOT_RADIUS+self.ROBOT_RADIUS_MARGIN, 0], dtype=np.float32)
+        # bounds must not depend on the radii randomised at reset (GOAL_RADIUS / ROBOT_RADIUS): use the INITIAL values + margins.
+        # robot[7] is always 1.
+        low   = np.array([-biggest_dist, -biggest_dist,                                                0, -1, -1, self.MIN_GOAL_ORIENTATION_THRESHOLD,                                                  0, 0], dtype=np.float32)
+        high  = np.array([+biggest_dist, +biggest_dist, self.INITIAL_GOAL_RADIUS+self.GOAL_RADIUS_MARGIN, +1, +1, self.MAX_GOAL_ORIENTATION_THRESHOLD, self.INITIAL_ROBOT_RADIUS+self.ROBOT_RADIUS_MARGIN, 1], dtype=np.float32)
         d["robot"] = spaces.Box(low=low, high=high, shape=((8,)), dtype=np.float32)
 
         MAX_HUMANS = self.MAX_HUMANS
-        MAX_H_SPEED = abs(self.MAX_ADVANCE_HUMAN)
+        MAX_H_SPEED = abs(getattr(self, "MAX_HUMAN_SPEED_OBS", self.MAX_ADVANCE_HUMAN))
         MAX_R_SPEED = max(abs(self.MIN_ADVANCE_ROBOT), abs(self.MAX_ADVANCE_ROBOT))
+        if self.ROBOT_TYPE == "holonomic":   # forward and sideways at full speed at once
+            MAX_R_SPEED = np.hypot(max(abs(self.MIN_ADVANCE_ROBOT), abs(self.MAX_ADVANCE_ROBOT)), self.MAX_ADVANCE_ROBOT)
+        if self.ROBOT_TYPE == "holonomic" and getattr(self, "MAX_LATERAL_SPEED", None) is not None:
+            MAX_R_SPEED = np.hypot(max(abs(self.MIN_ADVANCE_ROBOT), abs(self.MAX_ADVANCE_ROBOT)), min(self.MAX_ADVANCE_ROBOT, self.MAX_LATERAL_SPEED))
+        if getattr(self, "MAX_LINEAR_SPEED", None) is not None: MAX_R_SPEED = min(MAX_R_SPEED, self.MAX_LINEAR_SPEED)
         MAX_C_SPEED = MAX_H_SPEED + MAX_R_SPEED
         low =   np.array([-biggest_dist, -biggest_dist, -1.0, -1.0,                       0, -MAX_C_SPEED, -2*np.pi/self.TIMESTEP, 0]*MAX_HUMANS, dtype=np.float32)
         high  = np.array([+biggest_dist, +biggest_dist, +1.0, +1.0,  +self.HUMAN_DIAMETER/2, +MAX_C_SPEED, +2*np.pi/self.TIMESTEP, 1]*MAX_HUMANS, dtype=np.float32)
@@ -743,16 +837,7 @@ class SocNavEnv_v2(gym.Env):
         # check if the coordinates and orientation are not None
         assert(self.robot.x is not None and self.robot.y is not None and self.robot.orientation is not None), "Robot coordinates or orientation are None type"
         # initalizing the matrix
-        tm = np.zeros((3,3), dtype=np.float32)
-        # filling values as described
-        tm[2,2] = 1
-        tm[0,2] = self.robot.x
-        tm[1,2] = self.robot.y
-        tm[0,0] = tm[1,1] = np.cos(self.robot.orientation)
-        tm[1,0] = np.sin(self.robot.orientation)
-        tm[0,1] = -1*np.sin(self.robot.orientation)
-
-        return np.linalg.inv(tm)
+        return _frame_inverse(self.robot.x, self.robot.y, self.robot.orientation)
 
     @property
     def goal_transformation_matrix(self):
@@ -772,16 +857,7 @@ class SocNavEnv_v2(gym.Env):
         # check if the coordinates and orientation are not None
         assert(self.robot.goal_x is not None and self.robot.goal_y is not None and self.robot.goal_a is not None), "Robot coordinates or orientation are None type"
         # initalizing the matrix
-        tm = np.zeros((3,3), dtype=np.float32)
-        # filling values as described
-        tm[2,2] = 1
-        tm[0,2] = self.robot.goal_x
-        tm[1,2] = self.robot.goal_y
-        tm[0,0] = tm[1,1] = np.cos(self.robot.goal_a)
-        tm[1,0] = np.sin(self.robot.goal_a)
-        tm[0,1] = -1*np.sin(self.robot.goal_a)
-
-        return np.linalg.inv(tm)
+        return _frame_inverse(self.robot.goal_x, self.robot.goal_y, self.robot.goal_a)
 
 
     def human_transformation_matrix(self, human:Human):
@@ -801,20 +877,11 @@ class SocNavEnv_v2(gym.Env):
         # check if the coordinates and orientation are not None
         assert(human.x is not None and human.y is not None and human.orientation is not None), "Human coordinates or orientation are None type"
         # initalizing the matrix
-        tm = np.zeros((3,3), dtype=np.float32)
-        # filling values as described
-        tm[2,2] = 1
-        tm[0,2] = human.x
-        tm[1,2] = human.y
-        tm[0,0] = tm[1,1] = np.cos(human.orientation)
-        tm[1,0] = np.sin(human.orientation)
-        tm[0,1] = -1*np.sin(human.orientation)
-
-        return np.linalg.inv(tm)
+        return _frame_inverse(human.x, human.y, human.orientation)
 
     def get_relative_frame_coordinates(self, coord):
         # converting the coordinates to homogeneous coordinates
-        homogeneous_coordinates = np.c_[coord, np.ones((coord.shape[0], 1))]
+        homogeneous_coordinates = _homogeneous(coord)
         # getting the robot frame coordinates by multiplying with the transformation matrix
         coord_in_relative_frame = (self.relative_transformation_matrix@homogeneous_coordinates.T).T
         return coord_in_relative_frame[:, 0:2]
@@ -830,7 +897,7 @@ class SocNavEnv_v2(gym.Env):
 
         """
         # converting the coordinates to homogeneous coordinates
-        homogeneous_coordinates = np.c_[coord, np.ones((coord.shape[0], 1))]
+        homogeneous_coordinates = _homogeneous(coord)
         # getting the robot frame coordinates by multiplying with the transformation matrix
         coord_in_robot_frame = (self.transformation_matrix@homogeneous_coordinates.T).T
         return coord_in_robot_frame[:, 0:2]
@@ -845,7 +912,7 @@ class SocNavEnv_v2(gym.Env):
 
         """
         # converting the coordinates to homogeneous coordinates
-        homogeneous_coordinates = np.c_[coord, np.ones((coord.shape[0], 1))]
+        homogeneous_coordinates = _homogeneous(coord)
         # transformation matrix of the human
         transformation_matrix = self.human_transformation_matrix(human)
         # getting the human frame coordinates by multiplying with the transformation matrix
@@ -938,21 +1005,17 @@ class SocNavEnv_v2(gym.Env):
                     centers.append((right_x - np.cos(wall.orientation)*length/2, right_y - np.sin(wall.orientation)*length/2))
                     lengths.append(length)
 
-            obs = np.array([], dtype=np.float32)
-
-            for center, length in zip(centers, lengths):
-                # coorinates of the wall
-                obs = np.concatenate((obs, self.get_relative_frame_coordinates(np.array([[center[0], center[1]]])).flatten()))
-                # sin and cos of relative angles
-                obs = np.concatenate((obs, np.array([(np.sin(wall.orientation - self.relative_frame.orientation)), np.cos(wall.orientation - self.relative_frame.orientation)])))
-                # radius of the wall = length/2
-                obs = np.concatenate((obs, np.array([length/2])))
-                # relative speeds based on robot type
-                relative_speeds = np.array([-np.sqrt(self.relative_frame.vel_x**2 + self.relative_frame.vel_y**2), -self.relative_frame.vel_a], dtype=np.float32)
-                obs = np.concatenate((obs, relative_speeds))
-                # gaze for walls is 0
-                obs = np.concatenate((obs, np.array([0.0])))
-                obs = obs.flatten().astype(np.float32)
+            # one float32 row per segment: position, sin and cos of the relative angle, half length, relative speeds, gaze (0)
+            rel = wall.orientation - self.relative_frame.orientation
+            w_sin, w_cos = np.sin(rel), np.cos(rel)
+            relative_speeds = np.array([-np.sqrt(self.relative_frame.vel_x**2 + self.relative_frame.vel_y**2), -self.relative_frame.vel_a], dtype=np.float32)
+            obs = np.empty((len(centers), 8), dtype=np.float32)
+            if len(centers):
+                obs[:, 0:2] = self.get_relative_frame_coordinates(np.array(centers, dtype=np.float64).reshape(-1, 2))
+                obs[:, 2] = w_sin; obs[:, 3] = w_cos
+                obs[:, 4] = np.array(lengths, dtype=np.float64) / 2
+                obs[:, 5:7] = relative_speeds; obs[:, 7] = 0.0
+            obs = obs.reshape(-1)
 
             wall_coordinates = self.get_relative_frame_coordinates(np.array([[wall.x, wall.y]])).flatten()
             self._current_observations[wall.id] = EntityObs(
@@ -971,17 +1034,13 @@ class SocNavEnv_v2(gym.Env):
             return _get_wall_obs(object, self.WALL_SEGMENT_SIZE)
 
         # initializing output array
-        output = np.array([], dtype=np.float32)
-
         # object's coordinates in the relative frame
         r_coords = self.get_relative_frame_coordinates(np.array([[object.x, object.y]])).flatten()
-        output = np.concatenate((output, r_coords), dtype=np.float32)
 
 
         rel_angle = object.orientation - self.relative_frame.orientation
         # sin and cos of the relative angle of the object
         s_c = np.array([np.sin(rel_angle), np.cos(rel_angle)])
-        output = np.concatenate((output, s_c), dtype=np.float32)
 
         # object's radius
         radius = 0
@@ -993,7 +1052,6 @@ class SocNavEnv_v2(gym.Env):
             radius = np.sqrt((object.length/2)**2 + (object.width/2)**2)
         else: raise NotImplementedError
 
-        output = np.concatenate((output, np.array([radius], dtype=np.float32)), dtype=np.float32)
 
         relative_vel_x = self.relative_frame.vel_x * np.cos(self.relative_frame.orientation) + self.relative_frame.vel_y * np.cos(self.relative_frame.orientation + np.pi/2)
         relative_vel_y = self.relative_frame.vel_x * np.sin(self.relative_frame.orientation) + self.relative_frame.vel_y * np.sin(self.relative_frame.orientation + np.pi/2)
@@ -1006,9 +1064,9 @@ class SocNavEnv_v2(gym.Env):
                 assert object.speed <= 0.001, "static human has speed"
             # relative linear speed
             relative_speeds[0] = np.sqrt((object.speed*np.cos(object.orientation) - relative_vel_x)**2 + (object.speed*np.sin(object.orientation) - relative_vel_y)**2)
-            relative_speeds[1] = (np.arctan2(np.sin(object.orientation - self.relative_frame.orientation), np.cos(object.orientation - self.relative_frame.orientation)) - self._prev_observations[object.id].theta) / self.TIMESTEP
+            _dth = np.arctan2(np.sin(object.orientation - self.relative_frame.orientation), np.cos(object.orientation - self.relative_frame.orientation)) - self._prev_observations[object.id].theta
+            relative_speeds[1] = np.arctan2(np.sin(_dth), np.cos(_dth)) / self.TIMESTEP   # wrapped: no +-2pi/dt spikes
 
-        output = np.concatenate((output, relative_speeds), dtype=np.float32)
 
         # adding gaze
         gaze = 0.0
@@ -1018,10 +1076,9 @@ class SocNavEnv_v2(gym.Env):
             robot_y = robot_in_human_frame[1]
             if np.arctan2(robot_y, robot_x) >= -self.HUMAN_GAZE_ANGLE/2 and np.arctan2(robot_y, robot_x)<= self.HUMAN_GAZE_ANGLE/2:
                 gaze = 1.0
-        output = np.concatenate((output, np.array([gaze])), dtype=np.float32)
-
-
-        output = output.flatten()
+        # the eight values, cast to float32 one by one (as the chain of concatenations used to do)
+        output = np.empty(8, dtype=np.float32)
+        output[0:2] = r_coords; output[2:4] = s_c; output[4] = radius; output[5:7] = relative_speeds; output[7] = gaze
         self._current_observations[object.id] = EntityObs(
             object.id,
             output[0],
@@ -1030,8 +1087,8 @@ class SocNavEnv_v2(gym.Env):
             output[2],
             output[3]
         )
-        assert(self.entity_obs_dim == output.flatten().shape[-1]), f"The value of self.entity_obs_dim needs to be changed {self.entity_obs_dim} == {output.flatten().shape[-1]}"
-        return output.flatten()
+        assert(self.entity_obs_dim == output.shape[-1]), f"The value of self.entity_obs_dim needs to be changed {self.entity_obs_dim} == {output.shape[-1]}"
+        return output
 
     def _get_obs(self):
         """
@@ -1129,11 +1186,28 @@ class SocNavEnv_v2(gym.Env):
 
         return d
 
+    def human_speed(self, human):
+        """Preferred walking speed of an individual human: drawn once from speed_range (if configured), else max_advance_human."""
+        sp = getattr(human, "scenario_speed", None)
+        if sp is not None: return sp            # set by a hand-made scenario
+        if self.HUMAN_SPEED_RANGE is None:
+            if getattr(human, "policy", None) == "learned" and self.LEARNED_HUMANS is not None and human.id in self.LEARNED_HUMANS.pref_speed:
+                return self.LEARNED_HUMANS.pref_speed[human.id]    # so ORCA/SFM neighbours expect a learned human's real speed
+            return self.MAX_ADVANCE_HUMAN
+        if getattr(human, "pref_speed", None) is None:     # humans spawned or released mid-episode get theirs lazily
+            human.pref_speed = random.uniform(*self.HUMAN_SPEED_RANGE)
+        return human.pref_speed
+
+    SFM_RELAXATION_TIME = 0.5   # s, tau of the social force model's driving term
+
     def get_desired_force(self, human:Human):
+        """Driving force of the social force model: relaxation towards the preferred velocity, (v0 e - v) / tau."""
         e_d = np.array([(human.goal_x - human.x), (human.goal_y - human.y)], dtype=np.float32)
         if np.linalg.norm(e_d) != 0:
             e_d /= np.linalg.norm(e_d)
-        f_d = self.MAX_ADVANCE_HUMAN * e_d
+        v = getattr(human, "sfm_v", None)
+        v = np.zeros(2, np.float32) if v is None else v
+        f_d = (self.human_speed(human) * e_d - v) / self.SFM_RELAXATION_TIME
         return f_d
 
     def get_obstacle_force(self, human:Human, obstacle:Object, r0):
@@ -1268,11 +1342,19 @@ class SocNavEnv_v2(gym.Env):
             elif i.name == "human-laptop-interaction":
                 f += w3 * self.get_interaction_force(human, i.human, self.sfm_gamma, self.sfm_n, self.sfm_n_prime, self.sfm_lambd)
 
-        velocity = (f/human.mass) * self.TIMESTEP
-        if np.linalg.norm(velocity) > self.MAX_ADVANCE_HUMAN:
+        # integrate the acceleration (the forces are accelerations / mass); the old code returned (f/m)*dt as the velocity
+        # itself, ~0.02 m/s, below SPEED_THRESHOLD, so SFM humans never moved (bug #21)
+        # SFM keeps its own (unthresholded) velocity state: the step loop zeroes speeds below SPEED_THRESHOLD, which would
+        # otherwise stop a human from ever accelerating from rest
+        v = getattr(human, "sfm_v", None)
+        v = np.zeros(2, np.float32) if v is None else v
+        velocity = v + (f/human.mass) * self.TIMESTEP
+        vmax = self.human_speed(human)
+        if np.linalg.norm(velocity) > vmax:
             if np.linalg.norm(velocity) != 0:
                 velocity /= np.linalg.norm(velocity)
-            velocity *= self.MAX_ADVANCE_HUMAN
+            velocity *= vmax
+        human.sfm_v = velocity.astype(np.float32)
 
         return velocity
 
@@ -1347,9 +1429,10 @@ class SocNavEnv_v2(gym.Env):
         # normalising the velocity
         if not np.linalg.norm(pref_vel) == 0:
             pref_vel /= np.linalg.norm(pref_vel)
-        pref_vel *= self.MAX_ADVANCE_HUMAN
+        pref_vel *= self.human_speed(human)
         # setting the preferred velocity
         sim.setAgentPrefVelocity(thisHuman, (pref_vel[0], pref_vel[1]))
+        sim.setAgentMaxSpeed(thisHuman, max(self.orca_maxSpeed, 1.1 * self.human_speed(human)))
 
 
         delay_steps = 1
@@ -1391,9 +1474,10 @@ class SocNavEnv_v2(gym.Env):
 
             if not np.linalg.norm(pref_vel) == 0:
                 pref_vel /= np.linalg.norm(pref_vel)
-            pref_vel *= self.MAX_ADVANCE_HUMAN
+            pref_vel *= self.human_speed(other_human)
             # setting the preferred velocity
             sim.setAgentPrefVelocity(h, (pref_vel[0], pref_vel[1]))
+            sim.setAgentMaxSpeed(h, max(self.orca_maxSpeed, 1.1 * self.human_speed(other_human)))
 
 
         # adding robot with a probability of avoiding the robot
@@ -1525,9 +1609,10 @@ class SocNavEnv_v2(gym.Env):
             # normalising the velocity
             if not np.linalg.norm(pref_vel) == 0:
                 pref_vel /= np.linalg.norm(pref_vel)
-            pref_vel *= self.MAX_ADVANCE_HUMAN
+            pref_vel *= self.human_speed(other_human)
             # setting the preferred velocity
             sim.setAgentPrefVelocity(h, (pref_vel[0], pref_vel[1]))
+            sim.setAgentMaxSpeed(h, max(self.orca_maxSpeed, 1.1 * self.human_speed(other_human)))
 
         # adding visible moving interactions
         for i in visible_moving_interactions:
@@ -1624,8 +1709,9 @@ class SocNavEnv_v2(gym.Env):
 
             if not np.linalg.norm(pref_vel) == 0:
                 pref_vel /= np.linalg.norm(pref_vel)
-            pref_vel *= self.MAX_ADVANCE_HUMAN
+            pref_vel *= self.human_speed(other_human)
             sim.setAgentPrefVelocity(h, (pref_vel[0], pref_vel[1]))
+            sim.setAgentMaxSpeed(h, max(self.orca_maxSpeed, 1.1 * self.human_speed(other_human)))
 
         for obj in self.tables + self.chairs + self.laptops + self.plants + self.walls:
             p = self.get_obstacle_corners(obj)
@@ -1780,6 +1866,8 @@ class SocNavEnv_v2(gym.Env):
             # check collisions with objects
             for object in self.plants + self.walls + self.tables + self.laptops + self.chairs:
                 if human.collides(object):
+                    if getattr(human, "learned_target", None) is not None:   # contact: fall back to the env's push-back
+                        human.learned_target = None; self.LEARNED_HUMANS.invalidate(human.id)
                     [fi, fj] = self.get_collision_force(human, object)
                     entity_vel = (fi / human.mass) * self.TIMESTEP
                     orientation = np.arctan2(entity_vel[1], entity_vel[0])
@@ -1789,6 +1877,8 @@ class SocNavEnv_v2(gym.Env):
                         human.speed = 0
                 if human.collides(self.robot):
                     human.speed = 0
+                    if getattr(human, "learned_target", None) is not None:   # blocked by the robot: stay and replan
+                        human.learned_target = (human.x, human.y); self.LEARNED_HUMANS.invalidate(human.id)
 
         for i in self.moving_interactions:
             stop_moving = False
@@ -1801,7 +1891,14 @@ class SocNavEnv_v2(gym.Env):
 
 
         for human in all_humans:
-            human.update(self.TIMESTEP)
+            if getattr(human, "scripted_target", None) is not None:      # scenario: scripted or waiting person
+                human.move_to(*human.scripted_target, self.TIMESTEP); human.scripted_target = None
+            elif getattr(human, "learned_target", None) is not None:
+                human.move_to(*human.learned_target, self.TIMESTEP); human.learned_target = None
+            else:
+                human.update(self.TIMESTEP)
+        if self.LEARNED_HUMANS is not None:
+            self.LEARNED_HUMANS.record()
 
     def discrete_to_continuous_action(self, action:int):
         """
@@ -1889,6 +1986,12 @@ class SocNavEnv_v2(gym.Env):
             elif action[2] > self.MAX_ROTATION:  # Rotation must be lower than +self.MAX_ROTATION
                 action[2] =  self.MAX_ROTATION
 
+            if self.MAX_LATERAL_SPEED is not None:  # |vy| <= max_lateral_speed
+                action[1] = float(np.clip(action[1], -self.MAX_LATERAL_SPEED, self.MAX_LATERAL_SPEED))
+            if self.MAX_LINEAR_SPEED is not None:   # |v| <= max_linear_speed, keeping the direction of motion
+                n = float(np.hypot(action[0], action[1]))
+                if n > self.MAX_LINEAR_SPEED: action[:2] *= self.MAX_LINEAR_SPEED / n
+
             return action
         # for converting the action to the velocity
 
@@ -1927,10 +2030,12 @@ class SocNavEnv_v2(gym.Env):
             if self.robot_orca.type == "holonomic":
                 vel_x = vel[0] * np.cos(self.robot_orca.orientation) + vel[1] * np.sin(self.robot_orca.orientation)
                 vel_y = -vel[0] * np.sin(self.robot_orca.orientation) + vel[1] * np.cos(self.robot_orca.orientation)
-                vel_a = (np.arctan2(vel[1], vel[0]) - self.robot_orca.orientation)/self.TIMESTEP
+                _dth = np.arctan2(vel[1], vel[0]) - self.robot_orca.orientation
+                vel_a = np.arctan2(np.sin(_dth), np.cos(_dth))/self.TIMESTEP
             elif self.robot_orca.type == "diff-drive":
                 vel_y = 0
-                vel_a = (np.arctan2(vel[1], vel[0]) - self.robot_orca.orientation)/self.TIMESTEP
+                _dth = np.arctan2(vel[1], vel[0]) - self.robot_orca.orientation
+                vel_a = np.arctan2(np.sin(_dth), np.cos(_dth))/self.TIMESTEP
                 vel_x = np.sqrt(vel[0]**2 + vel[1]**2)
 
             self.robot_orca.vel_x = np.clip(vel_x, -self.MAX_ADVANCE_ROBOT, self.MAX_ADVANCE_ROBOT)
@@ -1938,11 +2043,25 @@ class SocNavEnv_v2(gym.Env):
             self.robot_orca.vel_a = np.clip(vel_a, -self.MAX_ROTATION, self.MAX_ROTATION)
             self.robot_orca.update(self.TIMESTEP)
 
+        # scenario: triggers, scripted people and waiting people (before the others' velocities are computed)
+        if self._scenario is not None: self._scenario.before_humans(self)
+
         # update humans
         interaction_vels = self.compute_orca_interaction_velocities()
+        learned = [h for h in self.dynamic_humans if h.policy == "learned"]
+        targets = self.LEARNED_HUMANS.next_positions(learned) if learned else {}
         for index, human in enumerate(self.dynamic_humans):
             if(human.goal_x==None or human.goal_y==None):
                 raise AssertionError("Human goal not specified")
+            if human.policy in ("wait", "scripted"):   # scenario people: placed by the scenario (scripted_target)
+                continue
+            if human.policy == "learned":
+                tx, ty = targets[human.id]
+                d = np.hypot(tx - human.x, ty - human.y)
+                if d > 1e-3: human.orientation = atan2(ty - human.y, tx - human.x)
+                human.speed = d / self.TIMESTEP
+                human.learned_target = (tx, ty)
+                continue
             if human.policy == "orca":
                 velocity = self.compute_orca_velocity(human)
             elif human.policy == "sfm":
@@ -1966,6 +2085,7 @@ class SocNavEnv_v2(gym.Env):
         for human in self.dynamic_humans:
             if self.crowd_forming and human.id in self.humans_forming_crowd.keys(): continue  # handling the humans forming a crowd separately
             if self.h_l_forming and human.id == self.h_l_forming_human.id: continue  # handling the human forming the human-laptop-interaction separately
+            if getattr(human, "scn", None) is not None: continue  # scenario people: their goals come from the scenario
             HALF_SIZE_X = self.MAP_X/2. - self.MARGIN
             HALF_SIZE_Y = self.MAP_Y/2. - self.MARGIN
             if human.has_reached_goal():
@@ -1973,6 +2093,8 @@ class SocNavEnv_v2(gym.Env):
                 if o is not None:
                     human.set_goal(o.x, o.y)
                     self.goals[human.id] = o
+
+        if self._scenario is not None: self._scenario.after_goals(self)
 
         # update goals of interactions
         for i in self.moving_interactions:
@@ -2037,17 +2159,15 @@ class SocNavEnv_v2(gym.Env):
 
         # computing rewards and done
         reward, info = self.compute_reward_and_ticks(action)
+        if self._scenario is not None: self._scenario.step_info(self, info)
         terminated = self._is_terminated
         truncated = self._is_truncated
 
         if "sn26" in self.REWARD_PATH:
-            if abs(reward) > 0.001:
-                if self.ticks >= self.EPISODE_LENGTH:
-                    truncated = self._is_truncated = 1
-                    terminated = self._is_terminated = 0
-                else:
-                    truncated = self._is_truncated = 0
-                    terminated = self._is_terminated = 1
+            # exactly one of terminated / truncated: a real terminal state (success, collision, out of map) wins over
+            # the time limit, even when it happens on the last tick
+            terminated = self._is_terminated = bool(self._is_terminated)
+            truncated = self._is_truncated = bool(self._is_truncated) and not terminated
 
         # updating the previous observations
         self.populate_prev_obs()
@@ -2063,44 +2183,45 @@ class SocNavEnv_v2(gym.Env):
         if DEBUG > 0 and (self._is_terminated or self._is_truncated):
             print(f'cumulative reward: {self.cumulative_reward}')
 
-        # dispersing crowds
-        if np.random.random() <= self.CROWD_DISPERSAL_PROBABILITY:
-            t = np.random.randint(0, 2)
-            self.dispersable_moving_crowd_indices = []
-            self.dispersable_static_crowd_indices = []
+        if self._scenario is None:   # spontaneous group / laptop events: not in hand-made scenarios
+            # dispersing crowds
+            if np.random.random() <= self.CROWD_DISPERSAL_PROBABILITY:
+                t = np.random.randint(0, 2)
+                self.dispersable_moving_crowd_indices = []
+                self.dispersable_static_crowd_indices = []
 
-            for ind, i in enumerate(self.moving_interactions):
+                for ind, i in enumerate(self.moving_interactions):
+                    if i.can_disperse:
+                        self.dispersable_moving_crowd_indices.append(ind)
+
+                for ind, i in enumerate(self.static_interactions):
+                    if i.can_disperse:
+                        self.dispersable_static_crowd_indices.append(ind)
+
+                if t == 0 and len(self.dispersable_static_crowd_indices) > 0:
+                    index = random.choice(self.dispersable_static_crowd_indices)
+                    self.disperse_static_crowd(index)
+
+                elif t == 1 and len(self.dispersable_moving_crowd_indices) > 0:
+                    index = random.choice(self.dispersable_moving_crowd_indices)
+                    self.disperse_moving_crowd(index)
+
+            # disperse human-laptop
+            self.dispersable_h_l_interaction_indices = []
+            for ind, i in enumerate(self.h_l_interactions):
                 if i.can_disperse:
-                    self.dispersable_moving_crowd_indices.append(ind)
+                    self.dispersable_h_l_interaction_indices.append(ind)
 
-            for ind, i in enumerate(self.static_interactions):
-                if i.can_disperse:
-                    self.dispersable_static_crowd_indices.append(ind)
+            if np.random.random() <= self.HUMAN_LAPTOP_DISPERSAL_PROBABILITY and len(self.dispersable_h_l_interaction_indices) > 0:
+                index = random.choice(self.dispersable_h_l_interaction_indices)
+                self.disperse_human_laptop(index)
 
-            if t == 0 and len(self.dispersable_static_crowd_indices) > 0:
-                index = random.choice(self.dispersable_static_crowd_indices)
-                self.disperse_static_crowd(index)
+            # forming interactions
+            if np.random.random() <= self.CROWD_FORMATION_PROBABILITY and not self.crowd_forming and not self.h_l_forming:
+                self.form_human_crowd()  # form a new human crowd
 
-            elif t == 1 and len(self.dispersable_moving_crowd_indices) > 0:
-                index = random.choice(self.dispersable_moving_crowd_indices)
-                self.disperse_moving_crowd(index)
-
-        # disperse human-laptop
-        self.dispersable_h_l_interaction_indices = []
-        for ind, i in enumerate(self.h_l_interactions):
-            if i.can_disperse:
-                self.dispersable_h_l_interaction_indices.append(ind)
-
-        if np.random.random() <= self.HUMAN_LAPTOP_DISPERSAL_PROBABILITY and len(self.dispersable_h_l_interaction_indices) > 0:
-            index = random.choice(self.dispersable_h_l_interaction_indices)
-            self.disperse_human_laptop(index)
-
-        # forming interactions
-        if np.random.random() <= self.CROWD_FORMATION_PROBABILITY and not self.crowd_forming and not self.h_l_forming:
-            self.form_human_crowd()  # form a new human crowd
-
-        if np.random.random() <= self.HUMAN_LAPTOP_FORMATION_PROBABILITY and not self.crowd_forming and not self.h_l_forming:
-            self.form_human_laptop_interaction()  # form a new human-laptop interaction
+            if np.random.random() <= self.HUMAN_LAPTOP_FORMATION_PROBABILITY and not self.crowd_forming and not self.h_l_forming:
+                self.form_human_laptop_interaction()  # form a new human-laptop interaction
 
         return observation, reward, terminated, truncated, info
 
@@ -2112,28 +2233,64 @@ class SocNavEnv_v2(gym.Env):
         return next_state, reward, terminated, truncated, info
 
     def sample_goal(self, goal_radius, HALF_SIZE_X, HALF_SIZE_Y):
-        start_time = time.time()
+        """Rejection sampling of a goal position. Same random draws and same accept/reject decisions as the original loop
+        (a Plant per candidate, Object.collides against every object); the two exact shortcuts of Object.collides
+        (_surely_apart / _surely_overlapping) are evaluated inline with the same arithmetic, on data prepared once per call,
+        and only undecided pairs go to Object.collides. In rooms this loop ran about 500 candidates per call."""
+        start_time = self._new_budget()
+        eps = 1e-6; inner = _INNER
+        try:
+            r_apart = goal_radius + eps; r_in = inner * goal_radius; r_over = r_in - eps
+        except TypeError:
+            r_apart = None
+        round_, rect_, slow = [], [], []       # the other objects, split by the test that applies (nothing moves during the call)
+        for obj in (self.objects + list(self.goals.values())):
+            if obj is None: continue
+            try:
+                if r_apart is None: raise TypeError
+                n = obj.name
+                if n in _ROUND:
+                    human = n == "human"
+                    round_.append((obj.x, obj.y, goal_radius + (obj.radius if not human else obj.width / 2) + eps,
+                                   r_in + inner * (obj.radius if not human else obj.width / 6) - eps, obj))
+                    obj.x - 0.0; obj.y - 0.0
+                elif n in _RECT:
+                    rect_.append((obj.x, obj.y, math.cos(obj.orientation), math.sin(obj.orientation), obj.length / 2,
+                                  (obj.thickness if n == "wall" else obj.width) / 2, obj))
+                    obj.x - 0.0; obj.y - 0.0
+                else: slow.append(obj)
+            except (TypeError, AttributeError):
+                if round_ and round_[-1][-1] is obj: round_.pop()
+                if rect_ and rect_[-1][-1] is obj: rect_.pop()
+                slow.append(obj)                                   # unset attributes: Object.collides raises its own errors
+        hypot = math.hypot
         while True:
             if self.check_timeout(start_time):
                 break
-            goal = Plant(
-                id=None,
-                x = random.uniform(-HALF_SIZE_X, HALF_SIZE_X),
-                y = random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y),
-                radius=goal_radius
-            )
-
-            collides = False
-            all_objects = self.objects
-            for obj in (all_objects + list(self.goals.values())): # check if spawned object collides with any of the exisiting objects. It will not be rendered as a plant.
-                if obj is None: continue
+            x = random.uniform(-HALF_SIZE_X, HALF_SIZE_X)
+            y = random.uniform(-HALF_SIZE_Y, HALF_SIZE_Y)
+            collides = False; undecided = []
+            for ox, oy, t_apart, t_over, obj in round_:
+                d = hypot(x - ox, y - oy)
+                if d > t_apart: continue
+                if d < t_over: collides = True; break
+                undecided.append(obj)
+            if not collides:
+                for ox, oy, c, sn, hl, hw, obj in rect_:
+                    dx = x - ox; dy = y - oy
+                    qx = abs(dx * c + dy * sn) - hl
+                    qy = abs(-dx * sn + dy * c) - hw
+                    d = hypot(max(qx, 0.0), max(qy, 0.0))
+                    if d > r_apart: continue
+                    if not d > r_over: collides = True; break
+                    undecided.append(obj)
+            if collides: continue
+            goal = Plant(id=None, x=x, y=y, radius=goal_radius)
+            for obj in undecided + slow:
                 if goal.collides(obj):
                     collides = True
                     break
-
-            if collides:
-                del goal
-            else:
+            if not collides:
                 return goal
         return None
 
@@ -2287,7 +2444,7 @@ class SocNavEnv_v2(gym.Env):
             if(len(self.dynamic_humans) < numHumans):  # check if the number of moving humans are greater than the number of humans required to form a crowd
                 pass
             else:
-                start_time = time.time()  # for timeout purposes, recording the time
+                start_time = self._new_budget()  # for timeout purposes, recording the time
                 indices = random.sample(range(len(self.dynamic_humans)), numHumans)  # randomly sample a few humans from the list of moving humans
                 HALF_SIZE_X = self.MAP_X/2. - self.MARGIN
                 HALF_SIZE_Y = self.MAP_Y/2. - self.MARGIN
@@ -2542,7 +2699,8 @@ class SocNavEnv_v2(gym.Env):
 
         # calculate the distance to the goal
         distance_to_goal = np.sqrt((self.robot.goal_x - self.robot.x)**2 + (self.robot.goal_y - self.robot.y)**2)
-        diff_goal_angle = abs(np.arctan2(np.sin(self.robot.goal_a), np.cos(self.robot.goal_a)) - np.arctan2(np.sin(self.robot.orientation), np.cos(self.robot.orientation)))
+        _da = self.robot.goal_a - self.robot.orientation
+        diff_goal_angle = abs(np.arctan2(np.sin(_da), np.cos(_da)))   # wrapped: goals near +-pi were unreachable without over-rotating
 
         # calculate the distance to goal for the orca robot
         if (not self.has_orca_robot_collided) and (not self.has_orca_robot_reached_goal):
@@ -2558,7 +2716,7 @@ class SocNavEnv_v2(gym.Env):
             for i in (self.moving_interactions + self.static_interactions + self.h_l_interactions):
                 if orca_robot_collision:
                     break
-                if i.collides(self.robot):
+                if i.collides(self.robot_orca):
                     orca_robot_collision = True
                     break
 
@@ -2595,45 +2753,8 @@ class SocNavEnv_v2(gym.Env):
             if closest_dist < dmin:
                 dmin = closest_dist
 
-        for human in self.static_humans + self.dynamic_humans:
-            px = human.x - self.robot.x
-            py = human.y - self.robot.y
-
-            vx = human.speed*np.cos(human.orientation) - action[0] * np.cos(action[2]*self.TIMESTEP + self.robot.orientation) - action[1] * np.cos(action[2]*self.TIMESTEP + self.robot.orientation + np.pi/2)
-            vy = human.speed*np.sin(human.orientation) - action[0] * np.sin(action[2]*self.TIMESTEP + self.robot.orientation) - action[1] * np.sin(action[2]*self.TIMESTEP + self.robot.orientation + np.pi/2)
-
-            ex = px + vx * self.TIMESTEP
-            ey = py + vy * self.TIMESTEP
-
-            closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - self.HUMAN_DIAMETER/2 - self.ROBOT_RADIUS
-
-            if closest_dist < dmin:
-                dmin = closest_dist
-
-        for interaction in (self.moving_interactions + self.static_interactions + self.h_l_interactions):
-            px = interaction.x - self.robot.x
-            py = interaction.y - self.robot.y
-
-            speed = 0
-            if interaction.name == "human-human-interaction":
-                for h in interaction.humans:
-                    speed += h.speed
-                speed /= len(interaction.humans)
-
-            # BUG ERROR WARNING `human` is a variable from a different loop.
-            vx = speed*np.cos(human.orientation) - action[0] * np.cos(action[2]*self.TIMESTEP + self.robot.orientation) - action[1] * np.cos(action[2]*self.TIMESTEP + self.robot.orientation + np.pi/2)
-            vy = speed*np.sin(human.orientation) - action[0] * np.sin(action[2]*self.TIMESTEP + self.robot.orientation) - action[1] * np.sin(action[2]*self.TIMESTEP + self.robot.orientation + np.pi/2)
-
-            ex = px + vx * self.TIMESTEP
-            ey = py + vy * self.TIMESTEP
-
-            closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - self.HUMAN_DIAMETER/2 - self.ROBOT_RADIUS
-
-            if closest_dist < dmin:
-                dmin = closest_dist
-
         info = {
-            "OUT_OF_MAP": False,
+            "OUT_OF_MAP": False,       # always False: the map area is not a boundary (key kept for existing scripts)
             "COLLISION_HUMAN": False,
             "COLLISION_OBJECT": False,
             "COLLISION": False,
@@ -2653,15 +2774,22 @@ class SocNavEnv_v2(gym.Env):
         }
 
         # calculate the reward and record necessary information
-        if self.MAP_X/2 < self.robot.x or self.robot.x < -self.MAP_X/2 or self.MAP_Y/2 < self.robot.y or self.robot.y < -self.MAP_Y/2:
-            self._is_terminated = self._is_terminated or self.END_WITH_COLLISION
-            self._collision = True
-            info["OUT_OF_MAP"] = True
-
-        if distance_to_goal < self.GOAL_THRESHOLD and diff_goal_angle < self.GOAL_ORIENTATION_THRESHOLD:
-            self._is_terminated = True
+        self._goal_settled = False
+        if distance_to_goal < self.GOAL_THRESHOLD and diff_goal_angle < self.GOAL_ORIENTATION_THRESHOLD and self._goal_reach_tick is None:
+            self._goal_reach_tick = self.ticks
+        if self._goal_reach_tick is not None:      # reached, now or (continue_after_reach) earlier in the episode
             info["SUCCESS"] = True
-            info["TIME_TO_REACH_GOAL"] = self.ticks * self.TIMESTEP
+            info["TIME_TO_REACH_GOAL"] = self._goal_reach_tick * self.TIMESTEP
+            if self.CONTINUE_AFTER_REACH:
+                # still approaching? (the orientation only counts if the goal has one)
+                closing = (self.prev_goal_distance - distance_to_goal) / self.TIMESTEP >= max(self.SETTLE_POSITION_RATE, 1e-12)
+                turning = (self.GOAL_ORIENTATION_THRESHOLD < np.pi
+                           and (self.prev_goal_angle - diff_goal_angle) / self.TIMESTEP >= max(self.SETTLE_ROTATION_RATE, 1e-12))
+                self._goal_settled = not (closing or turning)
+            else:
+                self._goal_settled = True
+            self._is_terminated = self._is_terminated or self._goal_settled
+        self.prev_goal_angle = diff_goal_angle
 
         if collision is True:
             self._is_terminated = self._is_terminated or self.END_WITH_COLLISION
@@ -2941,11 +3069,20 @@ class SocNavEnv_v2(gym.Env):
         return collision_human, collision_object, collision_wall
 
 
+    ATTEMPTS_PER_SECOND = 1000   # budget scale: the old wall-clock limits are converted to attempt counts
+
+    def _new_budget(self):
+        """Token for check_timeout. Replaces the old `start_time = time.time()` so that scene generation and crowd forming
+        no longer depend on machine speed or load (results used to differ between machines / under debugging)."""
+        if not hasattr(self, "_budgets"): self._budgets = {}
+        token = len(self._budgets) + 1
+        self._budgets[token] = 0
+        return token
+
     def check_timeout(self, start_time, period=3):
-        if time.time()-start_time >= period:
-            return True
-        else:
-            return False
+        """True once more than period * ATTEMPTS_PER_SECOND attempts were made with this budget token."""
+        self._budgets[start_time] += 1
+        return self._budgets[start_time] > period * self.ATTEMPTS_PER_SECOND
 
     def _get_walls_for_L_shaped_room(self, location: int) -> List[Wall]:
         """Returns a list of walls according to the value of location
@@ -2957,41 +3094,41 @@ class SocNavEnv_v2(gym.Env):
             List[Wall]: A list of walls that together make the boundary of the L-shaped room
         """
         if location == 0:
-            w_l8 = Wall(id=None, x=self.MAP_X/2 -self.L_X/2, y=self.MAP_Y/2 -self.L_Y, theta=np.pi, length=self.L_X, thickness=self.WALL_THICKNESS)
-            w_l7 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=-self.L_Y/2, theta=np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
-            w_l6 = Wall(id=None, x=self.MAP_X/6, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), theta=0, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
-            w_l5 = Wall(id=None, x=-self.MAP_X/3, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), theta=0, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
-            w_l4 = Wall(id=None, x=-self.MAP_X/2 + (self.WALL_THICKNESS/2), y=-self.MAP_Y/6, theta=-np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-            w_l3 = Wall(id=None, x=-self.MAP_X/2 + (self.WALL_THICKNESS/2), y=self.MAP_Y/3, theta=-np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-            w_l2 = Wall(id=None, x=-self.L_X/2, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
-            w_l1 = Wall(id=None, x=self.MAP_X/2 -self.L_X, y=self.MAP_Y/2 -self.L_Y/2, theta=np.pi/2, length=self.L_Y, thickness=self.WALL_THICKNESS)
+            w_l8 = Wall(id=None, x=self.MAP_X/2 -self.L_X/2, y=self.MAP_Y/2 -self.L_Y, orientation=np.pi, length=self.L_X, thickness=self.WALL_THICKNESS)
+            w_l7 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=-self.L_Y/2, orientation=np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
+            w_l6 = Wall(id=None, x=self.MAP_X/6, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), orientation=0, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l5 = Wall(id=None, x=-self.MAP_X/3, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), orientation=0, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l4 = Wall(id=None, x=-self.MAP_X/2 + (self.WALL_THICKNESS/2), y=-self.MAP_Y/6, orientation=-np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l3 = Wall(id=None, x=-self.MAP_X/2 + (self.WALL_THICKNESS/2), y=self.MAP_Y/3, orientation=-np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l2 = Wall(id=None, x=-self.L_X/2, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), orientation=np.pi, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
+            w_l1 = Wall(id=None, x=self.MAP_X/2 -self.L_X, y=self.MAP_Y/2 -self.L_Y/2, orientation=np.pi/2, length=self.L_Y, thickness=self.WALL_THICKNESS)
         elif location == 1:
-            w_l8 = Wall(id=None, x=-self.MAP_X/2 + self.L_X, y=self.MAP_Y/2 -self.L_Y/2, theta=np.pi/2, length=self.L_Y, thickness=self.WALL_THICKNESS)
-            w_l7 = Wall(id=None, x=self.L_X/2, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
-            w_l6 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=self.MAP_Y/6, theta=np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-            w_l5 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=-self.MAP_Y/3, theta=np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-            w_l4 = Wall(id=None, x=self.MAP_X/6, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), theta=0, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
-            w_l3 = Wall(id=None, x=-self.MAP_X/3, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), theta=0, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
-            w_l2 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=-self.L_Y/2, theta=-np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
-            w_l1 = Wall(id=None, x=-self.MAP_X/2 +self.L_X/2, y=self.MAP_Y/2 -self.L_Y, theta=np.pi, length=self.L_X, thickness=self.WALL_THICKNESS)
+            w_l8 = Wall(id=None, x=-self.MAP_X/2 + self.L_X, y=self.MAP_Y/2 -self.L_Y/2, orientation=np.pi/2, length=self.L_Y, thickness=self.WALL_THICKNESS)
+            w_l7 = Wall(id=None, x=self.L_X/2, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), orientation=np.pi, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
+            w_l6 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=self.MAP_Y/6, orientation=np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l5 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=-self.MAP_Y/3, orientation=np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l4 = Wall(id=None, x=self.MAP_X/6, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), orientation=0, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l3 = Wall(id=None, x=-self.MAP_X/3, y=-self.MAP_Y/2 + (self.WALL_THICKNESS/2), orientation=0, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l2 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=-self.L_Y/2, orientation=-np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
+            w_l1 = Wall(id=None, x=-self.MAP_X/2 +self.L_X/2, y=self.MAP_Y/2 -self.L_Y, orientation=np.pi, length=self.L_X, thickness=self.WALL_THICKNESS)
         elif location == 2:
-            w_l8 = Wall(id=None, x=self.MAP_X/2 - self.L_X, y=-self.MAP_Y/2 + self.L_Y/2, theta=np.pi/2,length=self.L_Y, thickness=self.WALL_THICKNESS)
-            w_l7 = Wall(id=None, x=-self.L_X/2, y=-self.MAP_Y/2+(self.WALL_THICKNESS/2), theta=0, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
-            w_l6 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=-self.MAP_Y/6, theta=-np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-            w_l5 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=self.MAP_Y/3, theta=-np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-            w_l4 = Wall(id=None, x=-self.MAP_X/6, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
-            w_l3 = Wall(id=None, x=self.MAP_X/3, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
-            w_l2 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=self.L_Y/2, theta=np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
-            w_l1 = Wall(id=None, x=self.MAP_X/2 - self.L_X/2, y=-self.MAP_Y/2 +self.L_Y, theta=0, length=self.L_X, thickness=self.WALL_THICKNESS)
+            w_l8 = Wall(id=None, x=self.MAP_X/2 - self.L_X, y=-self.MAP_Y/2 + self.L_Y/2, orientation=np.pi/2,length=self.L_Y, thickness=self.WALL_THICKNESS)
+            w_l7 = Wall(id=None, x=-self.L_X/2, y=-self.MAP_Y/2+(self.WALL_THICKNESS/2), orientation=0, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
+            w_l6 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=-self.MAP_Y/6, orientation=-np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l5 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=self.MAP_Y/3, orientation=-np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l4 = Wall(id=None, x=-self.MAP_X/6, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), orientation=np.pi, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l3 = Wall(id=None, x=self.MAP_X/3, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), orientation=np.pi, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l2 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=self.L_Y/2, orientation=np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
+            w_l1 = Wall(id=None, x=self.MAP_X/2 - self.L_X/2, y=-self.MAP_Y/2 +self.L_Y, orientation=0, length=self.L_X, thickness=self.WALL_THICKNESS)
         elif location == 3:
-            w_l8 = Wall(id=None, x=-self.MAP_X/2 + self.L_X/2, y=-self.MAP_Y/2 + self.L_Y, theta=0, length=self.L_X, thickness=self.WALL_THICKNESS)
-            w_l7 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=self.L_Y/2, theta=-np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
-            w_l6 = Wall(id=None, x=-self.MAP_X/6, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
-            w_l5 = Wall(id=None, x=self.MAP_X/3, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), theta=np.pi, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
-            w_l4 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=self.MAP_Y/6, theta=np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-            w_l3 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=-self.MAP_Y/3, theta=np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
-            w_l2 = Wall(id=None, x=self.L_X/2, y=-self.MAP_Y/2+(self.WALL_THICKNESS/2), theta=0, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
-            w_l1 = Wall(id=None, x= -self.MAP_X/2 +self.L_X, y= -self.MAP_Y/2 + self.L_Y/2, theta=-np.pi/2, length=self.L_Y, thickness=self.WALL_THICKNESS)
+            w_l8 = Wall(id=None, x=-self.MAP_X/2 + self.L_X/2, y=-self.MAP_Y/2 + self.L_Y, orientation=0, length=self.L_X, thickness=self.WALL_THICKNESS)
+            w_l7 = Wall(id=None, x=-self.MAP_X/2+(self.WALL_THICKNESS/2), y=self.L_Y/2, orientation=-np.pi/2, length=self.MAP_Y-self.L_Y, thickness=self.WALL_THICKNESS)
+            w_l6 = Wall(id=None, x=-self.MAP_X/6, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), orientation=np.pi, length=2*self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l5 = Wall(id=None, x=self.MAP_X/3, y=self.MAP_Y/2-(self.WALL_THICKNESS/2), orientation=np.pi, length=self.MAP_X/3, thickness=self.WALL_THICKNESS)
+            w_l4 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=self.MAP_Y/6, orientation=np.pi/2, length=2*self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l3 = Wall(id=None, x=self.MAP_X/2-(self.WALL_THICKNESS/2), y=-self.MAP_Y/3, orientation=np.pi/2, length=self.MAP_Y/3, thickness=self.WALL_THICKNESS)
+            w_l2 = Wall(id=None, x=self.L_X/2, y=-self.MAP_Y/2+(self.WALL_THICKNESS/2), orientation=0, length=self.MAP_X-self.L_X, thickness=self.WALL_THICKNESS)
+            w_l1 = Wall(id=None, x= -self.MAP_X/2 +self.L_X, y= -self.MAP_Y/2 + self.L_Y/2, orientation=-np.pi/2, length=self.L_Y, thickness=self.WALL_THICKNESS)
         else:
             raise AssertionError("location can take values between 0 and 3 only")
 
@@ -3129,8 +3266,14 @@ class SocNavEnv_v2(gym.Env):
         if self.shape == "L":
             # keep the direction of this as well
             self.location = np.random.randint(0,4)
+            # size of the cut-out corner (L_X/L_Y were used but never set: bug #14)
+            self.L_X = np.random.uniform(0.3, 0.5) * self.MAP_X
+            self.L_Y = np.random.uniform(0.3, 0.5) * self.MAP_Y
             walls = self._get_walls_for_L_shaped_room(self.location)
-            # self.objects.append(l)
+            # invisible blocker over the cut-out corner (outside the room) so nothing is spawned there;
+            # corners: 0 top-right, 1 top-left, 2 bottom-right, 3 bottom-left
+            sx, sy = [(1, 1), (-1, 1), (1, -1), (-1, -1)][self.location]
+            self.objects.append(Wall(-1, sx * (self.MAP_X/2 - self.L_X/2), sy * (self.MAP_Y/2 - self.L_Y/2), 0, self.L_X, self.L_Y))
         elif self.shape != "no-walls":
             walls.append(Wall(None, self.MAP_X/2-self.WALL_THICKNESS/2, 0, -np.pi/2, self.MAP_Y, self.WALL_THICKNESS))
             walls.append(Wall(None, 0, -self.MAP_Y/2+self.WALL_THICKNESS/2, -np.pi, self.MAP_X, self.WALL_THICKNESS))
@@ -3169,7 +3312,9 @@ class SocNavEnv_v2(gym.Env):
             }
         elif object_type == SocNavGymObject.STATIC_HUMAN or object_type == SocNavGymObject.DYNAMIC_HUMAN:
             policy = self.HUMAN_POLICY
-            if policy == "random": policy = random.choice(["sfm", "orca"])
+            if isinstance(policy, dict):
+                policy = random.choices(list(self.HUMAN_POLICY_WEIGHTS), weights=list(self.HUMAN_POLICY_WEIGHTS.values()))[0]
+            elif policy == "random": policy = random.choice(["sfm", "orca"])   # unchanged RNG use, so existing seeds keep their scenes
             human_speed = 0
             human_type = "static"
             if object_type == SocNavGymObject.DYNAMIC_HUMAN:
@@ -3362,14 +3507,31 @@ class SocNavEnv_v2(gym.Env):
                 del i
                 del laptop
 
+    MAX_RESET_ATTEMPTS = 100
+
+    def set_scenario(self, spec):
+        """Every following reset builds this scenario (a YAML path or a dict; see utils/scenario.py). None: random scenes.
+        The spec is read again at every reset, so an edited file takes effect at the next reset."""
+        if spec is not None:
+            from socnavgym.envs.utils.scenario import Scenario
+            Scenario(spec)                      # fail now on a malformed file
+        self.SCENARIO_SPEC = spec
+
     def reset(self, seed=None, options=None) :
         self.collision_count = 0
         success = False
+        attempt = 0
         while not success:
+            # a seeded scene that cannot be generated would otherwise be rebuilt identically forever (bug #15):
+            # later attempts use a seed derived from the requested one (attempt 0 keeps it, so working seeds are unchanged)
+            s = seed if (seed is None or attempt == 0) else seed + 1000003 * attempt
             try:
-                success, obs, info = self.try_reset(seed, options)
+                success, obs, info = self.try_reset(s, options)
             except TimeoutError:
                 pass
+            attempt += 1
+            if not success and attempt >= self.MAX_RESET_ATTEMPTS:
+                raise RuntimeError(f"could not generate a scene in {attempt} attempts (seed {seed}); check the config")
 
         self._is_terminated = False
         self._is_truncated = False
@@ -3381,7 +3543,8 @@ class SocNavEnv_v2(gym.Env):
         Resets the environment
         """
         super().reset(seed=seed)
-        start_time = time.time()
+        self._budgets = {}
+        start_time = self._new_budget()
         if not self.has_configured:
             raise Exception("Please pass in the keyword argument config=\"path to config\" while calling gym.make")
         self.cumulative_reward = 0
@@ -3394,6 +3557,11 @@ class SocNavEnv_v2(gym.Env):
         # randomly initialize the parameters
         self.randomize_params()
         self.id = 1
+        spec = (options or {}).get("scenario", self.SCENARIO_SPEC) if isinstance(options, dict) else self.SCENARIO_SPEC
+        if spec is None: self._scenario = None
+        else:
+            from socnavgym.envs.utils.scenario import Scenario
+            self._scenario = Scenario(spec)
 
         HALF_SIZE_X = self.MAP_X/2. - self.MARGIN
         HALF_SIZE_Y = self.MAP_Y/2. - self.MARGIN
@@ -3424,182 +3592,10 @@ class SocNavEnv_v2(gym.Env):
         # variable that shows whether a human-laptop-interaction is being formed or not
         self.h_l_forming = False
 
-        # adding walls to the environment
-        self._add_walls()
-
-        robot = self._sample_object(start_time, SocNavGymObject.ROBOT)
-        # robot
-        if robot == None:
+        if self._scenario is not None:
+            self._scenario.build(self)          # raises ScenarioError if the scene is impossible (no retry with other seeds)
+        elif not self._random_scene(start_time, HALF_SIZE_X, HALF_SIZE_Y):
             return False, None, None
-        self.robot = robot
-        self.objects.append(self.robot)
-
-        # making a copy of the robot for calculating time taken by a robot that has orca policy
-        self.robot_orca = copy.deepcopy(self.robot)
-        # defining a few parameters for the orca robot
-        self.has_orca_robot_reached_goal = False
-        self.has_orca_robot_collided = False
-        self.orca_robot_reach_time = None
-        self.orca_robot_path_length = 0
-
-        # dynamic humans
-        for _ in range(self.NUMBER_OF_DYNAMIC_HUMANS): # spawn specified number of humans
-            human = self._sample_object(start_time, SocNavGymObject.DYNAMIC_HUMAN)
-            if human == None:
-                return False, None, None
-            self.dynamic_humans.append(human)
-            self.objects.append(human)
-            self.id += 1
-
-        # static humans
-        for _ in range(self.NUMBER_OF_STATIC_HUMANS): # spawn specified number of humans
-            human = self._sample_object(start_time, SocNavGymObject.STATIC_HUMAN)
-            if human == None:
-                return False, None, None
-            self.static_humans.append(human)
-            self.objects.append(human)
-            self.id += 1
-
-        # plants
-        for _ in range(self.NUMBER_OF_PLANTS): # spawn specified number of plants
-            plant = self._sample_object(start_time, SocNavGymObject.PLANT)
-            if plant == None:
-                return False, None, None
-            self.plants.append(plant)
-            self.objects.append(plant)
-            self.id += 1
-
-        # tables
-        for _ in range(self.NUMBER_OF_TABLES): # spawn specified number of tables
-            table = self._sample_object(start_time, SocNavGymObject.TABLE)
-            if table == None:
-                return False, None, None
-            self.tables.append(table)
-            self.objects.append(table)
-            self.id += 1
-
-        # chairs
-        for _ in range(self.NUMBER_OF_CHAIRS): # spawn specified number of chairs
-            chair = self._sample_object(start_time, SocNavGymObject.CHAIR)
-            if chair == None:
-                return False, None, None
-            self.chairs.append(chair)
-            self.objects.append(chair)
-            self.id += 1
-
-
-        # laptops
-        if(len(self.tables) == 0):
-            pass
-        elif self.NUMBER_OF_LAPTOPS + self.NUMBER_OF_H_L_INTERACTIONS + self.NUMBER_OF_H_L_INTERACTIONS_NON_DISPERSING > 4 * self.NUMBER_OF_TABLES:
-            raise AssertionError("Number of laptops exceeds the number of edges available on tables")
-        else:
-            for _ in range(self.NUMBER_OF_LAPTOPS): # placing laptops on tables
-                laptop = self._sample_object(start_time, SocNavGymObject.LAPTOP)
-                if laptop == None:
-                    return False, None, None
-                self.laptops.append(laptop)
-                self.objects.append(laptop)
-                self.id += 1
-
-        # interactions
-        for ind in range(self.NUMBER_OF_H_H_DYNAMIC_INTERACTIONS):
-            i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC, extra_info={"index": ind})
-            if i == None:
-                return False, None, None
-            self.moving_interactions.append(i)
-            self.objects.append(i)
-            for human in i.humans:
-                human.id = self.id
-                self.id += 1
-
-        for ind in range(self.NUMBER_OF_H_H_DYNAMIC_INTERACTIONS_NON_DISPERSING):
-            i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC_NON_DISPERSING, extra_info={"index": ind})
-            if i == None:
-                return False, None, None
-            self.moving_interactions.append(i)
-            self.objects.append(i)
-            for human in i.humans:
-                human.id = self.id
-                self.id += 1
-
-        for ind in range(self.NUMBER_OF_H_H_STATIC_INTERACTIONS):
-            i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_STATIC, extra_info={"index": ind})
-            if i == None:
-                return False, None, None
-            self.static_interactions.append(i)
-            self.objects.append(i)
-            for human in i.humans:
-                human.id = self.id
-                self.id += 1
-
-        for ind in range(self.NUMBER_OF_H_H_STATIC_INTERACTIONS_NON_DISPERSING):
-            i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_STATIC_NON_DISPERSING, extra_info={"index": ind})
-            if i == None:
-                return False, None, None
-            self.static_interactions.append(i)
-            self.objects.append(i)
-            for human in i.humans:
-                human.id = self.id
-                self.id += 1
-
-        for _ in range(self.NUMBER_OF_H_L_INTERACTIONS):
-            # sampling a laptop
-            laptop, interaction = self._sample_human_laptop_interaction(start_time, SocNavGymObject.HUMAN_LAPTOP_INTERACTION)
-            if laptop == None or interaction == None:
-                return False, None, None
-            self.h_l_interactions.append(interaction)
-            self.objects.append(interaction)
-            self.id+=1
-            interaction.human.id = self.id
-            self.id += 1
-
-        for _ in range(self.NUMBER_OF_H_L_INTERACTIONS_NON_DISPERSING):
-            # sampling a laptop
-            laptop, interaction = self._sample_human_laptop_interaction(start_time, SocNavGymObject.HUMAN_LAPTOP_INTERACTION_NON_DISPERSING)
-            if laptop == None or interaction == None:
-                return False, None, None
-            self.h_l_interactions.append(interaction)
-            self.objects.append(interaction)
-            self.id+=1
-            interaction.human.id = self.id
-            self.id += 1
-
-        # assigning ids to walls
-        for wall in self.walls:
-            wall.id = self.id
-            self.id += 1
-
-        # adding goals
-        for human in self.dynamic_humans:
-            o = self.sample_goal(self.HUMAN_GOAL_RADIUS, HALF_SIZE_X, HALF_SIZE_Y)
-            if o is None:
-                return False, None, None
-            self.goals[human.id] = o
-            human.set_goal(o.x, o.y)
-
-        for human in self.static_humans:
-            self.goals[human.id] = Plant(id=None, x=human.x, y=human.y, radius=self.HUMAN_GOAL_RADIUS)
-            human.set_goal(human.x, human.y)  # setting goal of static humans to where they are spawned
-
-        robot_goal = self.sample_goal(self.GOAL_RADIUS, HALF_SIZE_X, HALF_SIZE_Y)
-        if robot_goal is None:
-            return False, None, None
-        self.goals[self.robot.id] = robot_goal
-        self.robot.goal_x = robot_goal.x
-        self.robot.goal_y = robot_goal.y
-        self.robot.goal_a = random.uniform(-np.pi, np.pi)
-        self.robot_orca.goal_x = robot_goal.x
-        self.robot_orca.goal_y = robot_goal.y
-        self.robot_orca.goal_a = self.robot.goal_a
-
-        for i in self.moving_interactions:
-            o = self.sample_goal(self.INTERACTION_GOAL_RADIUS, HALF_SIZE_X, HALF_SIZE_Y)
-            if o is None:
-                return False, None, None
-            for human in i.humans:
-                self.goals[human.id] = o
-            i.set_goal(o.x, o.y)
 
         self._is_terminated = False
         self._is_truncated = False
@@ -3607,6 +3603,10 @@ class SocNavEnv_v2(gym.Env):
         self.ticks = 0
         self.compliant_count = 0  # keeps track of how many times the agent is outside the personal space of humans
         self.prev_goal_distance = np.sqrt((self.robot.x - self.robot.goal_x)**2 + (self.robot.y - self.robot.goal_y)**2)
+        _da = self.robot.goal_a - self.robot.orientation
+        self.prev_goal_angle = abs(np.arctan2(np.sin(_da), np.cos(_da)))
+        self._goal_reach_tick = None    # tick at which the goal was first reached
+        self._goal_settled = False      # the episode ended because the goal was reached (and, with continue_after_reach, the robot settled)
         self.robot_path_length = 0
         self.stalled_time = 0
         self.failure_to_progress = 0
@@ -3630,11 +3630,208 @@ class SocNavEnv_v2(gym.Env):
         self._current_observations:Dict[int, EntityObs] = {}
         self.populate_prev_obs()
 
+        # bug #25: the spawn checks test the human's collision ellipse at its spawn orientation only, so a person spawned
+        # beside the robot could touch it just by turning in place (collisions within the first steps, no one moving).
+        # Require the robot to clear every human's ellipse in any orientation (major semi-axis) plus a margin.
+        hs = list(self.static_humans) + list(self.dynamic_humans) + [q for i in self.static_interactions + self.moving_interactions
+                                                                     for q in i.humans] + [i.human for i in self.h_l_interactions]
+        for h in hs:
+            if self._scenario is None and np.hypot(h.x - self.robot.x, h.y - self.robot.y) < self.ROBOT_RADIUS + self.HUMAN_DIAMETER / 2 + self.SPAWN_CLEARANCE:
+                return False, None, None      # (a scenario checks this itself and reports it)
+
+        for h in self.dynamic_humans:
+            h.pref_speed = None
+            if self.HUMAN_SPEED_RANGE is not None: self.human_speed(h)
+        if self._scenario is not None: self._scenario.after_reset(self)
+        if self.LEARNED_HUMANS is not None:
+            self.LEARNED_HUMANS.reset(self, [h for h in self.dynamic_humans if h.policy == "learned"])
+
         obs = self._get_obs()
 
         self.reward_calculator.re_init(self)
 
         return True, obs, {}
+
+    def _random_scene(self, start_time, HALF_SIZE_X, HALF_SIZE_Y):
+        """The random scene of try_reset (walls, robot, humans, furniture, interactions, goals). False if it failed."""
+        # adding walls to the environment
+        self._add_walls()
+
+        robot = self._sample_object(start_time, SocNavGymObject.ROBOT)
+        # robot
+        if robot == None:
+            return False
+        self.robot = robot
+        self.objects.append(self.robot)
+
+        # making a copy of the robot for calculating time taken by a robot that has orca policy
+        self.robot_orca = copy.deepcopy(self.robot)
+        # defining a few parameters for the orca robot
+        self.has_orca_robot_reached_goal = False
+        self.has_orca_robot_collided = False
+        self.orca_robot_reach_time = None
+        self.orca_robot_path_length = 0
+
+        # dynamic humans
+        for _ in range(self.NUMBER_OF_DYNAMIC_HUMANS): # spawn specified number of humans
+            human = self._sample_object(start_time, SocNavGymObject.DYNAMIC_HUMAN)
+            if human == None:
+                return False
+            self.dynamic_humans.append(human)
+            self.objects.append(human)
+            self.id += 1
+
+        # static humans
+        for _ in range(self.NUMBER_OF_STATIC_HUMANS): # spawn specified number of humans
+            human = self._sample_object(start_time, SocNavGymObject.STATIC_HUMAN)
+            if human == None:
+                return False
+            self.static_humans.append(human)
+            self.objects.append(human)
+            self.id += 1
+
+        # plants
+        for _ in range(self.NUMBER_OF_PLANTS): # spawn specified number of plants
+            plant = self._sample_object(start_time, SocNavGymObject.PLANT)
+            if plant == None:
+                return False
+            self.plants.append(plant)
+            self.objects.append(plant)
+            self.id += 1
+
+        # tables
+        for _ in range(self.NUMBER_OF_TABLES): # spawn specified number of tables
+            table = self._sample_object(start_time, SocNavGymObject.TABLE)
+            if table == None:
+                return False
+            self.tables.append(table)
+            self.objects.append(table)
+            self.id += 1
+
+        # chairs
+        for _ in range(self.NUMBER_OF_CHAIRS): # spawn specified number of chairs
+            chair = self._sample_object(start_time, SocNavGymObject.CHAIR)
+            if chair == None:
+                return False
+            self.chairs.append(chair)
+            self.objects.append(chair)
+            self.id += 1
+
+
+        # laptops
+        if(len(self.tables) == 0):
+            pass
+        elif self.NUMBER_OF_LAPTOPS + self.NUMBER_OF_H_L_INTERACTIONS + self.NUMBER_OF_H_L_INTERACTIONS_NON_DISPERSING > 4 * self.NUMBER_OF_TABLES:
+            raise AssertionError("Number of laptops exceeds the number of edges available on tables")
+        else:
+            for _ in range(self.NUMBER_OF_LAPTOPS): # placing laptops on tables
+                laptop = self._sample_object(start_time, SocNavGymObject.LAPTOP)
+                if laptop == None:
+                    return False
+                self.laptops.append(laptop)
+                self.objects.append(laptop)
+                self.id += 1
+
+        # interactions
+        for ind in range(self.NUMBER_OF_H_H_DYNAMIC_INTERACTIONS):
+            i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC, extra_info={"index": ind})
+            if i == None:
+                return False
+            self.moving_interactions.append(i)
+            self.objects.append(i)
+            for human in i.humans:
+                human.id = self.id
+                self.id += 1
+
+        for ind in range(self.NUMBER_OF_H_H_DYNAMIC_INTERACTIONS_NON_DISPERSING):
+            i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_DYNAMIC_NON_DISPERSING, extra_info={"index": ind})
+            if i == None:
+                return False
+            self.moving_interactions.append(i)
+            self.objects.append(i)
+            for human in i.humans:
+                human.id = self.id
+                self.id += 1
+
+        for ind in range(self.NUMBER_OF_H_H_STATIC_INTERACTIONS):
+            i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_STATIC, extra_info={"index": ind})
+            if i == None:
+                return False
+            self.static_interactions.append(i)
+            self.objects.append(i)
+            for human in i.humans:
+                human.id = self.id
+                self.id += 1
+
+        for ind in range(self.NUMBER_OF_H_H_STATIC_INTERACTIONS_NON_DISPERSING):
+            i = self._sample_object(start_time, SocNavGymObject.HUMAN_HUMAN_INTERACTION_STATIC_NON_DISPERSING, extra_info={"index": ind})
+            if i == None:
+                return False
+            self.static_interactions.append(i)
+            self.objects.append(i)
+            for human in i.humans:
+                human.id = self.id
+                self.id += 1
+
+        for _ in range(self.NUMBER_OF_H_L_INTERACTIONS):
+            # sampling a laptop
+            laptop, interaction = self._sample_human_laptop_interaction(start_time, SocNavGymObject.HUMAN_LAPTOP_INTERACTION)
+            if laptop == None or interaction == None:
+                return False
+            self.h_l_interactions.append(interaction)
+            self.objects.append(interaction)
+            self.id+=1
+            interaction.human.id = self.id
+            self.id += 1
+
+        for _ in range(self.NUMBER_OF_H_L_INTERACTIONS_NON_DISPERSING):
+            # sampling a laptop
+            laptop, interaction = self._sample_human_laptop_interaction(start_time, SocNavGymObject.HUMAN_LAPTOP_INTERACTION_NON_DISPERSING)
+            if laptop == None or interaction == None:
+                return False
+            self.h_l_interactions.append(interaction)
+            self.objects.append(interaction)
+            self.id+=1
+            interaction.human.id = self.id
+            self.id += 1
+
+        # assigning ids to walls
+        for wall in self.walls:
+            wall.id = self.id
+            self.id += 1
+
+        # adding goals
+        for human in self.dynamic_humans:
+            o = self.sample_goal(self.HUMAN_GOAL_RADIUS, HALF_SIZE_X, HALF_SIZE_Y)
+            if o is None:
+                return False
+            self.goals[human.id] = o
+            human.set_goal(o.x, o.y)
+
+        for human in self.static_humans:
+            self.goals[human.id] = Plant(id=None, x=human.x, y=human.y, radius=self.HUMAN_GOAL_RADIUS)
+            human.set_goal(human.x, human.y)  # setting goal of static humans to where they are spawned
+
+        robot_goal = self.sample_goal(self.GOAL_RADIUS, HALF_SIZE_X, HALF_SIZE_Y)
+        if robot_goal is None:
+            return False
+        self.goals[self.robot.id] = robot_goal
+        self.robot.goal_x = robot_goal.x
+        self.robot.goal_y = robot_goal.y
+        self.robot.goal_a = random.uniform(-np.pi, np.pi)
+        self.robot_orca.goal_x = robot_goal.x
+        self.robot_orca.goal_y = robot_goal.y
+        self.robot_orca.goal_a = self.robot.goal_a
+
+        for i in self.moving_interactions:
+            o = self.sample_goal(self.INTERACTION_GOAL_RADIUS, HALF_SIZE_X, HALF_SIZE_Y)
+            if o is None:
+                return False
+            for human in i.humans:
+                self.goals[human.id] = o
+            i.set_goal(o.x, o.y)
+
+        return True
 
     def render_without_showing(self, mode="human", draw_human_gaze=False, draw_human_goal=True):
         """
@@ -3713,9 +3910,10 @@ class SocNavEnv_v2(gym.Env):
 
 
     def render(self, draw_human_gaze=False, draw_human_goal=True):
-        if not self.window_initialised:
-            pygame.init()
-            self.screen = pygame.display.set_mode((int(self.RESOLUTION_Y), int(self.RESOLUTION_X)))
+        size = (int(self.RESOLUTION_X), int(self.RESOLUTION_Y))          # (width, height): was passed swapped
+        if not self.window_initialised or self.screen.get_size() != size:  # the canvas follows each map's proportions
+            if not self.window_initialised: pygame.init()
+            self.screen = pygame.display.set_mode(size)
             pygame.display.set_caption("SocNavGym v0.2")
             self.window_initialised = True
         self.world_image = self.render_without_showing(self.render_mode_, draw_human_gaze, draw_human_goal)

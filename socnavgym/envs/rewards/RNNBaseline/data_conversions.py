@@ -22,7 +22,8 @@ def sequence_to_tensor(data, frame_threshold, context):
     prev_index = 0
     for i, frame in enumerate(sequence):
         current_timestamp = frame['timestamp']
-        if current_timestamp-last_timestamp >= frame_threshold or i==last_i:
+        # tolerance: float timestamps (ticks*0.1) otherwise drop ~1/3 of the frames at irregular intervals
+        if current_timestamp-last_timestamp >= frame_threshold - 1e-6 or i==last_i:
             if i==0:
                 inm_prev_frame = frame
                 inm_prev_timestamp = -float('inf')

@@ -14,6 +14,7 @@ import math
 import json
 import os
 import uuid
+import time
 import numpy as np
 
 import pickle
@@ -26,6 +27,7 @@ from socnavgym.envs.rewards.reward_api import RewardAPI
 from socnavgym.envs.rewards.RNNBaseline.metrics import *
 from socnavgym.envs.rewards.RNNBaseline.rnn  import RNNModel # collate_fn, FRAME_THRESHOLD
 from socnavgym.envs.rewards.RNNBaseline.dataset_rnn import TrajectoryDataset, collate_fn
+import socnavgym.envs.rewards.RNNBaseline.dataset_rnn as _ds
 
 from datetime import datetime
 
@@ -39,7 +41,9 @@ class Reward(RewardAPI):
         if not os.path.isdir(self.json_directory):
             os.mkdir(self.json_directory)
 
-        self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+        # CPU on purpose: one tiny GRU pass per episode, and on GPUs cuDNN may use TF32, which shifts rewards by ~1e-4
+        # and makes them depend on the machine (found 2026-11-08)
+        self.device = torch.device('cpu')
 
         # Load the checkpoint
         try:
@@ -95,7 +99,6 @@ class Reward(RewardAPI):
 
     def reset(self):
         self.reach_reward = 1.0
-        self.out_of_map_reward = -1.0
         self.max_steps_reward = -1.0
         self.alive_reward = -1e-6
         self.collision_reward = -1.0
@@ -107,8 +110,6 @@ class Reward(RewardAPI):
         self.total_distance_reward = 0.0
         self.min_dist = float('inf')
 
-    def remove_JSON(self):
-        os.remove(self.new_filepath)
 
     def create_JSON(self):
         try:
@@ -166,7 +167,7 @@ class Reward(RewardAPI):
                 "angle_threshold": float(self.env.GOAL_ORIENTATION_THRESHOLD)
             }
         }
-        for human in self.env.dynamic_humans + self.env.static_humans:
+        for human in self.all_humans():
             humanInfo = {
                 "id": int(human.id),
                 "x": float(human.x),
@@ -176,29 +177,34 @@ class Reward(RewardAPI):
             timestep["people"].append(humanInfo)
 
         for object in self.env.tables + self.env.plants + self.env.chairs + self.env.laptops:
+            if object.name == "plant":   # metrics.get_dist_from_obj: circle 'length' is the diameter
+                shape = {"type": "circle", "width": float(2 * object.radius), "length": float(2 * object.radius)}
+            else:                        # rectangle: 'length' along 'angle', 'width' across (same as the env's collision shape)
+                shape = {"type": "rectangle", "width": float(object.width), "length": float(object.length)}
             objectInfo = {
                 "id": int(object.id),
+                "type": object.name,
                 "x": float(object.x),
                 "y": float(object.y),
-                "angle": float(object.orientation)
+                "angle": float(object.orientation),
+                "shape": shape
             }
-            timestep["people"].append(objectInfo)
+            timestep["objects"].append(objectInfo)
         self.data["sequence"].append(timestep)
+
+    def all_humans(self):
+        """Every human in the scene: individuals, members of human-human interactions, and humans at laptops."""
+        humans = list(self.env.static_humans) + list(self.env.dynamic_humans)
+        for i in self.env.static_interactions + self.env.moving_interactions:
+            humans += list(i.humans)
+        for i in self.env.h_l_interactions:
+            humans.append(i.human)
+        return humans
 
 
     def compute_dmin(self, action):
         dmin = float('inf')
-
-        all_humans = []
-        for human in self.env.static_humans + self.env.dynamic_humans: all_humans.append(human)
-
-        for i in self.env.static_interactions + self.env.moving_interactions:
-            for h in i.humans: all_humans.append(h)
-
-        for i in self.env.h_l_interactions:
-            all_humans.append(i.human)
-
-        for human in all_humans:
+        for human in self.all_humans():
             px = human.x - self.env.robot.x
             py = human.y - self.env.robot.y
 
@@ -213,87 +219,46 @@ class Reward(RewardAPI):
             if closest_dist < dmin:
                 dmin = closest_dist
 
-        for human in self.env.static_humans + self.env.dynamic_humans:
-            px = human.x - self.env.robot.x
-            py = human.y - self.env.robot.y
-
-            vx = human.speed*np.cos(human.orientation) - action[0] * np.cos(action[2]*self.env.TIMESTEP + self.env.robot.orientation) \
-                - action[1] * np.cos(action[2]*self.env.TIMESTEP + self.env.robot.orientation + np.pi/2)
-            vy = human.speed*np.sin(human.orientation) - action[0] * np.sin(action[2]*self.env.TIMESTEP + self.env.robot.orientation) \
-                - action[1] * np.sin(action[2]*self.env.TIMESTEP + self.env.robot.orientation + np.pi/2)
-
-            ex = px + vx * self.env.TIMESTEP
-            ey = py + vy * self.env.TIMESTEP
-
-            closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - self.env.HUMAN_DIAMETER/2 - self.env.ROBOT_RADIUS
-
-            if closest_dist < dmin:
-                dmin = closest_dist
-
-        for interaction in (self.env.moving_interactions + self.env.static_interactions + self.env.h_l_interactions):
-            px = interaction.x - self.env.robot.x
-            py = interaction.y - self.env.robot.y
-
-            speed = 0
-            if interaction.name == "human-human-interaction":
-                for h in interaction.humans:
-                    speed += h.speed
-                speed /= len(interaction.humans)
-
-            vx = speed*np.cos(human.orientation) - action[0] * np.cos(action[2]*self.env.TIMESTEP + self.env.robot.orientation) - action[1] * np.cos(action[2]*self.env.TIMESTEP + self.env.robot.orientation + np.pi/2)
-            vy = speed*np.sin(human.orientation) - action[0] * np.sin(action[2]*self.env.TIMESTEP + self.env.robot.orientation) - action[1] * np.sin(action[2]*self.env.TIMESTEP + self.env.robot.orientation + np.pi/2)
-
-            ex = px + vx * self.env.TIMESTEP
-            ey = py + vy * self.env.TIMESTEP
-
-            closest_dist = point_to_segment_dist(px, py, ex, ey, 0, 0) - self.env.HUMAN_DIAMETER/2 - self.env.ROBOT_RADIUS
-
-            if closest_dist < dmin:
-                dmin = closest_dist
-
         return dmin
 
 
-    def compute_dgoal(self):
-        distance_to_goal = np.sqrt((self.env.robot.goal_x - self.env.robot.x)**2 + (self.env.robot.goal_y - self.env.robot.y)**2) #dist to goal
-        if self.prev_distance is None: # in the case there is no prev distance set yet
-            self.prev_distance = distance_to_goal
-            distance_change = 0 # on the first step distance change would be zero
+    CONTEXT = "A robot is performing routine tasks in a home."
+    _tools = {}              # (context file, frame threshold) -> (context features, max metric values, feature names); read once
 
-        else: # in the case there is a prev distance
-            distance_change = self.prev_distance - distance_to_goal # we calculate the distance changes
-            self.prev_distance = distance_to_goal # then update the previous (so the current distance is the prev distance for the next timestep)
-
-        dis_reward = distance_change / MAX_ENV_PATH / MAX_EP_LENGTH # then we get the 'reward' for this distance change and return
-        return dis_reward
+    def _scoring_tools(self):
+        context_file = os.path.dirname(__file__)+"/RNNBaseline/anthropic_claude_context.csv"
+        key = (context_file, self.FRAME_THRESHOLD)
+        if key not in Reward._tools:
+            if not os.path.exists(context_file):
+                raise FileNotFoundError(f"sn26 context file missing: {context_file} (install the package with its data files)")
+            ds = TrajectoryDataset([], context_file, label_exists=False, frame_threshold=self.FRAME_THRESHOLD, overwrite_context=self.CONTEXT)
+            Reward._tools[key] = (ds.context_df.loc[self.CONTEXT.rstrip()].to_dict(), ds.max_metric_values, ds.all_features)
+        return Reward._tools[key]
 
     def predict(self, model):
-        self.create_JSON()
+        """The network's score of the recorded trajectory. Same computation as before (TrajectoryDataset + DataLoader on a
+        JSON file written for the purpose), without the file: the trajectory holds only Python floats, ints, strings and
+        None, which a JSON round trip returns unchanged, so the features and the score are identical."""
         if len(self.data.get("sequence", [])) == 0:
-            return self.collision_reward
-        try:
-            dataset = TrajectoryDataset(self.new_filepath, os.path.dirname(__file__)+"/RNNBaseline/anthropic_claude_context.csv", label_exists=False, frame_threshold=self.FRAME_THRESHOLD, overwrite_context="A robot is performing routine tasks in a home.")
-        except (json.JSONDecodeError, FileNotFoundError) as e:
-            print(f"Error occured in creating dataset for trajectory: {self.new_filepath}, returing collision reward. Error: {e}")
-            return self.collision_reward
-        data_loader = DataLoader(dataset, batch_size=1, shuffle=False, collate_fn=collate_fn)
-        prediction = []
+            return 0.0
+        context, max_values, features = self._scoring_tools()
+        # sequence_to_tensor adds keys to every frame: work on copies of the frames so that self.data stays as recorded
+        t_data = dict(self.data); t_data["sequence"] = [dict(f) for f in self.data["sequence"]]
+        tensors = _ds.tensor_transform_to_goal_fr(_ds.sequence_to_tensor(t_data, self.FRAME_THRESHOLD, dict(context)))
+        traj = _ds.metrics.normalize_and_cat_features(_ds.metrics.compute_metrics(tensors), max_values, features).to(torch.float32)
         with torch.no_grad():
-            for trajectories, _, slengths in data_loader:
-                # Pass the whole batched graph sequence to the model at once
-                preds = model(trajectories.to(self.device), slengths.to(self.device))
-                prediction += preds.tolist() 
+            preds = model(traj[None].to(self.device), torch.tensor([traj.shape[0]-1], dtype=torch.long).to(self.device))
+        prediction = preds.tolist()
         if len(prediction)==0:
-            print(f"Prediction error for dataset formed by trajectory: {self.new_filepath}, returning collision reward")
-
+            return 0.0
         return  float(prediction[0][0])
 
 
     def compute_reward(self, action, prev_obs: EntityObs, curr_obs: EntityObs, terminated, truncated):
         if terminated or truncated:
+            self.add_to_trajectory()   # the terminal state (goal reached / collision) must be part of the scored trajectory
             try:
                 predicted_reward = self.predict(self.model)
-                self.remove_JSON()
                 ret = predicted_reward
             except IndexError as e:
                 # An exception can be raised if the episode is exceedingly short, as some of

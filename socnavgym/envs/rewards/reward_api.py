@@ -38,10 +38,9 @@ class RewardAPI:
 
         return False
 
-    def check_out_of_map(self):
-        return (self.env.MAP_X/2 < self.env.robot.x) or (self.env.robot.x < -self.env.MAP_X/2) or (self.env.MAP_Y/2 < self.env.robot.y) or (self.env.robot.y < -self.env.MAP_Y/2)
-
     def check_reached_goal(self):
+        if getattr(self.env, "CONTINUE_AFTER_REACH", False):   # the episode goes on after reaching: true once, on the step it ends for it
+            return bool(getattr(self.env, "_goal_settled", False))
         distance_to_goal = np.sqrt((self.env.robot.goal_x - self.env.robot.x)**2 + (self.env.robot.goal_y - self.env.robot.y)**2)
         angular_distance_to_goal = np.abs((self.env.robot.goal_a - self.env.robot.orientation + np.pi) % (2 * np.pi) - np.pi)
         return distance_to_goal < self.env.GOAL_THRESHOLD and angular_distance_to_goal < self.env.GOAL_ORIENTATION_THRESHOLD

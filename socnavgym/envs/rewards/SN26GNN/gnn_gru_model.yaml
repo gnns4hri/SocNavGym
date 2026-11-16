@@ -1,0 +1,39 @@
+DATA_PATH: '../../../SocNavData2026/dataset'
+CONTEXT_FILE: '../../../SocNavData2026/dataset/contexts/anthropic_claude_context.csv'
+
+TRAIN_FILE: 'train_set.txt'
+DEV_FILE: 'val_set.txt'
+TEST_FILE: 'test_set.txt'
+
+ACTIVATION: 'sigmoid'
+ADD_CONTEXT_TO_OUTPUT: True
+DATA_AUGMENTATION: True
+BATCH_SIZE: 16
+DROPOUT: 0.15
+ONLY_GNN: False
+ONLY_METRICS: False
+GNN_CONCAT: False
+GNN_HEADS: [8, 8, 8, 8]
+GNN_HIDDEN_SIZE: [64,128, 128, 128] # It must have the same length as GNN_HEADS
+GNN_OUTPUT: 64
+RNN_HIDDEN_SIZE: 256
+LINEAR_LAYERS: [256]
+LOSS: "mse"
+WEIGHTED_LOSS: False
+N_WEIGHT_GROUPS: 10
+LR: 0.00001
+MAX_EPOCHS: 10000
+MAX_PATIENCE: 50
+NUM_LAYERS: 4
+RNN_TYPE: 'GRU' #GRU or LSTM
+TIMESTAMP_THRESHOLD: 0.1
+
+SAVE_PLOTS_LOCALLY: True #Set to False if you dont want to save the qualitative test results and expected vs predicted plots
+UPLOAD_TO_WANDB: True
+PROJECT_NAME: 'SN3-GNN'
+WANDB_DESCRIPTION: 'mse - not weighted'
+SEED: 123456
+DEVICE: 'cuda'
+
+Q_TEST_PATH: '../../../SocNavData2026/dataset/qualitative_tests'
+Q_TEST_FILE: 'socnavgym_conf_qualitative_one_static.yaml' 

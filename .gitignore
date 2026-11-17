@@ -139,3 +139,13 @@ saves/
 
 # pickle files
 *.pickle
+
+# sn26: downloaded metric checkpoint and per-episode JSONs written to the working directory
+socnavgym/envs/rewards/RNNBaseline/checkpoints/
+socnavgym/envs/rewards/SN26GNN/checkpoints/
+experimental_JSONs/
+
+# vision: downloaded asset sources, the renderer's python environment, Blender's backup copies
+/vision_cache/
+/.venv_render/
+*.blend1

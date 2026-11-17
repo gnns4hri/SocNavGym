@@ -16,16 +16,16 @@ class Human_Human_Interaction:
     """
 
     def __init__(
-        self, 
-        x, 
-        y, 
-        type:str, 
-        numOfHumans:int, 
-        radius:float, 
-        human_width, 
-        MAX_HUMAN_SPEED, 
-        goal_radius=None, 
-        noise=0, 
+        self,
+        x,
+        y,
+        type:str,
+        numOfHumans:int,
+        radius:float,
+        human_width,
+        MAX_HUMAN_SPEED,
+        goal_radius=None,
+        noise=0,
         can_disperse=True,
         pos_noise_std=None,
         angle_noise_std=None
@@ -35,10 +35,10 @@ class Human_Human_Interaction:
         self.x = x
         self.y = y
         self.name = "human-human-interaction"
-        assert numOfHumans >= 2, "Need at least 2 humans to interact"       
+        assert numOfHumans >= 2, "Need at least 2 humans to interact"
         if type != "moving" and type != "stationary":
             raise AssertionError("type should be \"moving\" or \"stationary\"")
-        
+
         # indicates the type of interaction, whether it is moving or stationary
         self.type = type
 
@@ -53,15 +53,17 @@ class Human_Human_Interaction:
         self.goal_y = None
         self.noise_variance = noise
         self.can_disperse = can_disperse
+        self.prev_group_velocity = None
+        self.velocity_smoothing = 0.9
 
         for _ in range(numOfHumans):
             if self.type == "stationary":
-                self.add_human(Human(speed=0, width=human_width, goal_radius=self.goal_radius, policy=random.choice(["orca", "sfm"]), 
+                self.add_human(Human(speed=0, width=human_width, goal_radius=self.goal_radius, policy=random.choice(["orca", "sfm"]),
                                 type="static", pos_noise_std=pos_noise_std, angle_noise_std=angle_noise_std))
             else:
                 self.add_human(Human(speed=speed, width=human_width, goal_radius=self.goal_radius, policy=random.choice(["orca", "sfm"]),
                                 pos_noise_std=pos_noise_std, angle_noise_std=angle_noise_std))
-    
+
         # arranging all the humans around a circle
         self.arrange_humans()
 
@@ -77,7 +79,7 @@ class Human_Human_Interaction:
         Adding humans to the human list
         """
         self.humans.append(h)
-    
+
     def has_reached_goal(self, offset=None):
         reached = True
         for human in self.humans:
@@ -88,13 +90,13 @@ class Human_Human_Interaction:
 
     def arrange_humans(self):
         n = len(self.humans)
-        theta = 0       
+        theta = 0
         increment = 2*(np.pi)/n
 
         if self.type == "moving":
             # theta chosen randomly between -pi to pi
             orientation = (np.random.random()-0.5) * np.pi * 2
-    
+
         for i in range(n):
             h = self.humans[i]
             h.x = self.x + self.radius * np.cos(theta + (np.random.random()-0.5)*np.pi/7)
@@ -157,11 +159,41 @@ class Human_Human_Interaction:
             n = len(self.humans)
             speeds = []
             rotating = False
-            vel_human = (velocity[0], velocity[1])
+
+### Hamna
+### Hamna
+### Hamna
+#_________
+            current_velocity = np.array([velocity[0], velocity[1]], dtype=np.float32)
+
+            if self.prev_group_velocity is None:
+                smoothed_velocity = current_velocity
+            else:
+                smoothed_velocity = (
+                    self.velocity_smoothing * self.prev_group_velocity
+                    + (1.0 - self.velocity_smoothing) * current_velocity
+                )
+
+            self.prev_group_velocity = smoothed_velocity.copy()
+            vel_human = (smoothed_velocity[0], smoothed_velocity[1])
+#________
+### Hamna
+### Hamna
+### Hamna
+
+
             for human in self.humans:
                 noise_x = np.random.normal(0, self.noise_variance)
                 noise_y = np.random.normal(0, self.noise_variance)
                 human_vel = (vel_human[0]+noise_x, vel_human[1]+noise_y)
+### Hamna
+### Hamna
+### Hamna
+                personal_scale = np.random.uniform(1, 1.08)#_____ crowd nav
+                human_vel = (human_vel[0] * personal_scale, human_vel[1] * personal_scale)#___
+### Hamna
+### Hamna
+### Hamna
                 speed = np.linalg.norm(human_vel)
                 new_orientation = atan2(human_vel[1], human_vel[0])
                 set_o = human.set_new_orientation_with_limits(new_orientation, max_rotation_speed, time)
@@ -170,7 +202,14 @@ class Human_Human_Interaction:
                 speeds.append(speed)
 
             for human, s in zip(self.humans, speeds):
-                if rotating: s = 0
+### Hamna
+### Hamna
+### Hamna
+                if rotating: 
+                   s = 0.35 * s
+### Hamna
+### Hamna
+### Hamna
                 human.speed = s
                 # human.update(time)
 

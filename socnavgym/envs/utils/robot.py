@@ -6,10 +6,18 @@ from socnavgym.envs.utils.utils import w2px, w2py
 from math import atan2
 
 class Robot(Object):
-    def __init__(self, id=None, x=None, y=None, theta=None, radius=None, goal_x=None, goal_y=None, goal_a=None, type="diff-drive") -> None:
+    def __init__(self, id=None, x=None, y=None, theta=None, radius=None, goal_x=None, goal_y=None, goal_a=None, type="diff-drive",
+                 shape="circle", length=None, width=None) -> None:
         super().__init__(id, "robot")
         self.is_static = False
-        self.radius = radius  # radius of the robot
+        self.radius = radius  # radius of the robot (rectangular robots: of the circle around the rectangle)
+        # the body (config robot.robot_shape): "circle" of `radius`, or "rectangle" of `length` (along the heading) x `width`.
+        # Collisions (Object.collides) use the body; what treats the robot as a disc (how people avoid it, the observation's
+        # radius, the spawn distances) uses `radius`.
+        assert shape in ("circle", "rectangle"), f"robot shape must be circle or rectangle, not {shape}"
+        self.shape = shape
+        self.length = float(length) if shape == "rectangle" else (None if radius is None else 2 * radius)
+        self.width = float(width) if shape == "rectangle" else (None if radius is None else 2 * radius)
         self.goal_x = goal_x  # x-coordinate of the goal
         self.goal_y = goal_y  # y-coordinate of the goal
         self.goal_a = goal_a
@@ -26,23 +34,30 @@ class Robot(Object):
     def set(self, id, x, y, theta, radius, goal_x, goal_y, goal_a, type):
         super().set(id, x, y, theta)
         self.radius = radius
+        if getattr(self, "shape", "circle") == "circle" and radius is not None: self.length = self.width = 2 * radius
         self.goal_x = goal_x
         self.goal_y = goal_y
         self.goal_a = goal_a
         self.type = type
+
+    def __str__(self):
+        return f"Robot[{float(self.x)}, {float(self.y)}, @ {float(self.orientation)}]"
+    def __repr__(self):
+        return str(self)
 
     def update(self, time):
         """For updating the coordinates of the robot
 
         Args:
             time (float): Time passed.
-        """        
+        """
 
         self.debug_data = {}
         self.debug_data["init_vel_y"] = self.vel_y
 
         if self.type == "diff-drive":
             self.vel_y = 0.0
+
         self.debug_data["after_vel_y"] = self.vel_y
         self.debug_data["vel_a"] = self.vel_a
         self.debug_data["time"] = time
@@ -58,13 +73,8 @@ class Robot(Object):
         #     self.orientation += int(abs(self.orientation)/(2*np.pi))*(2*np.pi)
 
         self.debug_data["orientation_before_normalising"] = self.orientation
-
-        while self.orientation > np.pi:
-            self.orientation -= 2*np.pi
-        while self.orientation < -np.pi:
-            self.orientation += 2*np.pi
-
-        self.debug_data["orientation_after_normalising"] = self.orientation
+        if self.orientation > np.pi: self.orientation -= 2*np.pi
+        elif self.orientation < -np.pi: self.orientation += 2*np.pi
 
         # updating the linear component
         self.x += self.vel_x * np.cos(self.orientation) * time
@@ -78,9 +88,10 @@ class Robot(Object):
         self.y += self.vel_y * np.sin(np.pi/2 + self.orientation) * time
         self.debug_data["x 3"] = self.x
         self.debug_data["y 3"] = self.y
-        
+
+
     def draw(self, img, PIXEL_TO_WORLD_X, PIXEL_TO_WORLD_Y, MAP_SIZE_X, MAP_SIZE_Y):
-        black = (0,0,0) 
+        black = (0,0,0)
         assert self.radius != None, "Radius is None type."
         assert self.x != None and self.y != None, "Coordinates are None type"
 
@@ -91,36 +102,44 @@ class Robot(Object):
             print(f"{self.x=} {self.radius=} {PIXEL_TO_WORLD_X=} {MAP_SIZE_X=}")
             print(self.debug_data)
             sys.exit(-1)
-       
-        cv2.circle(
-            img,
-            (
-                w2px(self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X),
-                w2py(self.y, PIXEL_TO_WORLD_Y, MAP_SIZE_Y),
-            ),
-            radius,
-            black,
-            -1,
-        )  # drawing a black circle for the robot
-        
-        
+
+        if self.shape == "rectangle":   # the body: a black rectangle, `length` along the heading
+            c, s = np.cos(self.orientation), np.sin(self.orientation)
+            corners = [(self.x + c * u - s * v, self.y + s * u + c * v) for u, v in
+                       ((self.length / 2, self.width / 2), (-self.length / 2, self.width / 2), (-self.length / 2, -self.width / 2), (self.length / 2, -self.width / 2))]
+            cv2.fillPoly(img, [np.array([(w2px(px, PIXEL_TO_WORLD_X, MAP_SIZE_X), w2py(py, PIXEL_TO_WORLD_Y, MAP_SIZE_Y)) for px, py in corners], dtype=np.int32)], color=black)
+            rf, rs = self.length / 2, self.width / 2    # the size of the heading mark: along / across the heading
+        else:
+            cv2.circle(
+                img,
+                (
+                    w2px(self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X),
+                    w2py(self.y, PIXEL_TO_WORLD_Y, MAP_SIZE_Y),
+                ),
+                radius,
+                black,
+                -1,
+            )  # drawing a black circle for the robot
+            rf = rs = self.radius
+
+
         left = (
-            w2px(self.x + self.radius*0.3*np.cos(self.orientation + np.pi/2), PIXEL_TO_WORLD_X, MAP_SIZE_X),
-            w2py(self.y + self.radius*0.3*np.sin(self.orientation + np.pi/2), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
+            w2px(self.x + rs*0.3*np.cos(self.orientation + np.pi/2), PIXEL_TO_WORLD_X, MAP_SIZE_X),
+            w2py(self.y + rs*0.3*np.sin(self.orientation + np.pi/2), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
         )
 
         right = (
-            w2px(self.x + self.radius*0.3*np.cos(self.orientation - np.pi/2), PIXEL_TO_WORLD_X, MAP_SIZE_X),
-            w2py(self.y + self.radius*0.3*np.sin(self.orientation - np.pi/2), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
+            w2px(self.x + rs*0.3*np.cos(self.orientation - np.pi/2), PIXEL_TO_WORLD_X, MAP_SIZE_X),
+            w2py(self.y + rs*0.3*np.sin(self.orientation - np.pi/2), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
         )
 
         front = (
-            w2px(self.x + self.radius*0.85*np.cos(self.orientation), PIXEL_TO_WORLD_X, MAP_SIZE_X),
-            w2py(self.y + self.radius*0.85*np.sin(self.orientation), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
+            w2px(self.x + rf*0.85*np.cos(self.orientation), PIXEL_TO_WORLD_X, MAP_SIZE_X),
+            w2py(self.y + rf*0.85*np.sin(self.orientation), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
         )
         back = (
-            w2px(self.x - self.radius*0.5*np.cos(self.orientation), PIXEL_TO_WORLD_X, MAP_SIZE_X),
-            w2py(self.y - self.radius*0.5*np.sin(self.orientation), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
+            w2px(self.x - rf*0.5*np.cos(self.orientation), PIXEL_TO_WORLD_X, MAP_SIZE_X),
+            w2py(self.y - rf*0.5*np.sin(self.orientation), PIXEL_TO_WORLD_Y, MAP_SIZE_Y)
         )
         center = (
             w2px(self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X),
@@ -138,7 +157,7 @@ class Robot(Object):
         radius = w2px(self.x + range, PIXEL_TO_WORLD_X, MAP_SIZE_X) - w2px(
             self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X
         )  # calculating no. of pixels corresponding to the radius
-       
+
         axesLength = (radius, radius)
         fov = fov * 180 / np.pi
         orientation = self.orientation * 180 / np.pi

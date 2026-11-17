@@ -1,2 +1,4 @@
-include socnavgym/envs/utils/sngnnv2/example_model/*.prms
-include socnavgym/envs/utils/sngnnv2/example_model/*.tch
+include socnavgym/envs/rewards/RNNBaseline/anthropic_claude_context.csv
+include socnavgym/envs/utils/learned_human_models/*.pt
+include socnavgym/envs/rewards/SN26GNN/anthropic_claude_context.csv
+include socnavgym/envs/rewards/SN26GNN/LICENSE

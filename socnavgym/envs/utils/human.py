@@ -1,11 +1,15 @@
+import os
+from math import atan2
+
 import cv2
 import numpy as np
 from socnavgym.envs.utils.object import Object
 from socnavgym.envs.utils.utils import w2px, w2py
-from math import atan2
-import time
 
-MAX_TIME_TO_REACH_GOAL = 15
+import time as pytime
+from collections import deque
+
+MAX_TIME_TO_REACH_GOAL = 50
 
 class Human(Object):
     """
@@ -13,16 +17,16 @@ class Human(Object):
     """
 
     def __init__(
-        self, 
-        id=None, 
-        x=None, 
-        y=None, 
-        theta=None, 
-        width=None, 
-        speed=None, 
-        goal_x=None, 
-        goal_y=None, 
-        goal_radius=None, 
+        self,
+        id=None,
+        x=None,
+        y=None,
+        theta=None,
+        width=None,
+        speed=None,
+        goal_x=None,
+        goal_y=None,
+        goal_radius=None,
         policy=None,
         prob_to_avoid_robot=0.05,
         type="dynamic",
@@ -44,16 +48,47 @@ class Human(Object):
         self.type = type  # whether human is static or dynamic
         self.pos_noise_std = pos_noise_std if pos_noise_std!=None else 0
         self.angle_noise_std = angle_noise_std if angle_noise_std!=None else 0
-        
+
+        self.prev_x = None
+        self.prev_y = None
+        self.prev_orientation = None
+        self.position_history = deque(maxlen=8)
+        self.update_skip_probability = 0.05
+        self.perception_delay_steps = 1
+        self.delayed_orientation = theta if theta is not None else 0.0
+        self.max_rotation_speed = np.pi / 6
+
+        self.avoidance_turn = 0
+        self.avoidance_cooldown = 0
+        self.avoidance_duration = 4
+
+        self.stuck_counter = 0
+        self.last_step_x = x
+        self.last_step_y = y
+
+        self.preferred_speed = speed if speed is not None else 0.0
+        self.goal_direction_bias = np.random.normal(0, 0.18)
+        self.vx = 0.0
+        self.vy = 0.0
+
+        self.estimated_w = 0.0
+        self.wander_angle =  np.random.uniform(-0.5, 0.5) #
+        self.wander_strength = 0.4   # how much we bend (radians)
+        self.wander_smooth = 0.7 #
+        self.turn_bias = np.random.normal(0, 0.03)
+        self.speed_scale = np.random.uniform(0.9, 1.1)
+        self.speed_phase = np.random.uniform(0, 2 * np.pi)
         assert(self.type == "static" or self.type == "dynamic"), "type can be \"static\" or \"dynamic\" only."
         self.set(id, x, y, theta, width, speed, goal_x, goal_y, goal_radius, policy)
 
-        self.initial_time = time.time()
+        self.time_on_goal = 0.0   # simulated seconds spent on the current goal (was wall-clock time: bug #10)
+
 
     def set_goal(self, goal_x, goal_y):
         self.goal_x = goal_x
         self.goal_y = goal_y
-        self.initial_time = time.time()
+        self.time_on_goal = 0.0
+
 
     def set(self, id, x, y, theta, width, speed, goal_x, goal_y, goal_radius, policy):
         super().set(id, x, y, theta)
@@ -72,15 +107,36 @@ class Human(Object):
         self.initial_orientation = theta
 
 
+        self.prev_x = x
+        self.prev_y = y
+        self.stuck_counter = 0
+        self.last_step_x = x
+        self.last_step_y = y
+        self.delayed_orientation = theta if theta is not None else 0.0
+        self.goal_direction_bias = np.random.normal(0, 0.18)
+        self.turn_bias = np.random.normal(0, 0.03)
+        self.estimated_w = 0.0
+
+
+        if x is not None and y is not None and theta is not None:
+            self.position_history.clear()
+            self.position_history.append((x, y, theta, pytime.time()))
+
+
     def has_reached_goal(self, offset=None):
-        if offset is None: offset = self.width/2
-        if self.type == "static": return False  # static humans do not have goals, so they would not reach their goal
-        # if self.width == None or self.goal_radius == None or self.goal_x==None or self.goal_y == None: return False
+        if offset is None:
+            offset = self.width/2
+        if self.type == "static":
+            return False  # static humans do not have goals, so they would not reach their goal
+        # if self.width == None or self.goal_radius == None or self.goal_x==None or self.goal_y == None:
+        #     return False
         distance_to_goal = np.sqrt((self.x-self.goal_x)**2 + (self.y-self.goal_y)**2)
-        if distance_to_goal < (offset + self.goal_radius) or time.time()-self.initial_time>MAX_TIME_TO_REACH_GOAL:
+        if distance_to_goal < (offset + self.goal_radius) or self.time_on_goal > MAX_TIME_TO_REACH_GOAL:
             return True
         else:
             return False
+
+
     @property
     def avoids_robot(self):
         n = np.random.random()
@@ -88,7 +144,7 @@ class Human(Object):
             return True
         else:
             return False
-    
+
     def set_new_orientation_with_limits(self, orientation, max_rotation_speed, time):
         diffO = atan2(np.sin(orientation-self.orientation), np.cos(orientation-self.orientation))
         if abs(diffO)/time>max_rotation_speed:
@@ -105,12 +161,25 @@ class Human(Object):
 
     def update_orientation(self, theta):
         if self.type == "static": return  # static humans do not change their orientation
-        self.orientation = theta
+
+
+        angle_diff = atan2(np.sin(theta - self.orientation), np.cos(theta - self.orientation))
+        if angle_diff > self.max_rotation_speed:
+            angle_diff = self.max_rotation_speed
+        elif angle_diff < -self.max_rotation_speed:
+            angle_diff = -self.max_rotation_speed
+
+        self.orientation = atan2(
+            np.sin(self.orientation + angle_diff),
+            np.cos(self.orientation + angle_diff)
+        )
+
 
     def update(self, time):
         """
         For updating the coordinates of the human for a single time step
         """
+        self.time_on_goal = getattr(self, "time_on_goal", 0.0) + time
         assert (
             self.x != None and self.y != None and self.orientation != None
         ), "Coordinates or orientation are None type"
@@ -119,16 +188,66 @@ class Human(Object):
             self.x = self.initial_x
             self.y = self.initial_y
             self.orientation = self.initial_orientation
+
+            self.position_history.append((self.x, self.y, self.orientation, pytime.time()))
+            return
+
+
+        self.prev_x = self.x
+        self.prev_y = self.y
+        self.prev_orientation = self.orientation
+
+        if np.random.random() < self.update_skip_probability:
+            self.position_history.append((self.x, self.y, self.orientation, pytime.time()))
+            return
+
         r_moved = np.random.normal(0, self.pos_noise_std)
-        moved = time * self.speed  + r_moved# distance moved = speed x time
+        self.speed_phase += 0.15
+        rhythmic_scale = 1.0 + 0.06 * np.sin(self.speed_phase)#_____
+        moved = time * (self.speed * self.speed_scale * rhythmic_scale) + r_moved
+
         r_angle = np.random.normal(0, self.angle_noise_std)
         self.initial_x = self.x
         self.initial_y = self.y
         self.initial_orientation = self.orientation
 
+
+
         self.orientation = self.orientation + r_angle
-        self.x += moved * np.cos(self.orientation)  # updating x position
-        self.y += moved * np.sin(self.orientation)  # updating y position
+
+
+        if len(self.position_history) > self.perception_delay_steps: #___
+            delayed_state = self.position_history[-1 - self.perception_delay_steps]  #kalper
+            delayed_theta = delayed_state[2]   # (x, y, theta, t): index 2 is theta (was the y coordinate)
+        else:
+            delayed_theta = self.orientation
+
+        self.delayed_orientation = delayed_theta
+        new_wander = np.random.normal(0, self.wander_strength)
+        self.wander_angle = self.wander_smooth * self.wander_angle + (1 - self.wander_smooth) * new_wander
+
+        wander_factor = min(1.0, max(0.35, self.speed / 0.6))
+        wandered_orientation = self.orientation + self.wander_angle + self.turn_bias
+        self.x += moved * np.cos(wandered_orientation)
+        self.y += moved * np.sin(wandered_orientation)
+
+        self.vx = self.speed * np.cos(self.orientation)
+        self.vy = self.speed * np.sin(self.orientation)
+
+        self.position_history.append((self.x, self.y, self.orientation, pytime.time()))
+
+
+    def move_to(self, x, y, time):
+        """Place the human exactly at (x, y) (learned motion): same bookkeeping as update(), without its noise and speed rhythm."""
+        self.time_on_goal = getattr(self, "time_on_goal", 0.0) + time
+        self.prev_x, self.prev_y, self.prev_orientation = self.x, self.y, self.orientation
+        d = np.hypot(x - self.x, y - self.y)
+        if d > 1e-3: self.orientation = atan2(y - self.y, x - self.x)
+        self.speed = d / time
+        self.x, self.y = x, y
+        self.initial_x, self.initial_y, self.initial_orientation = self.x, self.y, self.orientation
+        self.vx = self.speed * np.cos(self.orientation); self.vy = self.speed * np.sin(self.orientation)
+        self.position_history.append((self.x, self.y, self.orientation, pytime.time()))
 
     def draw(self, img, PIXEL_TO_WORLD_X, PIXEL_TO_WORLD_Y, MAP_SIZE_X, MAP_SIZE_Y):
         if self.color == None:
@@ -266,7 +385,7 @@ class Human(Object):
         radius = w2px(self.x + np.sqrt(MAP_SIZE_X**2 + MAP_SIZE_Y**2), PIXEL_TO_WORLD_X, MAP_SIZE_X) - w2px(
             self.x, PIXEL_TO_WORLD_X, MAP_SIZE_X
         )  # calculating no. of pixels corresponding to the radius
-       
+
         axesLength = (radius, radius)
         gaze_angle = gaze_angle * 180 / np.pi
         orientation = self.orientation * 180 / np.pi

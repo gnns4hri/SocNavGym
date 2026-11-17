@@ -20,17 +20,17 @@ class Human_Laptop_Interaction:
 
         self.x = None
         self.y = None
-       
+
         self.can_disperse = can_disperse
 
-        # generating a human 
-        self.human = Human(speed=0, width=human_width,policy=random.choice(["orca", "sfm"]), type="static", 
+        # generating a human
+        self.human = Human(speed=0, width=human_width,policy=random.choice(["orca", "sfm"]), type="static",
                             pos_noise_std=pos_noise_std, angle_noise_std=angle_noise_std)
 
-       
+
         # distance between the human and laptop centers
         self.distance = distance
-        
+
         # arranging the human
         self.arrange_human()
 

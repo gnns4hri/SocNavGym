@@ -13,20 +13,20 @@
 10. [Reward Function](https://github.com/gnns4hri/SocNavGym/tree/main#reward-function)
 11. [Writing Custom Reward Functions](https://github.com/gnns4hri/SocNavGym/tree/main#writing-custom-reward-functions)
 12. [Config File](https://github.com/gnns4hri/SocNavGym/tree/main#config-file)
-13. [Wrappers](https://github.com/gnns4hri/SocNavGym/tree/main#wrappers)
-14. [Training Agents](https://github.com/gnns4hri/SocNavGym/tree/main#training-agents)
-15. [Evaluating Agents](https://github.com/gnns4hri/SocNavGym/tree/main#evaluating-agents)
-16. [Manually Controlling the Robot](https://github.com/gnns4hri/SocNavGym/tree/main#manually-controlling-the-robot)
-17. [Tutorials](https://github.com/gnns4hri/SocNavGym/tree/main#tutorials)
+13. [Hand-made scenarios](https://github.com/gnns4hri/SocNavGym/tree/main#hand-made-scenarios)
+14. [Wrappers](https://github.com/gnns4hri/SocNavGym/tree/main#wrappers)
+15. [Training Agents](https://github.com/gnns4hri/SocNavGym/tree/main#training-agents)
+16. [Evaluating Agents](https://github.com/gnns4hri/SocNavGym/tree/main#evaluating-agents)
+17. [Manually Controlling the Robot](https://github.com/gnns4hri/SocNavGym/tree/main#manually-controlling-the-robot)
+18. [Tutorials](https://github.com/gnns4hri/SocNavGym/tree/main#tutorials)
 
 
 ## Description
 This repository contains the implementation of our paper [SocNavGym: A Reinforcement Learning Gym for Social Navigation"](https://arxiv.org/abs/2304.14102), published in IEEE ROMAN, 2023. 
 
 ## Installation
-1. Install Python-RVO2 by following the instructions given in [this](https://github.com/sybrenstuvel/Python-RVO2/) repository.
-2. Install DGL (Deep Graph Library) for your system using [this](https://www.dgl.ai/pages/start.html) link.
-3. To install the environment using pip: 
+1. Install Python-RVO2 by following the instructions given in [this](https://github.com/sybrenstuvel/Python-RVO2/) repository. With CMake >= 4 the build needs `CMAKE_POLICY_VERSION_MINIMUM=3.5` in the environment.
+2. To install the environment using pip: 
     ```bash
     python3 -m pip install socnavgym
     ```
@@ -34,9 +34,10 @@ This repository contains the implementation of our paper [SocNavGym: A Reinforce
    To install from source:
     ```bash
     git clone https://github.com/gnns4hri/SocNavGym.git
+    cd SocNavGym
     python3 -m pip install .  # to install the environment to your Python libraries. This is optional. If you don't run this, then just make sure that your current working directory is the root of the repository when importing socnavgym.
     ```
-4. The test Deep RL agents are written using Stable Baselines3. We used the following command to install SB3 for our experiments 
+3. The test Deep RL agents are written using Stable Baselines3. We used the following command to install SB3 for our experiments 
     ```bash
     pip install git+https://github.com/carlosluis/stable-baselines3@fix_tests
     ```
@@ -332,7 +333,7 @@ The environment also allows users to provide custom reward functions. Follow the
     ```
 2. Overwrite the function `compute_reward` with the custom reward function. The input of the `compute_reward` function is the action of the current timestep, the previous entity observations and the current entity observations. The previous and current observations are given as a dictionary with key as the id of the entity, and the value is an instance of the `EntityObs` namedtuple defined in [this](https://github.com/gnns4hri/SocNavGym/blob/main/socnavgym/envs/socnavenv_v1.py#L19) file. It contains the fields : id, x, y, theta, sin_theta, cos_theta for each entity in the environment. Note that all these values are in the robot's frame of reference. 
 3. If need be, you can also access the lists of humans, plants, interactions etc, that the environment maintains by referencing the `self.env` variable. An example of this can be found in the [`dsrnn_reward.py`](https://github.com/gnns4hri/SocNavGym/blob/main/socnavgym/envs/rewards/dsrnn_reward.py#L24) file
-4. The `RewardAPI` class provides four helper functions - `check_collision`, `check_timeout`, `check_reached` and `check_out_of_map`. These functions are boolean functions that check if the robot has collided with any enitity, whether the maximum episode length has been reached, whether the robot has reached the goal, or if the robot has moved out of the map respectively. The last case can occur only when the envirnoment is configured to have no walls.
+4. The `RewardAPI` class provides three helper functions - `check_collision`, `check_timeout` and `check_reached`. These functions are boolean functions that check if the robot has collided with any enitity, whether the maximum episode length has been reached, and whether the robot has reached the goal, respectively. Leaving the map rectangle has no consequence: a boundary, if wanted, is made with walls.
 5. The `RewardAPI` class also has a helper function defined to compute the SNGNN reward function. Call `compute_sngnn_reward(actions, prev_obs, curr_obs)` to compute the SNGNN reward. Also note that if you are using the SNGNN reward function in your custom reward function, please set the variable `self.use_sngnn` to `True`.
 6. You can also store any additional information that needs to be returned in the info dict of step function by storing all of it in the variable `self.info` of the `Reward` class.
 7. Storing anything in a class variable will persist across the steps in an episode. After every episode, the reward class object's `__init__()` method would be invoked.
@@ -359,7 +360,7 @@ The behaviour of the environment is controlled using the config file. The config
         <td> delay parameter for waitKey()</td>
     </tr>
     <tr>
-        <td rowspan="2"> episode </td>
+        <td rowspan="5"> episode </td>
         <td> episode_length </td>
         <td> maximum steps in an episode</td>
     </tr>
@@ -368,9 +369,33 @@ The behaviour of the environment is controlled using the config file. The config
         <td> number of seconds that one step corresponds to</td>
     </tr>
     <tr>
-        <td rowspan="3"> robot </td>
+        <td> continue_after_reach </td>
+        <td> Optional, default False (the episode ends on the step the goal is reached). If True, the episode goes on after the goal is reached and ends when the robot no longer gets closer to the goal: neither its distance to the goal decreases at settle_position_rate or more, nor its angle to the goal orientation at settle_rotation_rate or more (the orientation only counts if the goal has an orientation threshold below pi). A collision (with end_with_collision) or the time limit still end the episode. From the reach on, info["SUCCESS"] is True and info["TIME_TO_REACH_GOAL"] is the time of the first reach; the reach reward of the hand-written rewards is given once, on the step the episode ends. </td>
+    </tr>
+    <tr>
+        <td> settle_position_rate </td>
+        <td> Optional, default 0.01. With continue_after_reach: approach speed (m/s) below which the robot counts as no longer getting closer to the goal position </td>
+    </tr>
+    <tr>
+        <td> settle_rotation_rate </td>
+        <td> Optional, default 0.1745 (10 degrees/s). With continue_after_reach: rate (rad/s) below which the robot counts as no longer getting closer to the goal orientation </td>
+    </tr>
+    <tr>
+        <td rowspan="6"> robot </td>
         <td> robot_radius </td>
-        <td> radius of the robot</td>
+        <td> radius of the robot (circular robots)</td>
+    </tr>
+    <tr>
+        <td> robot_shape </td>
+        <td> Optional, default "circle". "rectangle": the robot's body is a rectangle of robot_length x robot_width that turns with the robot; collisions with people, furniture and walls are tested with it. What takes the robot as a disc (the radius in the observation, how people steer around it, the distances kept when a scene is made) uses the circle around the rectangle; robot_radius is not used</td>
+    </tr>
+    <tr>
+        <td> robot_length </td>
+        <td> With robot_shape "rectangle": size of the robot along its heading (m)</td>
+    </tr>
+    <tr>
+        <td> robot_width </td>
+        <td> With robot_shape "rectangle": size of the robot across its heading (m)</td>
     </tr>
     <tr>
         <td> goal_radius </td>
@@ -391,7 +416,15 @@ The behaviour of the environment is controlled using the config file. The config
     </tr>
     <tr>
         <td> human_policy </td>
-        <td> policy of the human. Can be "random", "sfm", or "orca". If "random" is chosen, then one of "orca" or "sfm" would be randomly chosen</td>
+        <td> policy of the human. Can be "random", "sfm", "orca" or "learned". If "random" is chosen, then one of "orca" or "sfm" would be randomly chosen. "learned" moves individual walking humans with a model trained on real human motion (see <a href="#learned-humans">Learned humans</a>). A mapping of probabilities mixes policies, drawn per human at spawn time, e.g. <code>{learned: 0.6, orca: 0.2, sfm: 0.2}</code> (weights are normalised)</td>
+    </tr>
+    <tr>
+        <td> speed_range </td>
+        <td> optional [min, max] in m/s: every walking human draws its preferred speed uniformly from this range at spawn, whatever its policy (ORCA preferred and maximum speed, SFM driving force and cap, learned humans' speed input). Without it, ORCA/SFM humans use max_advance_human and learned humans learned_speed_range. Groups keep max_advance_human (formation speed)</td>
+    </tr>
+    <tr>
+        <td> learned_model, learned_speed_range, learned_replan_steps, learned_temperature </td>
+        <td> optional, only with human_policy "learned": checkpoint path (default: the packaged model), range of the per-human preferred walking speed in m/s (default [0.6, 1.4]), steps executed per planned trajectory (default 4), sampling temperature (default 0.5)</td>
     </tr>
     <tr>
         <td> gaze_angle </td>
@@ -467,6 +500,14 @@ The behaviour of the environment is controlled using the config file. The config
     <tr>
         <td> max_rotation </td>
         <td> maximum rotational speed for robot </td>
+    </tr>
+    <tr>
+        <td> max_lateral_speed </td>
+        <td> optional cap on the sideways speed of a holonomic robot, in m/s (applied before max_linear_speed) </td>
+    </tr>
+    <tr>
+        <td> max_linear_speed </td>
+        <td> optional cap on the norm of the robot's linear velocity, in m/s. max_advance_robot limits the forward and sideways components separately, so without this cap a holonomic robot moving diagonally reaches sqrt(2)·max_advance_robot. The rotational speed is limited separately by max_rotation (rad/s) </td>
     </tr>
     <tr>
         <td> wall_segment_size </td>
@@ -626,6 +667,54 @@ The behaviour of the environment is controlled using the config file. The config
     </tr>
     
 </table>
+
+## Learned humans
+With `human_policy: "learned"`, individual walking humans are moved by a generative trajectory model (rectified flow over the next 4.8 s) trained on real human motion: THÖR-MAGNI (indoor, with a robot and obstacles), LocoVR (two people in home scenes) and ETH/UCY (outdoor crowds). Every `learned_replan_steps` steps one batched call plans for all of them; the first steps of each plan are executed.
+
+What the model is given, per human: its own last 3.2 s of motion and heading, up to 12 nearby people (members of the same group are flagged), the robot only if the human avoids it (drawn once per human from `prob_to_avoid_robot`), a 6.4 m occupancy patch of the static scene (walls, furniture, outside the map), its **destination** (the human's goal) and its **preferred walking speed** (drawn per human from `learned_speed_range`). The simulator knows destinations; a robot does not. A robot-side forecaster should therefore be a separate model that only sees observations.
+
+Notes:
+- Static humans, humans at laptops and groups keep the existing behaviour (groups move as formations).
+- If a learned human touches furniture, the usual push-back applies and the human replans.
+- Real people walk at about 1 m/s, much faster than the ORCA/SFM default `max_advance_human: 0.3`; the observation-space speed bounds are raised accordingly.
+- Cost: about 20 ms per step on one CPU core with a few walking humans.
+- Model and training code: `socnavgym/envs/utils/learned_humans.py` (inference, self-contained) and the default checkpoint in `socnavgym/envs/utils/learned_human_models/`. Dataset licences: THÖR-MAGNI CC-BY-4.0; LocoVR MIT (scenes derived from HM3D); ETH/UCY research use.
+
+## Hand-made scenarios
+Besides random scenes, an episode can be built from a scenario: a YAML file (or a dict) that fixes the map, walls, furniture, the robot's start and goal, and every person and how they behave. This is meant for reproducible edge cases: someone stepping out of a doorway, a person standing on the goal, a head-on encounter in a corridor.
+
+```python
+env.reset(seed=0, options={"scenario": "doorway.yaml"})   # this reset only (a path or a dict)
+env.set_scenario("doorway.yaml")                           # every following reset (None: back to random scenes)
+```
+
+```yaml
+name: doorway_step_out
+map:
+  size: [9, 6]                       # metres, centred on (0, 0); boundary walls by default
+  walls: [[-4.5, -1, 4.5, -1], [-4.5, 1, 0.5, 1], [1.5, 1, 4.5, 1]]   # extra segments [x1, y1, x2, y2]
+robot: {x: -3.8, y: 0, theta: 0, goal: {x: 3.8, y: 0, theta: 0}}
+furniture:
+  - {type: plant, x: -2, y: 2}       # table, chair, plant, laptop; sizes default to the config's
+people:
+  - name: door_person
+    x: 1.0
+    y: 1.6
+    behaviour: scripted              # static | goals (policy learned/orca/sfm, speed, goals, then) | scripted (exact path)
+    path: [[0.0, 1.0, 1.6], [1.0, 1.0, 0.4], [2.5, 1.0, -0.55]]   # (t, x, y)
+    start: {robot_within: {distance: 2.5, of: [1.0, 1.0]}, delay: 0.3}
+groups:
+  - {centre: [2, -2], members: 3, radius: 0.6}   # conversation group: static people facing the centre
+```
+
+People have one of three behaviours:
+- **static**: never moves.
+- **goals**: walks to a list of goals with ORCA, SFM or the learned model, reacting to others (and to the robot if `avoids_robot`); after the last goal it stops, loops or wanders (random goals, as in random scenes).
+- **scripted**: follows a timed path exactly and ignores everyone, including the robot. A collision with a scripted person may be the script's fault, so the step `info` names who the robot touched (`scenario_collision`).
+
+A person can wait for a **trigger** (`start:`): standing still, visible and solid, until a condition holds, then starting once. Conditions: `time`, `robot_within` (of the person, a point or another person), `robot_crosses` (a line segment) and `after` (another person's start), each with an optional `delay`. Triggers are checked once per step after the robot moves, and every step's `info["scenario_events"]` lists what fired.
+
+The seed still matters (the learned humans' samples, ORCA/SFM noise, unspecified values such as a person's policy), so a scenario plus a seed reproduces exactly. The scene must fit the config's observation size (`max_*` entity counts, wall segments); spontaneous group formation and human-laptop interactions are off in scenario episodes. `socnavgym.envs.utils.scenario.export(env)` turns the current scene into a scenario dict (call it after `reset()`), and `dump()` writes it as YAML, so an interesting random scene can be saved, edited and replayed. The full format is in the docstring of `socnavgym/envs/utils/scenario.py`.
 
 ## Wrappers
 Gymnasium wrappers are convenient to have changes in the observation-space / action-space. SocNavGym implements 4 wrappers. 
@@ -860,3 +949,12 @@ optional arguments:
 ## Tutorials
 1. [Installation tutorial](https://colab.research.google.com/drive/1vX1mxQJ82MQpHLg43Y2BArPYeDRsimse?usp=sharing)
 2. [Training a Deep RL agent on SocNavGym](https://colab.research.google.com/drive/1NNt4k8Ouzs9vNj20AXsWfzwWXW8MG5QM?usp=sharing)
+
+## Contributors
+- Pilar Bachiller Burgos
+- Luis J. Manso
+- Aditya Kapoor
+- Sushant Swamy
+- Hamna Rakeel
+
+

@@ -8,17 +8,22 @@ from stable_baselines3 import DQN
 from stable_baselines3.common.torch_layers import BaseFeaturesExtractor
 from math import sqrt
 import argparse
-from comet_ml import Experiment
 from stable_baselines3.common.callbacks import CheckpointCallback
 from stable_baselines3.common.results_plotter import ts2xy, plot_results
 from stable_baselines3.common.utils import safe_mean
 from stable_baselines3.common.callbacks import EvalCallback
 from stable_baselines3.common.monitor import Monitor
 
+ap = argparse.ArgumentParser()
+ap.add_argument("-e", "--env_config", help="path to environment config", required=True)
+ap.add_argument("-r", "--run_name", help="name of comet_ml run", required=True)
+ap.add_argument("-s", "--save_path", help="path to save the model", required=True)
+ap.add_argument("-p", "--project_name", help="project name in comet ml", required=False, default=None)
+ap.add_argument("-a", "--api_key", help="api key to your comet ml profile", required=False, default=None)
+ap.add_argument("-d", "--use_deep_net", help="True or False, based on whether you want a transformer based feature extractor", required=False, default=False)
+ap.add_argument("-g", "--gpu", help="gpu id to use", required=False, default="0")
+args = vars(ap.parse_args())
 
-class CometMLCallback(CheckpointCallback):
-    """
-    A custom callback that derives from ``BaseCallback``.
 
     :param verbose: Verbosity level: 0 for no output, 1 for info messages, 2 for debug messages
     """
@@ -84,6 +89,10 @@ policy_kwargs = {"net_arch" : net_arch}
 
 device = 'cuda:'+str(args["gpu"]) if torch.cuda.is_available() else 'cpu'
 model = DQN("MultiInputPolicy", env, verbose=0, policy_kwargs=policy_kwargs, device=device)
-callback = CometMLCallback(args["run_name"], args["save_path"], args["project_name"], args["api_key"])
+if args["api_key"] is not None:
+    callback = CometMLCallback(args["run_name"], args["save_path"], args["project_name"], args["api_key"])
+else:
+    callback = None
+    
 model.learn(total_timesteps=50000*200, callback=callback)
 model.save(args["save_path"])

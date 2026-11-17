@@ -1,0 +1,49 @@
+<?xml version="1.0"?>
+<!-- The rectangular robot of SocNavGym's vision system: a box base, 0.65 m long (along +X, the heading) x 0.40 m wide, for
+     configurations with `robot: robot_shape: "rectangle"` (give robot_length 0.65 and robot_width 0.40 for the simulator's
+     body to be this box). A 2D lidar at the front, a column and a pan-tilt head with an RGB-D camera: the same links and
+     joints as the round robot (round_pan_tilt_robot.urdf), so the same `sensors:` section works with both.
+     Sensors are attached to LINKS by the configuration (vision: sensors: ... link: camera_link); a sensor looks
+     along its link's +X, with +Z up. The two head joints are moved in position by the agent (two extra numbers in the action). -->
+<robot name="box_pan_tilt_robot">
+  <material name="dark"><color rgba="0.13 0.14 0.16 1"/></material>
+  <material name="body"><color rgba="0.82 0.83 0.85 1"/></material>
+  <material name="accent"><color rgba="0.95 0.45 0.1 1"/></material>
+  <material name="metal"><color rgba="0.6 0.62 0.65 1"/></material>
+
+  <link name="base_link">
+    <visual><origin xyz="0 0 0.14"/><geometry><box size="0.65 0.40 0.2"/></geometry><material name="body"/></visual>
+    <visual><origin xyz="0 0 0.03"/><geometry><box size="0.63 0.38 0.04"/></geometry><material name="dark"/></visual>
+    <visual><origin xyz="0.2625 0 0.245"/><geometry><box size="0.125 0.40 0.01"/></geometry><material name="accent"/></visual>   <!-- the front -->
+    <visual><origin xyz="-0.0625 0 0.245"/><geometry><box size="0.525 0.40 0.01"/></geometry><material name="dark"/></visual>
+  </link>
+
+  <link name="lidar_link">
+    <visual><origin xyz="0 0 0"/><geometry><cylinder radius="0.038" length="0.05"/></geometry><material name="dark"/></visual>
+  </link>
+  <joint name="lidar_joint" type="fixed"><parent link="base_link"/><child link="lidar_link"/><origin xyz="0.25 0 0.285"/></joint>
+
+  <link name="column_link">
+    <visual><origin xyz="0 0 0.4"/><geometry><cylinder radius="0.035" length="0.8"/></geometry><material name="metal"/></visual>
+  </link>
+  <joint name="column_joint" type="fixed"><parent link="base_link"/><child link="column_link"/><origin xyz="-0.1 0 0.25"/></joint>
+
+  <link name="pan_link">
+    <visual><origin xyz="0 0 0.02"/><geometry><cylinder radius="0.045" length="0.04"/></geometry><material name="dark"/></visual>
+    <visual><origin xyz="0 0.05 0.075"/><geometry><box size="0.03 0.008 0.09"/></geometry><material name="dark"/></visual>
+    <visual><origin xyz="0 -0.05 0.075"/><geometry><box size="0.03 0.008 0.09"/></geometry><material name="dark"/></visual>
+  </link>
+  <joint name="head_pan" type="revolute"><parent link="column_link"/><child link="pan_link"/><origin xyz="0 0 0.8"/><axis xyz="0 0 1"/>
+    <limit lower="-2.6" upper="2.6" velocity="2.0" effort="1"/></joint>
+
+  <link name="tilt_link">
+    <visual><origin xyz="0 0 0"/><geometry><box size="0.04 0.09 0.03"/></geometry><material name="metal"/></visual>
+  </link>
+  <joint name="head_tilt" type="revolute"><parent link="pan_link"/><child link="tilt_link"/><origin xyz="0 0 0.09"/><axis xyz="0 1 0"/>
+    <limit lower="-0.8" upper="0.8" velocity="2.0" effort="1"/></joint>
+
+  <link name="camera_link">
+    <visual><origin xyz="-0.0125 0 0"/><geometry><box size="0.025 0.09 0.025"/></geometry><material name="body"/></visual>
+  </link>
+  <joint name="camera_joint" type="fixed"><parent link="tilt_link"/><child link="camera_link"/><origin xyz="0.045 0 0"/></joint>
+</robot>

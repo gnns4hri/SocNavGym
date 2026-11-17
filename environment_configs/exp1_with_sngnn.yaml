@@ -1,16 +1,26 @@
 rendering:
-    resolution_view: 1000  # size of the resized OpenCV window on rendering
+    resolution_x: 1000  # was resolution_view (v1)
+    resolution_y: 1000
     milliseconds: 30  # delay parameter for waitKey()
 
 episode:
     episode_length: 200  # maximum steps in an episode
     time_step: 1  # number of seconds that one step corresponds to
     end_with_collision: True # episode end with collision
+    continue_after_reach: False  # True: after reaching the goal the episode goes on until the robot stops getting closer to it (rates below)
+    settle_position_rate: 0.01  # m/s: approaching the goal position slower than this counts as not getting closer
+    settle_rotation_rate: 0.1745  # rad/s (10 degrees/s): the same for the goal orientation
 
 robot:
     robot_radius: 0.25  # radius of the robot
     goal_radius: 0.35  # radius of the goal
     robot_type: "diff-drive"  # there are two types, diff-drive or holonomic
+    goal_radius_margin: 0.3  # added for SocNavGym-v2 (default from tests/test_env.yaml)
+    min_advance_robot: -0.5  # added for SocNavGym-v2 (default from tests/test_env.yaml)
+    max_advance_robot: 1.0  # added for SocNavGym-v2 (default from tests/test_env.yaml)
+    max_rotation: 2.141592653589793  # added for SocNavGym-v2 (default from tests/test_env.yaml)
+    min_goal_orientation_threshold: 0.2  # added for SocNavGym-v2 (default from tests/test_env.yaml)
+    max_goal_orientation_threshold: 0.75  # added for SocNavGym-v2 (default from tests/test_env.yaml)
 
 human:
     human_diameter: 0.72  # diameter of the human
@@ -19,6 +29,9 @@ human:
     gaze_angle: 3.14159  # gaze value for humans would be set to 1 when the robot lies between -gaze_angle/2 and +gaze_angle/2
     fov_angle: 6.2831853  # the frame of view for humans
     prob_to_avoid_robot: 0.0  # the probability that the human would consider the robot in it's policy
+    max_advance_human: 0.3  # added for SocNavGym-v2 (default from tests/test_env.yaml)
+    max_rotation_human: 1.57  # added for SocNavGym-v2 (default from tests/test_env.yaml)
+    speed_threshold: 0.05  # added for SocNavGym-v2 (default from tests/test_env.yaml)
     
 laptop:
     laptop_width: 0.4  # width of the laptop
@@ -33,6 +46,7 @@ table:
 
 wall:
     wall_thickness: 0.2  # thickness of the walls
+    wall_segment_size: -1  # added for SocNavGym-v2 (default from tests/test_env.yaml)
 
 human-human-interaction:
     interaction_radius: 0.72  # interaction radius
@@ -105,3 +119,11 @@ env:
 
     min_map_y: 10  # minimum size of map along y direction
     max_map_y: 10  # maximum size of map along y direction
+
+    min_chairs: 0  # added for SocNavGym-v2 (default from tests/test_env.yaml)
+    max_chairs: 0  # added for SocNavGym-v2 (default from tests/test_env.yaml)
+    min_area: 60  # added for SocNavGym-v2 (default from tests/test_env.yaml)
+
+chair:  # added for SocNavGym-v2 (defaults from tests/test_env.yaml)
+    chair_width: 0.4
+    chair_length: 0.35

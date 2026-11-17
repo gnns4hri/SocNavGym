@@ -1,6 +1,6 @@
 import gymnasium as gym
 from gymnasium.spaces import Discrete
-from socnavgym.envs.socnavenv_v1 import SocNavEnv_v1
+from socnavgym.envs.socnavenv_v2 import SocNavEnv_v2 as SocNavEnv_v1   # v1 was removed; the wrappers target v2
 import numpy as np
 
 

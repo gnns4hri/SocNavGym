@@ -1,0 +1,54 @@
+# SocNavGym Training Configuration
+
+# Environment configuration
+env_config: "test_env.yaml"       # Environment configuration file
+keys: [ "robot", "humans" ]       # Keys to extract from Dict env
+
+# Training parameters
+total_steps: 2000000              # Total training steps
+n_envs: 1                         # Number of parallel environments
+eval_freq: 50000                  # Evaluation frequency (steps)
+eval_episodes:  50                # Number of evaluation episodes
+verbose: 0                        # Verbosity level (0=quiet, 1=normal, 2=verbose)
+
+# Directories
+log_dir: "logs"                   # TensorBoard and monitor logs
+checkpoint_dir: "checkpoints"     # Checkpoint directory
+best_model_dir: "best_model"      # Best model directory
+
+# WANDB configuration
+wandb:
+  project: "sn26_reward7"         # WANDB project name
+  name: null                      # Run name (auto-generated if null)
+  entity: null                    # WANDB entity (team/user)
+
+# SAC hyperparameters
+# Set values to null to use Stable Baselines3 defaults
+sac_hyperparams:
+  learning_rate: 0.0003           # Learning rate
+  buffer_size: 5000000            # Replay buffer size
+  batch_size: 256                 # Batch size
+  tau: 0.005                      # Target network update rate
+  gamma: 0.99                     # Discount factor
+  train_freq: 1                   # Training frequency
+  gradient_steps: 1               # Gradient steps per update
+  ent_coef: "auto"                # Entropy coefficient
+  use_sde: False                  # Use State Dependent Exploration
+  sde_sample_freq: -1             # SDE sample frequency
+  use_sde_at_warmup: False        # Use SDE at warmup
+
+# GNN feature extractor hyperparameters
+gnn:
+  hidden_dim: 64     # node embedding dimension (must be divisible by n_heads)
+  n_heads: 4          # attention heads per GATv2Conv layer
+  n_layers: 2         # number of GATv2Conv layers
+  features_dim: 256   # output feature dimension fed to the SAC actor/critic
+
+# HER (Hindsight Experience Replay) configuration
+her:
+  enabled: false                  # Enable HER
+  threshold: -0.75
+  ratio: 0.05
+  
+
+

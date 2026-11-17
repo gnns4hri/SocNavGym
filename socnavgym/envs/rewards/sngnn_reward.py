@@ -1,17 +1,16 @@
 import socnavgym
 from socnavgym.envs.rewards.reward_api import RewardAPI
-from socnavgym.envs.socnavenv_v1 import SocNavEnv_v1, EntityObs
+from socnavgym.envs.socnavenv_v2 import SocNavEnv_v2, EntityObs
 from socnavgym.envs.utils.utils import point_to_segment_dist
 import numpy as np
 
 
 class Reward(RewardAPI):
-    def __init__(self, env: SocNavEnv_v1) -> None:
+    def __init__(self, env: SocNavEnv_v2) -> None:
         super().__init__(env)
         self.use_sngnn = True
         self.sngnn_factor = 1.0
         self.reach_reward = 10.0
-        self.out_of_map_reward = -10.0 
         self.max_steps_reward = -1.0 
         self.alive_reward = -0.00001 
         self.collision_reward = -1.0
@@ -85,8 +84,7 @@ class Reward(RewardAPI):
         
         return dmin
 
-    def compute_reward(self, action, prev_obs: EntityObs, curr_obs: EntityObs):
-        if self.check_out_of_map(): return self.out_of_map_reward
+    def compute_reward(self, action, prev_obs: EntityObs, curr_obs: EntityObs, terminated=False, truncated=False):   # v2 also passes the episode flags
         elif self.check_reached_goal(): return self.reach_reward
         elif self.check_collision(): return self.collision_reward
         elif self.check_timeout(): return self.max_steps_reward

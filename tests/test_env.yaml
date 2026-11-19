@@ -2,6 +2,11 @@ rendering:
     resolution_y: 1080  # size of the canvas in rows
     resolution_x: 1080  # size of the canvas in columns
     milliseconds: 30  # delay parameter for rendering
+    show_human_goals: false      # circles at the people's destinations (default true)
+    show_range_area: false       # tinted area the laser beams cross (default true)
+    show_range_hits: true       # red dot where each beam hits (default true)
+    show_range_reading: false   # plot of the 720 values at the bottom of the window (default false)
+
 
 episode:
     episode_length: 500  # maximum steps in an episode

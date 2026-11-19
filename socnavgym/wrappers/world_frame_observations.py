@@ -24,6 +24,7 @@ class WorldFrameObservations(gym.ObservationWrapper):
                 low = np.concatenate([sp.low, [-half, -half, -1, -1]]).astype(np.float32); low[0:2] = -half; low[3:5] = -1
                 high = np.concatenate([sp.high, [half, half, 1, 1]]).astype(np.float32); high[0:2] = half; high[3:5] = 1; high[7] = 1
                 d[k] = spaces.Box(low=low, high=high, dtype=np.float32)
+            elif k not in ENTITIES: d[k] = sp                  # e.g. "range" (the LiDAR's distances have no frame to change): as it is
             else:
                 low, high = sp.low.copy().reshape(-1, 8), sp.high.copy().reshape(-1, 8)
                 low[:, 0:2], high[:, 0:2] = -half, half
@@ -51,4 +52,6 @@ class WorldFrameObservations(gym.ObservationWrapper):
                 p[:, 2], p[:, 3] = sn, cs
                 o[present] = p
             out[e] = o.reshape(-1).astype(np.float32)
+        for k in obs:                                          # anything else (e.g. "range", still relative to the robot's heading): as it is
+            if k not in out: out[k] = obs[k]
         return out

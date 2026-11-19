@@ -27,6 +27,7 @@ from socnavgym.envs.utils.human_laptop import Human_Laptop_Interaction
 from socnavgym.envs.utils.laptop import Laptop
 from socnavgym.envs.utils.object import Object, _ROUND, _RECT, _INNER, is_rectangular_robot
 from socnavgym.envs.utils.plant import Plant
+from socnavgym.envs.utils.range_sensor import RangeSensor
 from socnavgym.envs.utils.robot import Robot
 from socnavgym.envs.utils.table import Table
 from socnavgym.envs.utils.chair import Chair
@@ -345,6 +346,12 @@ class SocNavEnv_v2(gym.Env):
         self.CANVAS_X = int(self.RESOLUTION_X); self.CANVAS_Y = int(self.RESOLUTION_Y)
         self.RENDER_SIZE = max(self.RESOLUTION_X, self.RESOLUTION_Y)
 
+        # what the 2D drawing shows (all optional). A value given to render() / render_without_showing() (draw_human_goal) wins.
+        self.SHOW_HUMAN_GOALS = bool(config["rendering"].get("show_human_goals", True))        # the circles at the people's destinations
+        self.SHOW_RANGE_AREA = bool(config["rendering"].get("show_range_area", True))          # simulated LiDAR (config section `range:`): the area the beams cross
+        self.SHOW_RANGE_HITS = bool(config["rendering"].get("show_range_hits", True))          # ... a dot where each beam hits
+        self.SHOW_RANGE_READING = bool(config["rendering"].get("show_range_reading", False))   # ... the values as a plot at the bottom of the window (render())
+
         # milliseconds
         self.MILLISECONDS = config["rendering"]["milliseconds"]
         assert(self.MILLISECONDS > 0), "milliseconds should be greater than zero"
@@ -642,6 +649,9 @@ class SocNavEnv_v2(gym.Env):
             self.MAX_H_H_STATIC_INTERACTIONS  + self.MAX_H_H_STATIC_INTERACTIONS_NON_DISPERSING) * self.MAX_HUMAN_IN_H_H_INTERACTIONS + \
             self.MAX_H_L_INTERACTIONS + self.MAX_H_L_INTERACTIONS_NON_DISPERSING
 
+        # simulated planar LiDAR at the robot's centre: obs["range"] (config section `range:`, off by default; utils/range_sensor.py)
+        self.range_sensor = RangeSensor.from_config(config.get("range"))
+
         if config.get("vision"):                 # see socnavgym/vision/README.md; nothing is imported or changed without it
             from socnavgym.vision.system import VisionSystem
             if VisionSystem.wanted(config["vision"]):
@@ -820,6 +830,8 @@ class SocNavEnv_v2(gym.Env):
         high  = np.array([+(b*b), +(b*b),  1.0,  1.0, max_segment_size, +MAX_C_SPEED, +self.MAX_ROTATION, 1] * total_segments, dtype=np.float32)
         d["walls"] = spaces.Box(low=low, high=high, shape=((8*total_segments,)), dtype = np.float32)
 
+
+        if self.range_sensor is not None: d["range"] = self.range_sensor.space()    # the simulated LiDAR's distances
 
         if self.vision is not None: d.update(self.vision.observation_spaces())      # "sensors" (and "joints")
 
@@ -1219,6 +1231,8 @@ class SocNavEnv_v2(gym.Env):
         walls_obs = [self._get_entity_obs(wall) for wall in self.walls]
         walls_obs = np.concatenate(walls_obs, dtype=np.float32) if len(walls_obs) > 0 else np.array([], dtype=np.float32)
         d["walls"] = pad_and_shuffle(walls_obs, obs_space["walls"].low.shape[0], 8)
+
+        if self.range_sensor is not None: d["range"] = self.range_sensor.scan(self)   # simulated LiDAR (utils/range_sensor.py)
 
         return d
 
@@ -3884,12 +3898,15 @@ class SocNavEnv_v2(gym.Env):
 
         return True
 
-    def render_without_showing(self, mode="human", draw_human_gaze=False, draw_human_goal=True):
+    def render_without_showing(self, mode="human", draw_human_gaze=False, draw_human_goal=None):
         """
-        Visualizing the environment
+        Visualizing the environment. draw_human_goal: None = what the config says (rendering: show_human_goals, default true).
         """
+        if draw_human_goal is None: draw_human_goal = self.SHOW_HUMAN_GOALS
 
         self.world_image = (np.ones((int(self.RESOLUTION_Y),int(self.RESOLUTION_X),3))*255).astype(np.uint8)
+
+        if self.range_sensor is not None and self.SHOW_RANGE_AREA: self.range_sensor.draw_area(self.world_image, self)    # the simulated LiDAR's last reading
 
         # can be used for debugging.
         if draw_human_gaze:
@@ -3944,6 +3961,8 @@ class SocNavEnv_v2(gym.Env):
         for i in (self.moving_interactions + self.static_interactions + self.h_l_interactions):
             i.draw(self.world_image, self.PIXEL_TO_WORLD_X, self.PIXEL_TO_WORLD_Y, self.VIEW_X, self.VIEW_Y)
 
+        if self.range_sensor is not None and self.SHOW_RANGE_HITS: self.range_sensor.draw_hits(self.world_image, self)
+
         ## uncomment to save the images
         # cv2.imwrite("img"+str(self.count)+".jpg", self.world_image)
         # self.count+=1
@@ -3960,9 +3979,10 @@ class SocNavEnv_v2(gym.Env):
         return self.world_image
 
 
-    def render(self, draw_human_gaze=False, draw_human_goal=True):
+    def render(self, draw_human_gaze=False, draw_human_goal=None):
         bar = self.vision.menu_height() if self.vision is not None else 0   # room for the menu that shows and hides the rendered windows
-        size = (self.CANVAS_X, self.CANVAS_Y + bar)                      # the configured size (rendering: resolution_x, resolution_y), whatever the map
+        plot = self.range_sensor.plot(self.CANVAS_X) if (self.range_sensor is not None and self.SHOW_RANGE_READING) else None   # the LiDAR's values, under the drawing
+        size = (self.CANVAS_X, self.CANVAS_Y + bar + (0 if plot is None else plot.shape[0]))   # the configured size (rendering: resolution_x, resolution_y), whatever the map
         if not self.window_initialised or self.screen.get_size() != size:
             if not self.window_initialised: pygame.init()
             self.screen = pygame.display.set_mode(size)
@@ -3972,6 +3992,7 @@ class SocNavEnv_v2(gym.Env):
         self.world_image = np.transpose(self.world_image, axes=(1,0,2))
         surface = pygame.surfarray.make_surface(cv2.cvtColor(self.world_image, cv2.COLOR_BGR2RGB))
         self.screen.blit(surface, (0, bar))                              # the drawing has the window's size
+        if plot is not None: self.screen.blit(pygame.surfarray.make_surface(np.transpose(cv2.cvtColor(plot, cv2.COLOR_BGR2RGB), axes=(1,0,2))), (0, bar + self.CANVAS_Y))
         if self.vision is not None: self.vision.show(self.screen)                        # the menu, the 3D view's and the sensors' windows (it handles the events)
         pygame.display.flip()
         for event in pygame.event.get():

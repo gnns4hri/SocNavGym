@@ -147,7 +147,16 @@ The observation is of the type `gymnasium.Spaces.Dict`. The dictionary has the f
     The observation vector of the all entities of the same type would be concatenated into a single vector and that would be placed in the corresponding key in the dictionary. For example, let's say there are 4 humans, then the four vectors of shape (14,) would be concatenated to (56,) and the `"humans"` key in the observation dictionary would contain the vector of size (56, ). Individual observations can be accessed by simply reshaping the observation to (-1, 14).
 
     For walls, each wall is segmented into smaller walls of size `wall_segment_size` (can be found the config). Observations from each segment are returned in `obs["walls"]`
-3. The observation space of the environment can be obtained by calling `env.observation_space`.  
+3. ```"range"``` (optional, off by default): a simulated planar LiDAR at the robot's centre. It is a float32 vector of shape (720,) with distances in metres. It is only present when the config file has this top-level section (only `enabled` is required; the other values shown are the defaults):
+    ```yaml
+    range:
+        enabled: true
+        beams: 720        # number of readings
+        range_max: 10.0   # metres; a beam that hits nothing closer reports this value
+        noise: 0.0        # standard deviation (metres) of Gaussian noise added to the beams that hit something
+    ```
+    Beam `i` points at the angle `-pi + i * 2*pi / beams` from the robot's heading, counter-clockwise (as a ROS `LaserScan` with `angle_min = -pi`): index 0 is straight behind, 180 to the right, 360 straight ahead and 540 to the left (`env.range_sensor.angles` has the angles). The beams hit the shapes the simulator collides with: a person is an ellipse that turns with their heading (`width/2` across the shoulders, `width/6` front to back), a plant is a circle, and tables, chairs and walls are rectangles. Laptops lie on the tables, above the scan, and the robot's own body is not seen. Values lie in `[0, range_max]`. The wrappers below (`PartialObservations`, `NoisyObservations`, `WorldFrameObservations`) leave this key as it is. The code is in `socnavgym/envs/utils/range_sensor.py`; it is independent of the lidars of the vision system (`socnavgym/vision`). What the 2D window shows of it is set in the `rendering` section of the config (`show_range_area`, `show_range_hits`, `show_range_reading`; see the config table below). To watch it live: `python range_sensor_demo.py` (keys: W/S/A/D drive, N new episode, Q quits, G/B/H/R show or hide the people's goals, the beam area, the hit dots and the plot; `--help` for the options).
+4. The observation space of the environment can be obtained by calling `env.observation_space`.  
 
 ## Action Space
 The action space for holonomic robot consists of three components, vx, vy, and va. Here the X axis is the robot's heading direction. For differential drive robots, the component vy would be 0. You can control the type of the robot using the config file's `robot_type` parameter. All the three components take in a value between -1 and 1, which will be later mapped to the corresponding speed by using the maxima set in the config file. If you want to use a discrete action space, you could use the [`DiscreteActions`](https://github.com/gnns4hri/SocNavGym#wrappers) wrapper.
@@ -351,13 +360,29 @@ The behaviour of the environment is controlled using the config file. The config
         <th style=text-align:center>Description</th>
     </tr>
     <tr>
-        <td rowspan="2"> rendering </td>
+        <td rowspan="6"> rendering </td>
         <td> resolution_view </td>
         <td> size of the window for rendering the environment </td>
     </tr>
     <tr>
         <td> milliseconds </td>
         <td> delay parameter for waitKey()</td>
+    </tr>
+    <tr>
+        <td> show_human_goals </td>
+        <td> Optional, default true. Whether the 2D drawing shows the circles at the people's destinations. An explicit <code>draw_human_goal</code> argument to <code>env.render()</code> / <code>env.render_without_showing()</code> takes precedence</td>
+    </tr>
+    <tr>
+        <td> show_range_area </td>
+        <td> Optional, default true. With the simulated LiDAR on (<code>range</code> section): whether the 2D drawing tints the area the beams cross</td>
+    </tr>
+    <tr>
+        <td> show_range_hits </td>
+        <td> Optional, default true. With the simulated LiDAR on: whether the 2D drawing has a red dot where each beam hits something</td>
+    </tr>
+    <tr>
+        <td> show_range_reading </td>
+        <td> Optional, default false. With the simulated LiDAR on: whether the window of <code>env.render()</code> has the reading as a plot at its bottom (beam index against distance); the window is 190 pixels taller</td>
     </tr>
     <tr>
         <td rowspan="5"> episode </td>

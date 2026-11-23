@@ -14,6 +14,11 @@ Format (all lengths in metres, angles in radians, times in seconds; the map is c
 
     name: doorway_step_out                 # optional
     description: ...                       # optional, free text
+    context: A home robot is looking for a fire extinguisher, as it just detected a fire.
+                                           # optional: the social context the sn26 / sn26gnn metric scores the episode in: one of
+                                           # the sentences of rewards/RNNBaseline/anthropic_claude_context.csv (utils/context.py).
+                                           # Default: "A robot is performing routine tasks in a home." It is in env.context, and
+                                           # its 10 numbers in env.context_values(), for agents that optimise the metric
     map:
       size: [10, 6]                        # x, y extent (default: the config's largest map)
       boundary: true                       # four walls around the map (default true)
@@ -225,9 +230,14 @@ class Trigger:
 class Scenario:
     def __init__(self, spec):
         d = read(spec); self.spec = d
-        unknown = set(d) - {"name", "description", "config", "seed", "map", "robot", "furniture", "people", "groups", "source"}
+        unknown = set(d) - {"name", "description", "context", "config", "seed", "map", "robot", "furniture", "people", "groups", "source"}
         if unknown: raise ScenarioError(f"unknown top-level field(s) {sorted(unknown)}")
         self.name = str(d.get("name", "scenario"))
+        self.context = None                              # the social context the metric scores in (None: the default one)
+        if d.get("context") is not None:
+            from socnavgym.envs.utils import context as _context
+            try: self.context = _context.check(d["context"])
+            except ValueError as e: raise ScenarioError(str(e))
         m = d.get("map") or {}
         if not isinstance(m, dict): raise ScenarioError("map: expected a mapping")
         self.size = None if m.get("size") is None else _xy(m["size"], "map: size")
@@ -499,6 +509,8 @@ def export(env, name="exported", config=None, seed=None, description=None):
     scn = getattr(env, "_scenario", None)
     d = {"name": name}
     if description: d["description"] = description
+    from socnavgym.envs.utils import context as _context
+    if getattr(env, "context", _context.DEFAULT) != _context.DEFAULT: d["context"] = env.context      # only when it is not the default one
     if config: d["config"] = config
     if seed is not None: d["seed"] = int(seed)
     walls = []

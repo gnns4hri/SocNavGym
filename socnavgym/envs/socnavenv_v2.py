@@ -294,6 +294,8 @@ class SocNavEnv_v2(gym.Env):
         # (reset(options={"scenario": ...})); _scenario is the one of the current episode (None: a random scene)
         self.SCENARIO_SPEC = None
         self._scenario = None
+        from socnavgym.envs.utils import context as _context
+        self.context = _context.DEFAULT       # the social context sn26 / sn26gnn score the episode in (utils/context.py); a scenario may name another
 
         # rewards
         self.prev_distance = None
@@ -3580,6 +3582,21 @@ class SocNavEnv_v2(gym.Env):
             Scenario(spec)                      # fail now on a malformed file
         self.SCENARIO_SPEC = spec
 
+    def context_values(self):
+        """The 10 numbers of the present episode's social context (0 .. 100, order of utils/context.FIELDS: urgency, importance,
+        risk, ...): the metric's context input. An agent that optimises sn26 / sn26gnn must use the same ones."""
+        from socnavgym.envs.utils import context as _context
+        return _context.values(self.context)
+
+    def set_range_sensor(self, section=None):
+        """Turns the simulated LiDAR (obs["range"], utils/range_sensor.py) on or off from code, as the config's `range:`
+        section does: True (the defaults), a dict of its fields (beams, range_max, noise; `enabled` may be left out), or
+        None / False (off). The observation space changes at once; observations have the key from the next reset() or step()."""
+        if section is True: section = {}
+        if section is None or section is False: self.range_sensor = None
+        else: self.range_sensor = RangeSensor.from_config(dict({"enabled": True}, **section))
+        self.__observation_space = None          # built again, with or without "range", the next time it is asked for
+
     def reset(self, seed=None, options=None) :
         self.collision_count = 0
         success = False
@@ -3627,6 +3644,8 @@ class SocNavEnv_v2(gym.Env):
         else:
             from socnavgym.envs.utils.scenario import Scenario
             self._scenario = Scenario(spec)
+        from socnavgym.envs.utils import context as _context
+        self.context = (self._scenario.context if self._scenario is not None else None) or _context.DEFAULT
 
         HALF_SIZE_X = self.MAP_X/2. - self.MARGIN
         HALF_SIZE_Y = self.MAP_Y/2. - self.MARGIN

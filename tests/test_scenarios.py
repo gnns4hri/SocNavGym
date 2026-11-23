@@ -158,3 +158,40 @@ def test_collision_with_scripted_person_is_reported():
         _, _, te, tr, info = env.step(STILL)
         if te: break
     assert info["COLLISION_HUMAN"] and info["scenario_collision"] == [("rammer", "scripted")]
+
+
+FIRE = "A home robot is looking for a fire extinguisher, as it just detected a fire."
+
+
+def test_social_context():
+    from socnavgym.envs.utils import context as C
+    assert C.values() == [30, 70, 30, 40, 60, 50, 70, 20, 20, 70] and C.values(FIRE) == [99, 95, 85, 80, 80, 90, 20, 90, 75, 80] and len(C.sentences()) == 869
+    env = make()
+    assert env.context == C.DEFAULT
+    spec = corridor(b={"name": "b", "x": 3.0, "y": 0.0, "behaviour": "goals", "policy": "orca", "goals": [[-3.0, 0.0]]})
+    env.reset(seed=1, options={"scenario": spec}); assert env.context == C.DEFAULT and env.context_values() == C.values()      # a scenario without the field
+    env.reset(seed=1, options={"scenario": dict(spec, context=FIRE + "  ")}); assert env.context == FIRE and env.context_values() == C.values(FIRE)
+    d = export(env, name="e"); assert d["context"] == FIRE and Scenario(d).context == FIRE                                  # exported with it
+    env.reset(seed=1); assert env.context == C.DEFAULT and "context" not in export(env)                                     # a random scene: the default again
+    env.set_scenario(dict(spec, context=FIRE)); env.reset(seed=2); assert env.context == FIRE
+    env.set_scenario(None); env.reset(seed=2); assert env.context == C.DEFAULT
+    with pytest.raises(ScenarioError, match="nearest"): Scenario(dict(spec, context="A home robot is looking for a fire extinguisher."))   # not in the table
+
+
+def test_social_context_changes_the_score():
+    """The same drive scored in two contexts: the reward uses the episode's (sn26 and, when its weights are there, sn26gnn)."""
+    from socnavgym.envs.utils import context as C
+    from socnavgym.envs.rewards import sn26gnn as G
+    if not G.available(): pytest.skip("sn26gnn weights not installed")
+    env = make()
+    spec = corridor(b={"name": "b", "x": 3.0, "y": 0.4, "behaviour": "goals", "policy": "orca", "goals": [[-3.0, 0.4]]})
+    out = {}
+    for ctx in (None, FIRE):
+        env.reset(seed=4, options={"scenario": spec if ctx is None else dict(spec, context=ctx)})
+        for _ in range(40): env.step(FORWARD)
+        data = env.reward_calculator.data
+        if not isinstance(data, dict) or not data.get("sequence"): pytest.skip("this config's reward does not record the trajectory")
+        out[ctx] = (G.score(data, env.context), [(f["robot"]["x"], f["robot"]["y"]) for f in data["sequence"]])
+    assert out[None][1] == out[FIRE][1]                                    # the same drive ...
+    assert abs(out[None][0] - out[FIRE][0]) > 1e-4                         # ... scored differently
+    assert out[None][0] == G.score(data, C.DEFAULT)                        # and the default context is what it always was

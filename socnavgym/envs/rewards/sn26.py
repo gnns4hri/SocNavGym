@@ -223,17 +223,21 @@ class Reward(RewardAPI):
         return dmin
 
 
-    CONTEXT = "A robot is performing routine tasks in a home."
-    _tools = {}              # (context file, frame threshold) -> (context features, max metric values, feature names); read once
+    CONTEXT = "A robot is performing routine tasks in a home."          # the default social context (utils/context.DEFAULT)
+    _tools = {}              # (context file, frame threshold, context) -> (context features, max metric values, feature names); read once
+
+    def context(self):
+        """The social context of the present episode: the environment's (a scenario may name one), else the default."""
+        return getattr(self.env, "context", None) or self.CONTEXT
 
     def _scoring_tools(self):
         context_file = os.path.dirname(__file__)+"/RNNBaseline/anthropic_claude_context.csv"
-        key = (context_file, self.FRAME_THRESHOLD)
+        ctx = self.context(); key = (context_file, self.FRAME_THRESHOLD, ctx)
         if key not in Reward._tools:
             if not os.path.exists(context_file):
                 raise FileNotFoundError(f"sn26 context file missing: {context_file} (install the package with its data files)")
-            ds = TrajectoryDataset([], context_file, label_exists=False, frame_threshold=self.FRAME_THRESHOLD, overwrite_context=self.CONTEXT)
-            Reward._tools[key] = (ds.context_df.loc[self.CONTEXT.rstrip()].to_dict(), ds.max_metric_values, ds.all_features)
+            ds = TrajectoryDataset([], context_file, label_exists=False, frame_threshold=self.FRAME_THRESHOLD, overwrite_context=ctx)
+            Reward._tools[key] = (ds.context_df.loc[ctx.rstrip()].to_dict(), ds.max_metric_values, ds.all_features)
         return Reward._tools[key]
 
     def predict(self, model):

@@ -171,4 +171,4 @@ class Reward(SN26Reward):
     def predict(self, model):
         if len(self.data.get("sequence", [])) == 0:
             return 0.0
-        return score(self.data, self.CONTEXT)
+        return score(self.data, self.context())          # the episode's social context (the default unless its scenario names another)
